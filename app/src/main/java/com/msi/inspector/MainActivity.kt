@@ -28,7 +28,6 @@ import android.text.TextWatcher
 import android.view.Gravity
 import android.view.View
 import android.view.ViewGroup
-import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.ImageView
@@ -80,6 +79,7 @@ class MainActivity : Activity() {
     private var scanRunning = false
     private var vpnActive = false
     private var lastScanText = "لم يتم إجراء فحص بعد"
+    private var lastScanError: String? = null
 
     private lateinit var contentHost: LinearLayout
     private lateinit var navHost: LinearLayout
@@ -268,7 +268,11 @@ class MainActivity : Activity() {
         )
         hero.addView(homeSummary)
         addGap(hero, 7)
-        homeStatus = text(lastScanText, 11f, mint)
+        homeStatus = text(
+            lastScanError ?: lastScanText,
+            11f,
+            if (lastScanError == null) mint else red
+        )
         hero.addView(homeStatus)
         addGap(hero, 12)
 
@@ -674,6 +678,7 @@ class MainActivity : Activity() {
     private fun startAudit() {
         if (scanRunning) return
         scanRunning = true
+        lastScanError = null
         if (currentScreen != Screen.HOME) currentScreen = Screen.HOME
         renderScreen()
         scanButton.isEnabled = false
@@ -684,6 +689,7 @@ class MainActivity : Activity() {
             try {
                 val audited = performAudit()
                 mainHandler.post {
+                    if (isFinishing || isDestroyed) return@post
                     allResults = audited.sortedWith(
                         compareByDescending<AppAudit> { it.specialAccessReasons.isNotEmpty() }
                             .thenByDescending { it.requestedSpecialAccess.isNotEmpty() }
@@ -691,6 +697,7 @@ class MainActivity : Activity() {
                             .thenBy { it.label.lowercase(Locale.ROOT) }
                     )
                     scanRunning = false
+                    lastScanError = null
                     lastScanText = DateFormat.getDateTimeInstance(
                         DateFormat.MEDIUM, DateFormat.SHORT
                     ).apply {
@@ -699,12 +706,13 @@ class MainActivity : Activity() {
                     renderScreen()
                 }
             } catch (e: Exception) {
+                val errorMessage = "تعذر إكمال الفحص: " +
+                    (e.localizedMessage ?: "خطأ غير معروف")
                 mainHandler.post {
+                    if (isFinishing || isDestroyed) return@post
                     scanRunning = false
+                    lastScanError = errorMessage
                     renderScreen()
-                    homeStatus.text = "تعذر إكمال الفحص: " +
-                        (e.localizedMessage ?: "خطأ غير معروف")
-                    homeStatus.setTextColor(red)
                 }
             }
         }
@@ -719,6 +727,9 @@ class MainActivity : Activity() {
         val output = ArrayList<AppAudit>(installed.size)
 
         installed.forEach { appInfo ->
+            if (Thread.currentThread().isInterrupted) {
+                throw InterruptedException("تم إلغاء فحص التطبيقات.")
+            }
             val pkg = appInfo.packageName
             val packageInfo = try {
                 pm.getPackageInfo(pkg, PackageManager.GET_PERMISSIONS)
@@ -757,8 +768,13 @@ class MainActivity : Activity() {
             }
             if (signals.isEmpty()) signals.add("لم تظهر المؤشرات المحددة في هذا الفحص.")
 
+            val appLabel = try {
+                pm.getApplicationLabel(appInfo).toString().ifBlank { pkg }
+            } catch (_: Exception) {
+                pkg
+            }
             output.add(AppAudit(
-                label = pm.getApplicationLabel(appInfo).toString(),
+                label = appLabel,
                 packageName = pkg,
                 version = packageInfo?.versionName?.takeIf { it.isNotBlank() } ?: "غير متاح",
                 installer = installer,
@@ -1030,6 +1046,7 @@ class MainActivity : Activity() {
     }
 
     override fun onDestroy() {
+        scanRunning = false
         worker.shutdownNow()
         super.onDestroy()
     }
