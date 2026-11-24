@@ -305,7 +305,7 @@ class MainActivity : Activity() {
         addGap(stats, 6)
         stats.addView(text("تطبيقات نظام: " + systemCount, 13f, muted))
         addGap(stats, 6)
-        stats.addView(text("VPN نشط على الجهاز: " + if (vpnActive) "نعم" else "لا", 13f, blue))
+        stats.addView(text("VPN على الجهاز: " + if (vpnActive) "نشط" else "غير نشط أو غير متاح", 13f, blue))
         body.addView(stats)
         addGap(body)
 
