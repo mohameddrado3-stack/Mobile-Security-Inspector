@@ -178,7 +178,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
     }
 
     private fun startAndroidShell() {
-        if (session?.isRunning == true) return
+        if (session?.let { it.pid > 0 && it.isRunning } == true) return
         try {
             val home = filesDir.absolutePath
             val env = arrayOf(
@@ -211,7 +211,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
     }
 
     private fun restartShell() {
-        session?.finishIfRunning()
+        session?.takeIf { it.pid > 0 && it.isRunning }?.finishIfRunning()
         session = null
         terminalView.post { startAndroidShell() }
     }
@@ -231,14 +231,14 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         terminalView.post {
             if (terminalView.mEmulator != null) {
                 terminalView.setTerminalCursorBlinkerRate(500)
-                terminalView.setTerminalCursorBlinkerState(true)
+                terminalView.setTerminalCursorBlinkerState(true, true)
             }
         }
     }
 
     override fun onPause() {
         if (::terminalView.isInitialized) {
-            terminalView.setTerminalCursorBlinkerState(false)
+            terminalView.setTerminalCursorBlinkerState(false, false)
         }
         super.onPause()
     }
@@ -297,7 +297,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
     override fun onTerminalCursorStateChange(state: Boolean) {
         runOnUiThread {
             if (::terminalView.isInitialized) {
-                terminalView.setTerminalCursorBlinkerState(state && !isFinishing)
+                terminalView.setTerminalCursorBlinkerState(state && !isFinishing, true)
             }
         }
     }
