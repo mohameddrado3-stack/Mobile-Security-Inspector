@@ -4,6 +4,8 @@ import android.app.Activity
 import android.app.AlertDialog
 import android.app.admin.DevicePolicyManager
 import android.content.ComponentName
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -13,6 +15,7 @@ import android.content.pm.PermissionInfo
 import android.graphics.Color
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.Drawable
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
 import android.net.Uri
@@ -28,6 +31,7 @@ import android.view.ViewGroup
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ImageView
 import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
@@ -35,6 +39,7 @@ import android.widget.Toast
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 import java.util.concurrent.Executors
 
 private data class AppAudit(
@@ -45,19 +50,23 @@ private data class AppAudit(
     val isSystem: Boolean,
     val grantedSensitive: List<String>,
     val requestedSensitive: List<String>,
+    val requestedSpecialAccess: List<String>,
     val signals: List<String>,
-    val specialAccessReasons: List<String>
+    val specialAccessReasons: List<String>,
+    val icon: Drawable?
 ) {
     val needsReview: Boolean get() = specialAccessReasons.isNotEmpty()
     val level: String get() = when {
-        specialAccessReasons.isNotEmpty() -> "إعداد وصول خاص مفعّل — تحقق من حاجتك له"
+        specialAccessReasons.isNotEmpty() -> "إعداد وصول خاص نشط — راجع السبب"
+        requestedSpecialAccess.isNotEmpty() -> "طلب صلاحية وصول خاص — الحالة غير مؤكدة"
         grantedSensitive.isNotEmpty() -> "صلاحيات حساسة ممنوحة — راجع التفاصيل"
-        else -> "لم تُرصد الصلاحيات المحددة في هذا الفحص"
+        else -> "لم تُرصد المؤشرات المحددة في هذا الفحص"
     }
 }
 
 class MainActivity : Activity() {
     private enum class Screen { HOME, APPS, UPDATES, CONTROLS }
+    private enum class AppFilter { ALL, USER, SYSTEM, ACTIVE_SPECIAL, REQUESTED_SPECIAL, SENSITIVE }
 
     private val worker = Executors.newSingleThreadExecutor()
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -65,7 +74,9 @@ class MainActivity : Activity() {
 
     private var currentScreen = Screen.HOME
     private var allResults: List<AppAudit> = emptyList()
-    private var showingReviewOnly = false
+    private var appFilter = AppFilter.ALL
+    private var visibleAppLimit = 60
+    private var updatesLimit = 50
     private var scanRunning = false
     private var vpnActive = false
     private var lastScanText = "لم يتم إجراء فحص بعد"
@@ -75,6 +86,7 @@ class MainActivity : Activity() {
     private lateinit var scanButton: TextView
     private lateinit var scanProgress: ProgressBar
     private lateinit var searchInput: EditText
+    private lateinit var appFilterHost: LinearLayout
     private lateinit var appResults: LinearLayout
     private lateinit var homeSummary: TextView
     private lateinit var homeStatus: TextView
@@ -280,7 +292,16 @@ class MainActivity : Activity() {
         val systemCount = allResults.count { it.isSystem }
         stats.addView(text("إجمالي التطبيقات: " + allResults.size, 14f, white, true))
         addGap(stats, 6)
-        stats.addView(text("تحتاج مراجعة: " + reviewed, 13f, amber))
+        stats.addView(text("إعداد وصول خاص نشط: " + reviewed, 13f, amber))
+        addGap(stats, 6)
+        stats.addView(text(
+            "تطبيقات طلبت إعداد وصول خاص (غير مؤكد التفعيل): " +
+                allResults.count { it.requestedSpecialAccess.isNotEmpty() },
+            12f, amber
+        ))
+        addGap(stats, 6)
+        stats.addView(text("تطبيقات بصلاحيات حساسة ممنوحة: " +
+            allResults.count { it.grantedSensitive.isNotEmpty() }, 12f, blue))
         addGap(stats, 6)
         stats.addView(text("تطبيقات نظام: " + systemCount, 13f, muted))
         addGap(stats, 6)
@@ -304,6 +325,10 @@ class MainActivity : Activity() {
             currentScreen = Screen.CONTROLS
             renderScreen()
         })
+        addGap(shortcuts, 7)
+        shortcuts.addView(makeButton("مشاركة تقرير الفحص") {
+            confirmShareReport()
+        })
         body.addView(shortcuts)
         addGap(body)
         body.addView(text(
@@ -320,7 +345,7 @@ class MainActivity : Activity() {
 
     private fun renderApps() {
         val body = page()
-        sectionTitle(body, "التطبيقات المثبتة", "اختر أي تطبيق لعرض التفاصيل وفتح إعداداته.")
+        sectionTitle(body, "التطبيقات المثبتة", "ابحث بالاسم أو اسم الحزمة، ثم استخدم الفلاتر لتضييق النتائج.")
         searchInput = EditText(this).apply {
             hint = "بحث بالاسم أو اسم الحزمة"
             textSize = 14f
@@ -331,20 +356,17 @@ class MainActivity : Activity() {
             background = rounded(panel)
         }
         body.addView(searchInput, LinearLayout.LayoutParams(-1, dp(47)))
-        addGap(body, 7)
-        val filter = makeButton(
-            if (showingReviewOnly) "عرض كل التطبيقات" else "عرض التطبيقات ذات إعدادات الوصول الخاصة"
-        ) {
-            showingReviewOnly = !showingReviewOnly
-            renderScreen()
-        }
-        body.addView(filter, LinearLayout.LayoutParams(-1, -2))
+        addGap(body, 8)
+        appFilterHost = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        body.addView(appFilterHost, LinearLayout.LayoutParams(-1, -2))
         addGap(body, 8)
         appResults = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
         body.addView(appResults)
+        renderAppFilters()
         searchInput.addTextChangedListener(object : TextWatcher {
             override fun beforeTextChanged(s: CharSequence?, start: Int, count: Int, after: Int) {}
             override fun onTextChanged(s: CharSequence?, start: Int, before: Int, count: Int) {
+                visibleAppLimit = 60
                 renderAppList()
             }
             override fun afterTextChanged(s: Editable?) {}
@@ -352,38 +374,102 @@ class MainActivity : Activity() {
         renderAppList()
     }
 
+    private fun renderAppFilters() {
+        if (!::appFilterHost.isInitialized) return
+        appFilterHost.removeAllViews()
+        val rows = listOf(
+            listOf(
+                AppFilter.ALL to "الكل",
+                AppFilter.USER to "المثبتة",
+                AppFilter.SYSTEM to "النظام"
+            ),
+            listOf(
+                AppFilter.ACTIVE_SPECIAL to "وصول خاص نشط",
+                AppFilter.REQUESTED_SPECIAL to "طلب وصول خاص",
+                AppFilter.SENSITIVE to "صلاحيات حساسة"
+            )
+        )
+        rows.forEach { rowFilters ->
+            val row = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+            rowFilters.forEach { (filter, title) ->
+                val selected = appFilter == filter
+                row.addView(makeButton(
+                    title,
+                    if (selected) mint else panel,
+                    if (selected) bg else white
+                ) {
+                    appFilter = filter
+                    visibleAppLimit = 60
+                    renderAppFilters()
+                    renderAppList()
+                }, LinearLayout.LayoutParams(0, -2, 1f).apply {
+                    marginEnd = dp(4)
+                    marginStart = dp(4)
+                    bottomMargin = dp(6)
+                })
+            }
+            appFilterHost.addView(row)
+        }
+    }
+
     private fun renderAppList() {
         if (!::appResults.isInitialized) return
         appResults.removeAllViews()
         if (allResults.isEmpty()) {
-            appResults.addView(text(
-                "لا توجد نتائج بعد. ارجع إلى الرئيسية وابدأ الفحص.",
-                13f, muted
-            ))
+            appResults.addView(text("لا توجد نتائج بعد. ارجع إلى الرئيسية وابدأ الفحص.", 13f, muted))
             return
         }
         val query = if (::searchInput.isInitialized) {
             searchInput.text.toString().trim().lowercase(Locale.ROOT)
         } else ""
-        val visible = allResults.filter {
-            (!showingReviewOnly || it.needsReview) &&
-                (query.isEmpty() ||
-                    it.label.lowercase(Locale.ROOT).contains(query) ||
-                    it.packageName.lowercase(Locale.ROOT).contains(query))
+        val visible = allResults.filter { audit ->
+            val filterMatch = when (appFilter) {
+                AppFilter.ALL -> true
+                AppFilter.USER -> !audit.isSystem
+                AppFilter.SYSTEM -> audit.isSystem
+                AppFilter.ACTIVE_SPECIAL -> audit.specialAccessReasons.isNotEmpty()
+                AppFilter.REQUESTED_SPECIAL -> audit.requestedSpecialAccess.isNotEmpty()
+                AppFilter.SENSITIVE -> audit.grantedSensitive.isNotEmpty()
+            }
+            filterMatch && (query.isEmpty() ||
+                audit.label.lowercase(Locale.ROOT).contains(query) ||
+                audit.packageName.lowercase(Locale.ROOT).contains(query))
         }
+        appResults.addView(text(
+            "النتائج: " + visible.size + " تطبيقًا" +
+                if (visible.size > visibleAppLimit) " — يتم عرض " + visibleAppLimit + " حاليًا" else "",
+            11f, muted
+        ))
+        addGap(appResults, 7)
         if (visible.isEmpty()) {
-            appResults.addView(text("لا توجد تطبيقات مطابقة للبحث.", 13f, muted))
+            appResults.addView(text("لا توجد تطبيقات مطابقة لهذا البحث أو الفلتر.", 13f, muted))
             return
         }
-        val limit = 100
-        visible.take(limit).forEach { audit ->
+        visible.take(visibleAppLimit).forEach { audit ->
             val item = card()
-            item.addView(text(audit.label, 15f, white, true))
-            addGap(item, 4)
-            item.addView(text(audit.packageName, 10.5f, muted))
-            addGap(item, 8)
+            val heading = LinearLayout(this).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+            }
+            val iconView = ImageView(this).apply {
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                setImageDrawable(audit.icon)
+                background = rounded(panelLight, 12)
+                setPadding(dp(4), dp(4), dp(4), dp(4))
+            }
+            heading.addView(iconView, LinearLayout.LayoutParams(dp(52), dp(52)).apply {
+                marginEnd = dp(12)
+            })
+            val titleColumn = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+            titleColumn.addView(text(audit.label, 15f, white, true))
+            addGap(titleColumn, 4)
+            titleColumn.addView(text(audit.packageName, 10f, muted))
+            heading.addView(titleColumn, LinearLayout.LayoutParams(0, -2, 1f))
+            item.addView(heading)
+            addGap(item, 9)
             val statusColor = when {
                 audit.specialAccessReasons.isNotEmpty() -> amber
+                audit.requestedSpecialAccess.isNotEmpty() -> amber
                 audit.grantedSensitive.isNotEmpty() -> blue
                 else -> mint
             }
@@ -396,18 +482,16 @@ class MainActivity : Activity() {
                 11f, muted
             ))
             addGap(item, 8)
-            item.addView(makeButton("التفاصيل وإعدادات التطبيق") {
-                showDetails(audit)
-            })
+            item.addView(makeButton("التفاصيل وإعدادات التطبيق") { showDetails(audit) })
             appResults.addView(item, LinearLayout.LayoutParams(-1, -2).apply {
                 bottomMargin = dp(8)
             })
         }
-        if (visible.size > limit) {
-            appResults.addView(text(
-                "تم عرض أول " + limit + " نتيجة. استخدم البحث لتضييق القائمة.",
-                11f, muted
-            ))
+        if (visible.size > visibleAppLimit) {
+            appResults.addView(makeButton("عرض 60 تطبيقًا إضافيًا") {
+                visibleAppLimit += 60
+                renderAppList()
+            })
         }
     }
 
@@ -417,23 +501,29 @@ class MainActivity : Activity() {
         intro.addView(text("مراجعة تحديثات التطبيقات", 17f, white, true))
         addGap(intro, 7)
         intro.addView(text(
-            "نستطيع معرفة الإصدار الحالي ومصدر التثبيت. أما توفر تحديث جديد فيحدده المتجر نفسه؛ Android لا يوفّر لتطبيق عادي قائمة موحدة بتحديثات كل التطبيقات.",
+            "نعرض الإصدار المثبت ومصدر التثبيت المعروف. لا يستطيع Android إعطاء تطبيق عادي قائمة موحدة بكل التحديثات المتاحة؛ المتجر الأصلي هو المرجع.",
             12.5f, muted
         ))
         addGap(intro, 8)
         intro.addView(text(
-            "اضغط «فتح صفحة المتجر» للتطبيقات المثبتة من Google Play، ثم راجع زر التحديث داخل المتجر.",
+            "افتح صفحة التطبيق داخل متجره، ثم راجع بنفسك إن كان هناك تحديث.",
             12f, mint
         ))
         body.addView(intro)
         addGap(body)
-        sectionTitle(body, "تطبيقات الجهاز", "تظهر معلومات المتجر عندما يكون مصدر التثبيت معروفًا.")
+        sectionTitle(body, "التطبيقات المثبتة", "تُعرض على دفعات حتى لا تتكدس واجهة الهاتف.")
         if (allResults.isEmpty()) {
             body.addView(text("ابدأ الفحص أولًا حتى تظهر قائمة التطبيقات.", 13f, muted))
             return
         }
         val userApps = allResults.filter { !it.isSystem }
-        userApps.take(80).forEach { audit ->
+        body.addView(text(
+            "عدد التطبيقات المثبتة: " + userApps.size +
+                " — المعروض حاليًا: " + minOf(userApps.size, updatesLimit),
+            11f, muted
+        ))
+        addGap(body, 7)
+        userApps.take(updatesLimit).forEach { audit ->
             val item = card()
             item.addView(text(audit.label, 14f, white, true))
             addGap(item, 4)
@@ -441,16 +531,16 @@ class MainActivity : Activity() {
             addGap(item, 4)
             item.addView(text("مصدر التثبيت: " + audit.installer, 11f, muted))
             addGap(item, 8)
-            if (audit.installer == "Google Play") {
-                item.addView(makeButton("فتح صفحة التطبيق في Google Play", mint, bg) {
+            when (audit.installer) {
+                "Google Play" -> item.addView(makeButton("فتح صفحة التطبيق في Google Play", mint, bg) {
                     openPlayStore(audit.packageName)
                 })
-            } else {
-                item.addView(text(
-                    if (audit.installer == "Galaxy Store")
-                        "افتح Galaxy Store وابحث عن التطبيق لمراجعة تحديثه."
-                    else
-                        "لم يتم تأكيد متجر للتطبيق. راجع التحديث من المتجر أو المصدر الذي ثبّت التطبيق.",
+                "Galaxy Store" -> item.addView(text(
+                    "تم التعرف على Galaxy Store كمصدر تثبيت. افتح المتجر وابحث عن التطبيق لمراجعة تحديثه.",
+                    11f, amber
+                ))
+                else -> item.addView(text(
+                    "لم يتم تأكيد متجر لهذا التطبيق. راجع التحديث من المتجر أو المصدر الذي ثبّت التطبيق.",
                     11f, amber
                 ))
             }
@@ -458,8 +548,11 @@ class MainActivity : Activity() {
                 bottomMargin = dp(8)
             })
         }
-        if (userApps.size > 80) {
-            body.addView(text("تم عرض أول 80 تطبيقًا في هذه الصفحة.", 11f, muted))
+        if (userApps.size > updatesLimit) {
+            body.addView(makeButton("عرض 50 تطبيقًا إضافيًا") {
+                updatesLimit += 50
+                renderUpdates()
+            })
         }
     }
 
@@ -514,6 +607,63 @@ class MainActivity : Activity() {
         ))
     }
 
+    private fun confirmShareReport() {
+        if (allResults.isEmpty()) {
+            Toast.makeText(this, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("مشاركة تقرير الفحص")
+            .setMessage(
+                "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات. " +
+                    "لن يُرسل تلقائيًا؛ ستختار أنت التطبيق أو الجهة التي تشاركه معها."
+            )
+            .setNegativeButton("إلغاء", null)
+            .setPositiveButton("متابعة") { _, _ -> shareAuditReport() }
+            .show()
+    }
+
+    private fun shareAuditReport() {
+        val report = StringBuilder()
+        report.append("Mobile Security Inspector — تقرير محلي\\n")
+        report.append("آخر فحص: ").append(lastScanText).append("\\n")
+        report.append("عدد التطبيقات: ").append(allResults.size).append("\\n")
+        report.append("إعدادات وصول خاصة نشطة: ")
+            .append(allResults.count { it.needsReview }).append("\\n")
+        report.append("تطبيقات بها صلاحيات حساسة ممنوحة: ")
+            .append(allResults.count { it.grantedSensitive.isNotEmpty() }).append("\\n\\n")
+        allResults.forEach { audit ->
+            report.append("التطبيق: ").append(audit.label).append("\\n")
+            report.append("الحزمة: ").append(audit.packageName).append("\\n")
+            report.append("الإصدار: ").append(audit.version).append("\\n")
+            report.append("مصدر التثبيت: ").append(audit.installer).append("\\n")
+            if (audit.specialAccessReasons.isNotEmpty()) {
+                report.append("إعداد وصول خاص نشط: ")
+                    .append(audit.specialAccessReasons.joinToString("؛ ")).append("\\n")
+            }
+            if (audit.requestedSpecialAccess.isNotEmpty()) {
+                report.append("إعدادات خاصة مطلوبة (غير مؤكدة التفعيل): ")
+                    .append(audit.requestedSpecialAccess.joinToString("؛ ")).append("\\n")
+            }
+            if (audit.grantedSensitive.isNotEmpty()) {
+                report.append("صلاحيات حساسة ممنوحة: ")
+                    .append(audit.grantedSensitive.joinToString("؛ ")).append("\\n")
+            }
+            report.append("\\n")
+        }
+        report.append("تنبيه: هذا التقرير يعرض مؤشرات من Android ولا يثبت أن أي تطبيق ضار.")
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = "text/plain"
+            putExtra(Intent.EXTRA_SUBJECT, "Mobile Security Inspector — تقرير الفحص")
+            putExtra(Intent.EXTRA_TEXT, report.toString())
+        }
+        try {
+            startActivity(Intent.createChooser(sendIntent, "مشاركة التقرير"))
+        } catch (_: Exception) {
+            Toast.makeText(this, "تعذر فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
+        }
+    }
+
     private fun startAudit() {
         if (scanRunning) return
         scanRunning = true
@@ -529,13 +679,16 @@ class MainActivity : Activity() {
                 mainHandler.post {
                     allResults = audited.sortedWith(
                         compareByDescending<AppAudit> { it.specialAccessReasons.isNotEmpty() }
+                            .thenByDescending { it.requestedSpecialAccess.isNotEmpty() }
                             .thenByDescending { it.grantedSensitive.size }
                             .thenBy { it.label.lowercase(Locale.ROOT) }
                     )
                     scanRunning = false
                     lastScanText = DateFormat.getDateTimeInstance(
-                        DateFormat.SHORT, DateFormat.SHORT
-                    ).format(Date())
+                        DateFormat.MEDIUM, DateFormat.SHORT
+                    ).apply {
+                        timeZone = TimeZone.getTimeZone("Africa/Cairo")
+                    }.format(Date())
                     renderScreen()
                 }
             } catch (e: Exception) {
@@ -573,6 +726,7 @@ class MainActivity : Activity() {
             }
             val grantedSensitive = granted.filter { isDangerousPermission(it) }
             val requestedSensitive = requested.filter { isDangerousPermission(it) }
+            val requestedSpecialAccess = requested.mapNotNull { specialPermissionRequestLabel(it) }.distinct()
             val categories = grantedSensitive.mapNotNull { permissionCategory(it) }.distinct()
             val isAccessibility = accessibilityPackages.contains(pkg)
             val isAdmin = adminPackages.contains(pkg)
@@ -583,6 +737,9 @@ class MainActivity : Activity() {
             if (isAccessibility) specialAccessReasons.add("خدمة إمكانية الوصول مفعّلة لهذا التطبيق.")
             if (isAdmin) specialAccessReasons.add("هذا التطبيق مفعّل كمسؤول جهاز.")
             if (specialAccessReasons.isNotEmpty()) signals.addAll(specialAccessReasons)
+            if (requestedSpecialAccess.isNotEmpty()) {
+                signals.add("التطبيق يطلب إعدادات وصول خاصة في ملفه، لكن حالة تفعيلها لا يمكن تأكيدها من هذا الفحص.")
+            }
             if (categories.isNotEmpty()) {
                 signals.add("صلاحيات Android الحساسة الممنوحة: " +
                     categories.joinToString("، ") +
@@ -601,8 +758,10 @@ class MainActivity : Activity() {
                 isSystem = isSystem,
                 grantedSensitive = grantedSensitive,
                 requestedSensitive = requestedSensitive,
+                requestedSpecialAccess = requestedSpecialAccess,
                 signals = signals,
-                specialAccessReasons = specialAccessReasons
+                specialAccessReasons = specialAccessReasons,
+                icon = try { appInfo.loadIcon(pm) } catch (_: Exception) { null }
             ))
         }
         return output
@@ -616,6 +775,26 @@ class MainActivity : Activity() {
             } catch (_: Exception) {
                 false
             }
+        }
+    }
+
+    private fun specialPermissionRequestLabel(permission: String): String? {
+        return when (permission) {
+            "android.permission.SYSTEM_ALERT_WINDOW" ->
+                "طلب صلاحية الظهور فوق التطبيقات — حالة التفعيل غير مؤكدة."
+            "android.permission.WRITE_SETTINGS" ->
+                "طلب تعديل إعدادات النظام — حالة التفعيل غير مؤكدة."
+            "android.permission.PACKAGE_USAGE_STATS" ->
+                "طلب الوصول إلى إحصاءات الاستخدام — حالة التفعيل غير مؤكدة."
+            "android.permission.MANAGE_EXTERNAL_STORAGE" ->
+                "طلب الوصول الشامل للملفات — حالة التفعيل غير مؤكدة."
+            "android.permission.REQUEST_INSTALL_PACKAGES" ->
+                "طلب صلاحية تثبيت حزم التطبيقات — حالة التفعيل غير مؤكدة."
+            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" ->
+                "طلب استثناء من تحسين البطارية — حالة التفعيل غير مؤكدة."
+            "android.permission.ACCESS_NOTIFICATION_POLICY" ->
+                "طلب الوصول إلى سياسة عدم الإزعاج — حالة التفعيل غير مؤكدة."
+            else -> null
         }
     }
 
@@ -634,7 +813,11 @@ class MainActivity : Activity() {
             p.contains("calendar") -> "التقويم"
             p.contains("external_storage") || p.contains("manage_external_storage") ->
                 "الملفات والتخزين"
-            p.contains("body_sensors") -> "مستشعرات الجسم"
+            p.contains("body_sensors") || p.contains("activity_recognition") -> "النشاط ومستشعرات الجسم"
+            p.contains("bluetooth") || p.contains("nearby_wifi") || p.contains("nearby_devices") -> "الأجهزة القريبة والبلوتوث"
+            p.contains("post_notifications") -> "الإشعارات"
+            p.contains("read_media_images") || p.contains("read_media_video") ||
+                p.contains("read_media_audio") || p.contains("read_media_visual_user_selected") -> "الصور والفيديو والصوت"
             else -> null
         }
     }
@@ -715,6 +898,16 @@ class MainActivity : Activity() {
             11.5f, muted
         ))
         addGap(details, 8)
+        details.addView(text("إعدادات وصول خاصة طلبها التطبيق", 13f, mint, true))
+        addGap(details, 4)
+        details.addView(text(
+            if (audit.requestedSpecialAccess.isEmpty())
+                "لم تُرصد طلبات الإعدادات الخاصة المعروفة في ملف التطبيق."
+            else audit.requestedSpecialAccess.joinToString("\\n") +
+                "\\nملحوظة: الطلب لا يثبت أن الإعداد مفعّل؛ راجع إعدادات Android.",
+            11.5f, muted
+        ))
+        addGap(details, 8)
         details.addView(text("ملاحظات الفحص", 13f, mint, true))
         audit.signals.forEach { signal ->
             addGap(details, 4)
@@ -742,6 +935,12 @@ class MainActivity : Activity() {
             10.5f, amber
         ))
         addGap(details, 10)
+        details.addView(makeButton("نسخ اسم الحزمة") {
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newPlainText("اسم الحزمة", audit.packageName))
+            Toast.makeText(this, "تم نسخ اسم الحزمة", Toast.LENGTH_SHORT).show()
+        })
+        addGap(details, 6)
         details.addView(makeButton("فتح معلومات التطبيق والصلاحيات", mint, bg) {
             openAppSettings(audit.packageName)
         })
