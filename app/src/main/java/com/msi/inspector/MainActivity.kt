@@ -363,7 +363,7 @@ class MainActivity : Activity() {
         val review = allResults.count { it.needsReview }
         val elevated = allResults.count { it.score >= 5 }
         summary.text = "تم تحليل " + allResults.size + " تطبيقًا\nتحتاج مراجعة: " + review +
-            "  •  مؤشرات متعددة: " + elevated + "\nVPN نشط على الجهاز: " + if (vpnActive) "نعم" else "لا"
+            "  •  مؤشرات متعددة: " + elevated + "\nVPN نشط على الجهاز: " + (if (vpnActive) "نعم" else "لا")
         status.text = "آخر فحص: " + DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT).format(Date())
         status.setTextColor(mint)
     }
