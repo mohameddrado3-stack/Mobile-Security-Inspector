@@ -339,7 +339,7 @@ class MainActivity : Activity() {
 
     private fun summaryText(): String {
         val review = allResults.count { it.needsReview }
-        return "تم تحليل " + allResults.size + " تطبيقًا\\n" +
+        return "تم تحليل " + allResults.size + " تطبيقًا\n" +
             "إعدادات وصول خاصة نشطة: " + review +
             "  •  صلاحيات حساسة ممنوحة: " + allResults.count { it.grantedSensitive.isNotEmpty() } +
             "  •  طلبات وصول خاص غير مؤكدة: " +
@@ -655,10 +655,10 @@ class MainActivity : Activity() {
             report.append("\n")
         }
         if (allResults.size > 300) {
-            report.append("\\nتم اختصار تفاصيل التقرير إلى أول 300 تطبيق من أصل ")
+            report.append("\nتم اختصار تفاصيل التقرير إلى أول 300 تطبيق من أصل ")
                 .append(allResults.size).append(".")
         }
-        report.append("\\nتنبيه: هذا التقرير يعرض مؤشرات من Android ولا يثبت أن أي تطبيق ضار.")
+        report.append("\nتنبيه: هذا التقرير يعرض مؤشرات من Android ولا يثبت أن أي تطبيق ضار.")
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, "Mobile Security Inspector — تقرير الفحص")
