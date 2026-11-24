@@ -41,6 +41,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import java.util.concurrent.Executors
+import com.msi.inspector.terminal.TerminalActivity
 
 private data class AppAudit(
     val label: String,
@@ -569,6 +570,15 @@ class MainActivity : Activity() {
             12.5f, muted
         ))
         body.addView(intro)
+        addGap(body)
+        sectionTitle(body, "MS Terminal", "طرفية حقيقية بجلسة PTY. البيئة الحالية محدودة بصلاحيات Android؛ Debian وAPT سيُضافان بعد تجهيز بيئة Linux والتحقق منها.")
+        val terminalCard = card()
+        terminalCard.addView(text("افتح جلسة الطرفية", 14f, white, true))
+        addGap(terminalCard, 8)
+        terminalCard.addView(makeButton("تشغيل MS Terminal", mint, bg) {
+            safeStart(Intent(this, TerminalActivity::class.java))
+        })
+        body.addView(terminalCard)
         addGap(body)
         sectionTitle(body, "إعدادات الجهاز")
         val actions = card()
