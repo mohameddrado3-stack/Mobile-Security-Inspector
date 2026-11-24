@@ -72,7 +72,7 @@ class MainActivity : Activity() {
 
     private lateinit var contentHost: LinearLayout
     private lateinit var navHost: LinearLayout
-    private lateinit var scanButton: Button
+    private lateinit var scanButton: TextView
     private lateinit var scanProgress: ProgressBar
     private lateinit var searchInput: EditText
     private lateinit var appResults: LinearLayout
@@ -263,13 +263,7 @@ class MainActivity : Activity() {
         scanButton = makeButton(
             if (scanRunning) "جارٍ الفحص..." else if (allResults.isEmpty()) "ابدأ الفحص الأمني" else "إعادة الفحص",
             mint, bg
-        ) { startAudit() }.let { view ->
-            (view as? Button) ?: Button(this).apply {
-                text = if (allResults.isEmpty()) "ابدأ الفحص الأمني" else "إعادة الفحص"
-                isAllCaps = false
-                setOnClickListener { startAudit() }
-            }
-        }
+        ) { startAudit() }
         scanButton.isEnabled = !scanRunning
         hero.addView(scanButton, LinearLayout.LayoutParams(-1, dp(48)))
         scanProgress = ProgressBar(this, null, android.R.attr.progressBarStyleHorizontal).apply {
@@ -693,13 +687,15 @@ class MainActivity : Activity() {
         emptySet()
     }
 
-    private fun isVpnActive(): Boolean = try {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork ?: return false
-        cm.getNetworkCapabilities(network)
-            ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-    } catch (_: Exception) {
-        false
+    private fun isVpnActive(): Boolean {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return false
+            cm.getNetworkCapabilities(network)
+                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        } catch (_: Exception) {
+            false
+        }
     }
 
     private fun showDetails(audit: AppAudit) {
