@@ -5,13 +5,13 @@ on:
   push:
     branches: [ "main", "feature/**" ]
   pull_request:
-    branches: [ "main", "feature/app-manager-v0.3" ]
+    branches: [ "main", "feature/**" ]
 
 permissions:
   contents: read
 
 jobs:
-  build:
+  verify:
     runs-on: ubuntu-latest
     steps:
       - name: Check out source
@@ -25,7 +25,9 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Clean and build debug APK
+      - name: Run unit tests
+        run: gradle testDebugUnitTest --stacktrace
+      - name: Build debug APK
         run: gradle clean assembleDebug --stacktrace
       - name: Generate APK checksum
         run: |
@@ -39,7 +41,7 @@ jobs:
       - name: Upload installable debug APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-security-inspector-v0.4.1
+          name: mobile-security-inspector-v0.5.0
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/debug/SHA256SUMS.txt
