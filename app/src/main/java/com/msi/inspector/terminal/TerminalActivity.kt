@@ -218,7 +218,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
 
     private fun write(value: String) {
         val active = session
-        if (active == null || !active.isRunning) {
+        if (active == null || active.pid <= 0 || !active.isRunning) {
             Toast.makeText(this, "جلسة الطرفية غير نشطة.", Toast.LENGTH_SHORT).show()
             return
         }
@@ -245,7 +245,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
 
     override fun onDestroy() {
         closing = true
-        session?.finishIfRunning()
+        session?.takeIf { it.pid > 0 && it.isRunning }?.finishIfRunning()
         session = null
         super.onDestroy()
     }
@@ -340,13 +340,13 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         runOnUiThread {
             if (::terminalView.isInitialized && !isFinishing) {
                 terminalView.setTerminalCursorBlinkerRate(500)
-                terminalView.setTerminalCursorBlinkerState(true)
+                terminalView.setTerminalCursorBlinkerState(true, true)
             }
         }
     }
 
     override fun onBackPressed() {
-        if (session?.isRunning == true) {
+        if (session?.let { it.pid > 0 && it.isRunning } == true) {
             finish()
         } else {
             super.onBackPressed()
