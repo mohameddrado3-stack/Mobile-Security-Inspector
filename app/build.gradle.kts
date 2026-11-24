@@ -1,3 +1,8 @@
+import java.io.File
+import java.net.HttpURLConnection
+import java.net.URL
+import java.security.MessageDigest
+
 plugins {
     id("com.android.application")
     id("org.jetbrains.kotlin.android")
@@ -73,7 +78,7 @@ val prepareMsiProotRuntime = tasks.register("prepareMsiProotRuntime") {
             destination.delete()
             temporary.delete()
 
-            val connection = java.net.URL(artifact.url).openConnection() as java.net.HttpURLConnection
+            val connection = URL(artifact.url).openConnection() as HttpURLConnection
             try {
                 connection.connectTimeout = 20_000
                 connection.readTimeout = 60_000
@@ -103,8 +108,8 @@ val prepareMsiProotRuntime = tasks.register("prepareMsiProotRuntime") {
     }
 }
 
-fun sha256(file: java.io.File): String {
-    val digest = java.security.MessageDigest.getInstance("SHA-256")
+fun sha256(file: File): String {
+    val digest = MessageDigest.getInstance("SHA-256")
     file.inputStream().buffered().use { input ->
         val buffer = ByteArray(64 * 1024)
         while (true) {
