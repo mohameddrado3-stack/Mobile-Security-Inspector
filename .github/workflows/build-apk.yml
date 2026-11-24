@@ -33,8 +33,8 @@ jobs:
           mkdir -p /tmp/msi-native-check
           unzip -p app/build/outputs/apk/debug/app-debug.apk lib/arm64-v8a/libproot-static.so > /tmp/msi-native-check/libproot-static.so
           unzip -p app/build/outputs/apk/debug/app-debug.apk lib/arm64-v8a/libproot-static-loader.so > /tmp/msi-native-check/libproot-static-loader.so
-          printf '%s  %s\\n' 'fa10b1a7818c2f5b1dcb5834450570c368c9ecf66d31521509621b95c4538a45' '/tmp/msi-native-check/libproot-static.so' | sha256sum --check
-          printf '%s  %s\\n' '51c3427b112edc70d1979b48209c41f332616758138de3be659cc79e50436450' '/tmp/msi-native-check/libproot-static-loader.so' | sha256sum --check
+          printf '%s  %s\n' 'fa10b1a7818c2f5b1dcb5834450570c368c9ecf66d31521509621b95c4538a45' '/tmp/msi-native-check/libproot-static.so' | sha256sum --check
+          printf '%s  %s\n' '51c3427b112edc70d1979b48209c41f332616758138de3be659cc79e50436450' '/tmp/msi-native-check/libproot-static-loader.so' | sha256sum --check
       - name: Generate APK checksum
         run: |
           cd app/build/outputs/apk/debug
