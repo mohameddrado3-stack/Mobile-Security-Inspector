@@ -46,13 +46,13 @@ private data class AppAudit(
     val grantedSensitive: List<String>,
     val requestedSensitive: List<String>,
     val signals: List<String>,
-    val score: Int
+    val specialAccessReasons: List<String>
 ) {
-    val needsReview: Boolean get() = score >= 2
+    val needsReview: Boolean get() = specialAccessReasons.isNotEmpty()
     val level: String get() = when {
-        score >= 5 -> "مؤشرات متعددة تستحق المراجعة"
-        score >= 2 -> "يستحق المراجعة"
-        else -> "لا توجد مؤشرات بارزة ضمن الفحص الحالي"
+        specialAccessReasons.isNotEmpty() -> "إعداد وصول خاص مفعّل — تحقق من حاجتك له"
+        grantedSensitive.isNotEmpty() -> "صلاحيات حساسة ممنوحة — راجع التفاصيل"
+        else -> "لم تُرصد الصلاحيات المحددة في هذا الفحص"
     }
 }
 
@@ -274,7 +274,7 @@ class MainActivity : Activity() {
         body.addView(hero)
         addGap(body)
 
-        sectionTitle(body, "نظرة سريعة", "التنبيهات هنا مؤشرات مراجعة وليست حكمًا بأن التطبيق ضار.")
+        sectionTitle(body, "نظرة سريعة", "لا نصنّف التطبيقات كضارة؛ نعرض إعدادات وصلاحيات محددة لتراجعها.")
         val stats = card()
         val reviewed = allResults.count { it.needsReview }
         val systemCount = allResults.count { it.isSystem }
@@ -314,9 +314,8 @@ class MainActivity : Activity() {
 
     private fun summaryText(): String {
         val review = allResults.count { it.needsReview }
-        val elevated = allResults.count { it.score >= 5 }
         return "تم تحليل " + allResults.size + " تطبيقًا\n" +
-            "تحتاج مراجعة: " + review + "  •  مؤشرات متعددة: " + elevated
+            "إعداد وصول خاص مفعّل: " + review + "  •  صلاحيات حساسة ممنوحة: " + allResults.count { it.grantedSensitive.isNotEmpty() }
     }
 
     private fun renderApps() {
@@ -334,7 +333,7 @@ class MainActivity : Activity() {
         body.addView(searchInput, LinearLayout.LayoutParams(-1, dp(47)))
         addGap(body, 7)
         val filter = makeButton(
-            if (showingReviewOnly) "عرض كل التطبيقات" else "عرض التطبيقات التي تحتاج مراجعة"
+            if (showingReviewOnly) "عرض كل التطبيقات" else "عرض التطبيقات ذات إعدادات الوصول الخاصة"
         ) {
             showingReviewOnly = !showingReviewOnly
             renderScreen()
@@ -384,15 +383,16 @@ class MainActivity : Activity() {
             item.addView(text(audit.packageName, 10.5f, muted))
             addGap(item, 8)
             val statusColor = when {
-                audit.score >= 5 -> red
-                audit.score >= 2 -> amber
+                audit.specialAccessReasons.isNotEmpty() -> amber
+                audit.grantedSensitive.isNotEmpty() -> blue
                 else -> mint
             }
             item.addView(text(audit.level, 12f, statusColor, true))
             addGap(item, 4)
             item.addView(text(
                 (if (audit.isSystem) "تطبيق نظام" else "تطبيق مثبت") +
-                    "  •  الإصدار " + audit.version,
+                    "  •  الإصدار " + audit.version +
+                    "  •  صلاحيات حساسة ممنوحة: " + audit.grantedSensitive.size,
                 11f, muted
             ))
             addGap(item, 8)
@@ -528,7 +528,8 @@ class MainActivity : Activity() {
                 val audited = performAudit()
                 mainHandler.post {
                     allResults = audited.sortedWith(
-                        compareByDescending<AppAudit> { it.score }
+                        compareByDescending<AppAudit> { it.specialAccessReasons.isNotEmpty() }
+                            .thenByDescending { it.grantedSensitive.size }
                             .thenBy { it.label.lowercase(Locale.ROOT) }
                     )
                     scanRunning = false
@@ -578,27 +579,19 @@ class MainActivity : Activity() {
             val installer = installerLabel(pkg)
             val isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0
             val signals = ArrayList<String>()
-            var score = 0
-
-            if (isAccessibility) {
-                signals.add("خدمة إمكانية وصول مفعّلة؛ راجع سبب احتياج التطبيق إليها.")
-                score += 3
-            }
-            if (isAdmin) {
-                signals.add("التطبيق مفعّل كمسؤول جهاز؛ راجع سبب منحه هذه الصلاحية.")
-                score += 2
-            }
+            val specialAccessReasons = ArrayList<String>()
+            if (isAccessibility) specialAccessReasons.add("خدمة إمكانية الوصول مفعّلة لهذا التطبيق.")
+            if (isAdmin) specialAccessReasons.add("هذا التطبيق مفعّل كمسؤول جهاز.")
+            if (specialAccessReasons.isNotEmpty()) signals.addAll(specialAccessReasons)
             if (categories.isNotEmpty()) {
-                signals.add("صلاحيات خطرة ممنوحة ضمن: " + categories.joinToString("، ") +
-                    ". قد تكون طبيعية لوظيفة التطبيق.")
-                score += categories.size.coerceAtMost(3)
+                signals.add("صلاحيات Android الحساسة الممنوحة: " +
+                    categories.joinToString("، ") +
+                    ". قد تكون مطلوبة لوظيفة التطبيق ولا تعني أنه ضار.")
             }
             if (requestedSensitive.size > grantedSensitive.size && requestedSensitive.isNotEmpty()) {
-                signals.add("يطلب التطبيق صلاحيات حساسة إضافية غير ممنوحة حاليًا.")
+                signals.add("هناك صلاحيات حساسة مطلوبة لكنها غير ممنوحة حاليًا.")
             }
-            if (signals.isEmpty()) {
-                signals.add("لم تظهر المؤشرات المحددة في هذا الفحص.")
-            }
+            if (signals.isEmpty()) signals.add("لم تظهر المؤشرات المحددة في هذا الفحص.")
 
             output.add(AppAudit(
                 label = pm.getApplicationLabel(appInfo).toString(),
@@ -609,7 +602,7 @@ class MainActivity : Activity() {
                 grantedSensitive = grantedSensitive,
                 requestedSensitive = requestedSensitive,
                 signals = signals,
-                score = score
+                specialAccessReasons = specialAccessReasons
             ))
         }
         return output
@@ -714,7 +707,15 @@ class MainActivity : Activity() {
         addGap(details, 5)
         details.addView(text("مصدر التثبيت: " + audit.installer, 12f, muted))
         addGap(details, 9)
-        details.addView(text("مؤشرات الفحص", 13f, mint, true))
+        details.addView(text("إعدادات الوصول الخاصة", 13f, mint, true))
+        addGap(details, 4)
+        details.addView(text(
+            if (audit.specialAccessReasons.isEmpty()) "لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق."
+            else audit.specialAccessReasons.joinToString("\n"),
+            11.5f, muted
+        ))
+        addGap(details, 8)
+        details.addView(text("ملاحظات الفحص", 13f, mint, true))
         audit.signals.forEach { signal ->
             addGap(details, 4)
             details.addView(text("• " + signal, 11.5f, muted))
@@ -737,7 +738,7 @@ class MainActivity : Activity() {
         ))
         addGap(details, 8)
         details.addView(text(
-            "مهم: وجود صلاحية لا يعني أن التطبيق ضار. راجع ما إذا كانت الصلاحية منطقية لوظيفة التطبيق.",
+            "هذه الصفحة لا تكشف البرامج الخبيثة ولا تحسب درجة خطورة. وجود صلاحية أو إعداد خاص قد يكون طبيعيًا حسب وظيفة التطبيق؛ تحقق من حاجتك إليه.",
             10.5f, amber
         ))
         addGap(details, 10)
