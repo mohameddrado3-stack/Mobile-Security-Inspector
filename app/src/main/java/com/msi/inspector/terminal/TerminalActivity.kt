@@ -31,11 +31,11 @@ import com.termux.view.TerminalViewClient
  */
 class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
 
-    private val background = Color.rgb(5, 10, 18)
-    private val surface = Color.rgb(16, 25, 39)
-    private val foreground = Color.rgb(225, 239, 242)
-    private val accent = Color.rgb(102, 226, 195)
-    private val muted = Color.rgb(150, 169, 184)
+    private val terminalBackground = Color.rgb(5, 10, 18)
+    private val terminalSurface = Color.rgb(16, 25, 39)
+    private val terminalForeground = Color.rgb(225, 239, 242)
+    private val terminalAccent = Color.rgb(102, 226, 195)
+    private val terminalMuted = Color.rgb(150, 169, 184)
 
     private lateinit var terminalView: TerminalView
     private lateinit var statusView: TextView
@@ -66,9 +66,9 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         text = caption
         textSize = 13f
         gravity = Gravity.CENTER
-        setTextColor(if (active) background else foreground)
+        setTextColor(if (active) terminalBackground else terminalForeground)
         setPadding(dp(12), dp(9), dp(12), dp(9))
-        setBackgroundColor(if (active) accent else surface)
+        setBackgroundColor(if (active) terminalAccent else terminalSurface)
         isClickable = true
         isFocusable = true
         setOnClickListener { action() }
@@ -76,8 +76,8 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        window.statusBarColor = background
-        window.navigationBarColor = background
+        window.statusBarColor = terminalBackground
+        window.navigationBarColor = terminalBackground
         buildTerminalScreen()
         startAndroidShell()
     }
@@ -85,7 +85,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
     private fun buildTerminalScreen() {
         val root = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setBackgroundColor(background)
+            setBackgroundColor(terminalBackground)
             setPadding(dp(10), dp(8), dp(10), dp(8))
         }
 
@@ -96,8 +96,8 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         val titleColumn = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
         }
-        titleColumn.addView(label("MS TERMINAL", 17f, accent, true))
-        statusView = label("بدء جلسة الطرفية…", 11f, muted)
+        titleColumn.addView(label("MS TERMINAL", 17f, terminalAccent, true))
+        statusView = label("بدء جلسة الطرفية…", 11f, terminalMuted)
         titleColumn.addView(statusView)
         heading.addView(titleColumn, LinearLayout.LayoutParams(0, -2, 1f))
         heading.addView(button("إغلاق") { finish() })
@@ -105,10 +105,10 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         
         val limitation = label(
             "الجلسة الحالية: Android Shell داخل مساحة التطبيق. بيئة Debian وAPT ليست مفعّلة في هذه المرحلة.",
-            11f, muted
+            11f, terminalMuted
         ).apply {
             setPadding(dp(9), dp(8), dp(9), dp(8))
-            setBackgroundColor(surface)
+            setBackgroundColor(terminalSurface)
         }
         root.addView(limitation, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(8)
@@ -172,8 +172,8 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         for (index in 0 until minOf(2, parent.childCount)) {
             val view = parent.getChildAt(index) as? TextView ?: continue
             val active = if (index == 0) controlPressed else altPressed
-            view.setTextColor(if (active) background else foreground)
-            view.setBackgroundColor(if (active) accent else surface)
+            view.setTextColor(if (active) terminalBackground else terminalForeground)
+            view.setBackgroundColor(if (active) terminalAccent else terminalSurface)
         }
     }
 
@@ -302,17 +302,14 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         }
     }
 
-    override fun setTerminalShellPid(session: TerminalSession, pid: Int) {
-        // PID is intentionally not exposed as a security claim.
-    }
 
     override fun getTerminalCursorStyle(): Int? = null
 
-    override fun logError(tag: String, message: String) = android.util.Log.e("MSI-Terminal", "$tag: $message")
-    override fun logWarn(tag: String, message: String) = android.util.Log.w("MSI-Terminal", "$tag: $message")
-    override fun logInfo(tag: String, message: String) = android.util.Log.i("MSI-Terminal", "$tag: $message")
-    override fun logDebug(tag: String, message: String) = android.util.Log.d("MSI-Terminal", "$tag: $message")
-    override fun logVerbose(tag: String, message: String) = android.util.Log.v("MSI-Terminal", "$tag: $message")
+    override fun logError(tag: String, message: String) { android.util.Log.e("MSI-Terminal", "$tag: $message") }
+    override fun logWarn(tag: String, message: String) { android.util.Log.w("MSI-Terminal", "$tag: $message") }
+    override fun logInfo(tag: String, message: String) { android.util.Log.i("MSI-Terminal", "$tag: $message") }
+    override fun logDebug(tag: String, message: String) { android.util.Log.d("MSI-Terminal", "$tag: $message") }
+    override fun logVerbose(tag: String, message: String) { android.util.Log.v("MSI-Terminal", "$tag: $message") }
     override fun logStackTraceWithMessage(tag: String, message: String, error: Exception) {
         android.util.Log.e("MSI-Terminal", "$tag: $message", error)
     }
