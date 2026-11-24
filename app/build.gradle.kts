@@ -11,8 +11,8 @@ android {
         applicationId = "com.msi.inspector"
         minSdk = 26
         targetSdk = 35
-        versionCode = 4
-        versionName = "0.4.0"
+        versionCode = 5
+        versionName = "0.5.0-alpha01"
     }
 
     compileOptions {
@@ -23,4 +23,9 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+// Real VT/xterm terminal view and PTY implementation (Termux terminal library; license notices retained).
+dependencies {
+    implementation("com.github.termux.termux-app:terminal-view:v0.118.0")
 }
