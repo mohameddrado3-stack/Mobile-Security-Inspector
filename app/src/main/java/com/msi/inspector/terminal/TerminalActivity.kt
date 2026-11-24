@@ -1,6 +1,7 @@
 package com.msi.inspector.terminal
 
 import android.app.Activity
+import android.app.AlertDialog
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -14,9 +15,11 @@ import android.view.View
 import android.view.ViewGroup
 import android.view.inputmethod.InputMethodManager
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.ScrollView
 import android.widget.TextView
 import android.widget.Toast
+import java.util.concurrent.Executors
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
 import com.termux.view.TerminalView
@@ -39,6 +42,13 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
 
     private lateinit var terminalView: TerminalView
     private lateinit var statusView: TextView
+    private lateinit var setupPanel: LinearLayout
+    private lateinit var setupInfo: TextView
+    private lateinit var setupButton: TextView
+    private lateinit var setupProgress: ProgressBar
+    private val setupExecutor = Executors.newSingleThreadExecutor()
+    private var setupRunning = false
+    private var activeEnvironmentLabel = "Android Shell"
     private var session: TerminalSession? = null
     private var controlPressed = false
     private var altPressed = false
@@ -79,7 +89,8 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         window.statusBarColor = terminalBackground
         window.navigationBarColor = terminalBackground
         buildTerminalScreen()
-        startAndroidShell()
+        refreshEnvironmentPanel()
+        startAvailableShell()
     }
 
     private fun buildTerminalScreen() {
@@ -112,6 +123,36 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         }
         root.addView(limitation, LinearLayout.LayoutParams(-1, -2).apply {
             topMargin = dp(8)
+            bottomMargin = dp(8)
+        })
+
+        setupPanel = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(10), dp(8), dp(10), dp(8))
+            setBackgroundColor(terminalSurface)
+        }
+        setupInfo = label(
+            "ثبّت Debian مرة واحدة للحصول على بيئة Linux دائمة ومدير حزم APT.",
+            11f, terminalMuted
+        )
+        setupPanel.addView(setupInfo, LinearLayout.LayoutParams(-1, -2))
+        setupButton = button("تنزيل وتثبيت Debian (حوالي 50 ميجابايت)") {
+            confirmDebianInstall()
+        }
+        setupPanel.addView(setupButton, LinearLayout.LayoutParams(-1, -2).apply {
+            topMargin = dp(6)
+        })
+        setupProgress = ProgressBar(
+            this, null, android.R.attr.progressBarStyleHorizontal
+        ).apply {
+            max = 100
+            progress = 0
+            visibility = View.GONE
+        }
+        setupPanel.addView(setupProgress, LinearLayout.LayoutParams(-1, dp(4)).apply {
+            topMargin = dp(6)
+        })
+        root.addView(setupPanel, LinearLayout.LayoutParams(-1, -2).apply {
             bottomMargin = dp(8)
         })
 
@@ -177,6 +218,108 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         }
     }
 
+    private fun refreshEnvironmentPanel() {
+        val supported = DebianEnvironment.isSupportedDevice() && android.os.Process.is64Bit()
+        val installed = DebianEnvironment.isInstalled(this)
+        setupPanel.visibility = if (installed) View.GONE else View.VISIBLE
+        setupButton.isEnabled = supported && !setupRunning
+        setupInfo.text = when {
+            installed -> "Debian Trixie مثبتة بالفعل."
+            !supported -> "تثبيت Debian مفعّل حاليًا على أجهزة ARM64 ذات نظام 64-bit فقط."
+            else -> "تنزيل مرة واحدة (حوالي 50 ميجابايت). تُحفظ ملفات Debian والحزم داخل مساحة التطبيق."
+        }
+    }
+
+    private fun confirmDebianInstall() {
+        if (!DebianEnvironment.isSupportedDevice() || !android.os.Process.is64Bit()) {
+            Toast.makeText(this, "هذا الجهاز غير مدعوم لتشغيل Debian في هذا الإصدار.", Toast.LENGTH_LONG).show()
+            return
+        }
+        if (setupRunning || DebianEnvironment.isInstalled(this)) {
+            refreshEnvironmentPanel()
+            return
+        }
+        AlertDialog.Builder(this)
+            .setTitle("تثبيت Debian Trixie")
+            .setMessage(
+                "سيتم تنزيل صورة Debian الرسمية بحجم يقارب 50 ميجابايت، ثم فكّها داخل مساحة التطبيق. " +
+                    "يلزم توفر نحو 360 ميجابايت من المساحة الحرة. لن يتم الوصول إلى ملفات التطبيقات الأخرى."
+            )
+            .setNegativeButton("إلغاء", null)
+            .setPositiveButton("تنزيل وتثبيت") { _, _ -> beginDebianInstall() }
+            .show()
+    }
+
+    private fun beginDebianInstall() {
+        if (setupRunning) return
+        setupRunning = true
+        setupButton.isEnabled = false
+        setupProgress.visibility = View.VISIBLE
+        setupProgress.isIndeterminate = false
+        statusView.text = "تجهيز Debian…"
+
+        setupExecutor.execute {
+            try {
+                DebianEnvironment.install(this) { progress ->
+                    runOnUiThread {
+                        if (isFinishing || isDestroyed) return@runOnUiThread
+                        setupProgress.progress = progress.percent
+                        statusView.text = progress.message
+                    }
+                }
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    setupRunning = false
+                    setupProgress.visibility = View.GONE
+                    setupPanel.visibility = View.GONE
+                    session?.takeIf { it.pid > 0 && it.isRunning }?.finishIfRunning()
+                    session = null
+                    startAvailableShell()
+                    Toast.makeText(this, "تم تثبيت Debian. ملفاتك وحزمك ستظل محفوظة.", Toast.LENGTH_LONG).show()
+                }
+            } catch (error: Exception) {
+                runOnUiThread {
+                    if (isFinishing || isDestroyed) return@runOnUiThread
+                    setupRunning = false
+                    setupProgress.visibility = View.GONE
+                    setupButton.isEnabled = true
+                    setupInfo.text = error.localizedMessage ?: "تعذر تثبيت Debian."
+                    statusView.text = "فشل إعداد Debian؛ يمكنك إعادة المحاولة."
+                    Toast.makeText(this, "فشل التثبيت: ${error.localizedMessage ?: error.javaClass.simpleName}", Toast.LENGTH_LONG).show()
+                }
+            }
+        }
+    }
+
+    private fun startAvailableShell() {
+        if (DebianEnvironment.isInstalled(this)) {
+            startDebianShell()
+        } else {
+            startAndroidShell()
+        }
+    }
+
+    private fun startDebianShell() {
+        if (session?.let { it.pid > 0 && it.isRunning } == true) return
+        try {
+            val newSession = ProotRuntime.createDebianSession(this, this)
+            session = newSession
+            activeEnvironmentLabel = "Debian Trixie"
+            terminalView.attachSession(newSession)
+            terminalView.requestFocus()
+            statusView.text = "Debian Trixie • Linux Userland • PRoot"
+        } catch (error: Exception) {
+            statusView.text = "تعذر تشغيل Debian"
+            Toast.makeText(
+                this,
+                "تعذر تشغيل بيئة Debian: ${error.localizedMessage ?: error.javaClass.simpleName}",
+                Toast.LENGTH_LONG
+            ).show()
+            activeEnvironmentLabel = "Android Shell"
+            startAndroidShell()
+        }
+    }
+
     private fun startAndroidShell() {
         if (session?.let { it.pid > 0 && it.isRunning } == true) return
         try {
@@ -188,6 +331,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
                 "TERM=xterm-256color",
                 "LANG=C.UTF-8"
             )
+            activeEnvironmentLabel = "Android Shell"
             val newSession = TerminalSession(
                 "/system/bin/sh",
                 home,
@@ -213,7 +357,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
     private fun restartShell() {
         session?.takeIf { it.pid > 0 && it.isRunning }?.finishIfRunning()
         session = null
-        terminalView.post { startAndroidShell() }
+        terminalView.post { startAvailableShell() }
     }
 
     private fun write(value: String) {
@@ -245,6 +389,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
 
     override fun onDestroy() {
         closing = true
+        setupExecutor.shutdownNow()
         session?.takeIf { it.pid > 0 && it.isRunning }?.finishIfRunning()
         session = null
         super.onDestroy()
@@ -258,13 +403,13 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
     override fun onTitleChanged(changedSession: TerminalSession) {
         runOnUiThread {
             val title = changedSession.title
-            statusView.text = title?.takeIf { it.isNotBlank() } ?: "جلسة PTY حقيقية • Android Shell"
+            statusView.text = title?.takeIf { it.isNotBlank() } ?: "جلسة PTY حقيقية • $activeEnvironmentLabel"
         }
     }
 
     override fun onSessionFinished(finishedSession: TerminalSession) {
         runOnUiThread {
-            if (!closing) statusView.text = "انتهت الجلسة • يمكنك بدء جلسة جديدة"
+            if (!closing) statusView.text = "انتهت جلسة $activeEnvironmentLabel • يمكنك إعادة تشغيلها"
         }
     }
 
