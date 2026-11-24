@@ -43,7 +43,7 @@ object DebianEnvironment {
     data class Progress(val percent: Int, val message: String)
 
     fun isSupportedDevice(): Boolean =
-        Build.SUPPORTED_ABIS.any { it == "arm64-v8a" }
+        Build.SUPPORTED_ABIS.firstOrNull() == "arm64-v8a" && android.os.Process.is64Bit()
 
     fun environmentDirectory(context: Context): File =
         File(File(context.filesDir, "ms-terminal"), "debian-trixie")
@@ -201,6 +201,7 @@ object DebianEnvironment {
                     BufferedOutputStream(FileOutputStream(destination)).use { output ->
                         val buffer = ByteArray(64 * 1024)
                         while (true) {
+                            ensureNotInterrupted()
                             val read = checked.read(buffer)
                             if (read < 0) break
                             total += read
@@ -240,6 +241,7 @@ object DebianEnvironment {
             GzipCompressorInputStream(fileInput).use { gzip ->
                 TarArchiveInputStream(gzip).use { tar ->
                     while (true) {
+                        ensureNotInterrupted()
                         val entry = tar.nextTarEntry ?: break
                         entries++
                         if (entries > MAX_ARCHIVE_ENTRIES) {
@@ -281,6 +283,7 @@ object DebianEnvironment {
                                     val buffer = ByteArray(64 * 1024)
                                     var remaining = size
                                     while (remaining > 0L) {
+                                        ensureNotInterrupted()
                                         val read = tar.read(
                                             buffer, 0,
                                             minOf(buffer.size.toLong(), remaining).toInt()
@@ -407,6 +410,12 @@ object DebianEnvironment {
             if (!current.exists() && !current.mkdir()) {
                 throw IOException("تعذر إنشاء مجلد أثناء فك Debian.")
             }
+        }
+    }
+
+    private fun ensureNotInterrupted() {
+        if (Thread.currentThread().isInterrupted) {
+            throw IOException("تم إيقاف إعداد Debian.")
         }
     }
 
