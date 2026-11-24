@@ -1,5 +1,6 @@
 package com.msi.inspector.ui.applications
 
+import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -21,7 +22,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.remember
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -34,6 +36,8 @@ import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.AuditStatus
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 
 @Composable
 fun ApplicationsScreen(
@@ -112,8 +116,12 @@ private fun EmptyApplications() {
 @Composable
 private fun ApplicationCard(app: AppAudit, onClick: () -> Unit) {
     val context = LocalContext.current
-    val icon = remember(app.packageName) {
-        runCatching { context.packageManager.getApplicationIcon(app.packageName) }.getOrNull()
+    val icon by produceState<Drawable?>(initialValue = null, app.packageName) {
+        value = withContext(Dispatchers.IO) {
+            runCatching {
+                context.packageManager.getApplicationIcon(app.packageName)
+            }.getOrNull()
+        }
     }
     val accent = when (app.status) {
         AuditStatus.REVIEW -> Color(0xFFFFC278)
@@ -138,9 +146,9 @@ private fun ApplicationCard(app: AppAudit, onClick: () -> Unit) {
                     factory = { viewContext ->
                         ImageView(viewContext).apply {
                             scaleType = ImageView.ScaleType.FIT_CENTER
-                            setImageDrawable(icon)
                         }
                     },
+                    update = { it.setImageDrawable(icon) },
                     modifier = Modifier
                         .size(48.dp)
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(15.dp))

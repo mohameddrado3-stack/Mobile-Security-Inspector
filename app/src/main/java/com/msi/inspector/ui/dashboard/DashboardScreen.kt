@@ -1,6 +1,5 @@
 package com.msi.inspector.ui.dashboard
 
-import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,7 +15,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -37,10 +35,6 @@ fun DashboardScreen(
     onShareReport: () -> Unit
 ) {
     val summary = AuditSummary.from(state.applications)
-    val scanProgress by animateFloatAsState(
-        targetValue = if (state.isScanning) 0.78f else if (state.applications.isNotEmpty()) 1f else 0f,
-        label = "scan-progress"
-    )
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -56,12 +50,13 @@ fun DashboardScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 13.sp
             )
-            LinearProgressIndicator(
-                progress = scanProgress,
-                modifier = Modifier.fillMaxWidth(),
-                color = MaterialTheme.colorScheme.primary,
-                trackColor = MaterialTheme.colorScheme.surfaceVariant
-            )
+            if (state.isScanning) {
+                LinearProgressIndicator(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primary,
+                    trackColor = MaterialTheme.colorScheme.surfaceVariant
+                )
+            }
             Text(
                 when {
                     state.isScanning -> "يتم فحص التطبيقات..."

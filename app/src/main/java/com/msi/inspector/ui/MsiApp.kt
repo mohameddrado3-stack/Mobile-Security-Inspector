@@ -34,6 +34,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -60,6 +63,7 @@ fun MsiApp(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    var showShareConfirmation by remember { mutableStateOf(false) }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -110,7 +114,13 @@ fun MsiApp(
                         state = state,
                         onScan = viewModel::startScan,
                         onNavigate = viewModel::navigate,
-                        onShareReport = { shareReport(context, state.applications, state.lastScanAt) }
+                        onShareReport = {
+                            if (state.applications.isEmpty()) {
+                                Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
+                            } else {
+                                showShareConfirmation = true
+                            }
+                        }
                     )
                     MsiDestination.APPLICATIONS -> {
                         val filtered = filterApplications(state.applications, state.query, state.filter)
@@ -132,15 +142,14 @@ fun MsiApp(
                         appLockEnabled = state.appLockEnabled,
                         onToggleAppLock = { enabled ->
                             if (enabled) {
-                                val authenticators = allowedAuthenticators()
-                                val result = BiometricManager.from(context).canAuthenticate(authenticators)
+                                val result = BiometricManager.from(context).canAuthenticate(allowedAuthenticators())
                                 if (result == BiometricManager.BIOMETRIC_SUCCESS) {
                                     viewModel.setAppLockEnabled(true)
                                     onAppLockChanged(true)
                                 } else {
                                     Toast.makeText(
                                         context,
-                                        "فعّل بصمة أو قفل شاشة آمنًا من إعدادات الجهاز أولًا.",
+                                        "فعّل بصمة قوية أو قفل شاشة آمنًا من إعدادات الجهاز أولًا.",
                                         Toast.LENGTH_LONG
                                     ).show()
                                 }
@@ -222,6 +231,32 @@ fun MsiApp(
                                 Uri.parse("https://play.google.com/store/apps/details?id=${Uri.encode(application.packageName)}")
                             )
                         )
+                    }
+                }
+            )
+        }
+        if (showShareConfirmation) {
+            AlertDialog(
+                onDismissRequest = { showShareConfirmation = false },
+                title = { Text("مشاركة تقرير الفحص") },
+                text = {
+                    Text(
+                        "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات. لن يُرسل تلقائيًا؛ ستختار بنفسك التطبيق أو الجهة التي تشاركه معها."
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showShareConfirmation = false
+                            shareReport(context, state.applications, state.lastScanAt)
+                        }
+                    ) {
+                        Text("متابعة")
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showShareConfirmation = false }) {
+                        Text("إلغاء")
                     }
                 }
             )
@@ -329,10 +364,6 @@ private fun allowedAuthenticators(): Int =
     }
 
 private fun shareReport(context: Context, applications: List<AppAudit>, scannedAt: Long?) {
-    if (applications.isEmpty()) {
-        Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
-        return
-    }
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
         putExtra(Intent.EXTRA_SUBJECT, "Mobile Security Inspector — تقرير الفحص")
