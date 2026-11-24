@@ -20,12 +20,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.9"
-      - name: Build debug APK
-        run: gradle assembleDebug
-      - name: Upload APK
+      - name: Clean and build debug APK
+        run: gradle clean assembleDebug
+      - name: Generate APK checksum
+        run: sha256sum app/build/outputs/apk/debug/app-debug.apk > app/build/outputs/apk/debug/SHA256SUMS.txt
+      - name: Upload installable debug APK and checksum
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-security-inspector-debug
-          path: app/build/outputs/apk/debug/app-debug.apk
+          name: mobile-security-inspector-v0.2.0
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/debug/SHA256SUMS.txt
           if-no-files-found: error
-          retention-days: 14
+          retention-days: 30
