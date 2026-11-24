@@ -339,8 +339,11 @@ class MainActivity : Activity() {
 
     private fun summaryText(): String {
         val review = allResults.count { it.needsReview }
-        return "تم تحليل " + allResults.size + " تطبيقًا\n" +
-            "إعداد وصول خاص مفعّل: " + review + "  •  صلاحيات حساسة ممنوحة: " + allResults.count { it.grantedSensitive.isNotEmpty() }
+        return "تم تحليل " + allResults.size + " تطبيقًا\\n" +
+            "إعدادات وصول خاصة نشطة: " + review +
+            "  •  صلاحيات حساسة ممنوحة: " + allResults.count { it.grantedSensitive.isNotEmpty() } +
+            "  •  طلبات وصول خاص غير مؤكدة: " +
+            allResults.count { it.requestedSpecialAccess.isNotEmpty() }
     }
 
     private fun renderApps() {
@@ -551,7 +554,7 @@ class MainActivity : Activity() {
         if (userApps.size > updatesLimit) {
             body.addView(makeButton("عرض 50 تطبيقًا إضافيًا") {
                 updatesLimit += 50
-                renderUpdates()
+                renderScreen()
             })
         }
     }
@@ -625,33 +628,37 @@ class MainActivity : Activity() {
 
     private fun shareAuditReport() {
         val report = StringBuilder()
-        report.append("Mobile Security Inspector — تقرير محلي\\n")
-        report.append("آخر فحص: ").append(lastScanText).append("\\n")
-        report.append("عدد التطبيقات: ").append(allResults.size).append("\\n")
+        report.append("Mobile Security Inspector — تقرير محلي\n")
+        report.append("آخر فحص: ").append(lastScanText).append("\n")
+        report.append("عدد التطبيقات: ").append(allResults.size).append("\n")
         report.append("إعدادات وصول خاصة نشطة: ")
-            .append(allResults.count { it.needsReview }).append("\\n")
+            .append(allResults.count { it.needsReview }).append("\n")
         report.append("تطبيقات بها صلاحيات حساسة ممنوحة: ")
-            .append(allResults.count { it.grantedSensitive.isNotEmpty() }).append("\\n\\n")
-        allResults.forEach { audit ->
-            report.append("التطبيق: ").append(audit.label).append("\\n")
-            report.append("الحزمة: ").append(audit.packageName).append("\\n")
-            report.append("الإصدار: ").append(audit.version).append("\\n")
-            report.append("مصدر التثبيت: ").append(audit.installer).append("\\n")
+            .append(allResults.count { it.grantedSensitive.isNotEmpty() }).append("\n\n")
+        allResults.take(300).forEach { audit ->
+            report.append("التطبيق: ").append(audit.label).append("\n")
+            report.append("الحزمة: ").append(audit.packageName).append("\n")
+            report.append("الإصدار: ").append(audit.version).append("\n")
+            report.append("مصدر التثبيت: ").append(audit.installer).append("\n")
             if (audit.specialAccessReasons.isNotEmpty()) {
                 report.append("إعداد وصول خاص نشط: ")
-                    .append(audit.specialAccessReasons.joinToString("؛ ")).append("\\n")
+                    .append(audit.specialAccessReasons.joinToString("؛ ")).append("\n")
             }
             if (audit.requestedSpecialAccess.isNotEmpty()) {
                 report.append("إعدادات خاصة مطلوبة (غير مؤكدة التفعيل): ")
-                    .append(audit.requestedSpecialAccess.joinToString("؛ ")).append("\\n")
+                    .append(audit.requestedSpecialAccess.joinToString("؛ ")).append("\n")
             }
             if (audit.grantedSensitive.isNotEmpty()) {
                 report.append("صلاحيات حساسة ممنوحة: ")
-                    .append(audit.grantedSensitive.joinToString("؛ ")).append("\\n")
+                    .append(audit.grantedSensitive.joinToString("؛ ")).append("\n")
             }
-            report.append("\\n")
+            report.append("\n")
         }
-        report.append("تنبيه: هذا التقرير يعرض مؤشرات من Android ولا يثبت أن أي تطبيق ضار.")
+        if (allResults.size > 300) {
+            report.append("\\nتم اختصار تفاصيل التقرير إلى أول 300 تطبيق من أصل ")
+                .append(allResults.size).append(".")
+        }
+        report.append("\\nتنبيه: هذا التقرير يعرض مؤشرات من Android ولا يثبت أن أي تطبيق ضار.")
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
             type = "text/plain"
             putExtra(Intent.EXTRA_SUBJECT, "Mobile Security Inspector — تقرير الفحص")
@@ -903,8 +910,8 @@ class MainActivity : Activity() {
         details.addView(text(
             if (audit.requestedSpecialAccess.isEmpty())
                 "لم تُرصد طلبات الإعدادات الخاصة المعروفة في ملف التطبيق."
-            else audit.requestedSpecialAccess.joinToString("\\n") +
-                "\\nملحوظة: الطلب لا يثبت أن الإعداد مفعّل؛ راجع إعدادات Android.",
+            else audit.requestedSpecialAccess.joinToString("\n") +
+                "\nملحوظة: الطلب لا يثبت أن الإعداد مفعّل؛ راجع إعدادات Android.",
             11.5f, muted
         ))
         addGap(details, 8)
