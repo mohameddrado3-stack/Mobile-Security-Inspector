@@ -1,6 +1,6 @@
 # MS Terminal — Architecture and Safety Contract
 
-Status: design baseline for `feature/ms-terminal-v0.5`
+Status: implementation baseline for `0.5.0-alpha02`; real-device validation remains pending.
 Target: an embedded, persistent Linux userland inside Mobile Security Inspector.
 
 ## Product goal
@@ -95,3 +95,22 @@ A version is not ready for the user until all applicable gates pass:
 6. A real Android 11 device test confirms installation, initial setup, persistence after app restart, APT install/reopen behavior, and a clear failure message on unsupported devices.
 
 CI success proves only that the build and automated checks passed. It does not prove that the APK was installed or tested on the user's physical phone.
+
+
+## Implemented in v0.5.0-alpha02
+
+- Terminal View and a real PTY session are embedded in a dedicated screen.
+- Debian Trixie ARM64 rootfs setup downloads the official debuerreotype OCI layer (49,770,086 bytes) from the `dist-arm64v8/trixie` artifact branch and verifies SHA-256 `6bf9dd8e528e8b59aba65241842ec43567ab9ff163d6d444bb4701ece0f11093` before extraction.
+- The rootfs is extracted into a staging directory under app-private storage. Absolute archive paths and parent-directory traversal are rejected; symbolic and hard links are handled separately; special device nodes are not recreated. Installation is promoted only after the marker and required binaries are present.
+- The installed rootfs survives normal app restarts and device restarts. Clearing app data or uninstalling MSI removes it.
+- PRoot 5.3.0 static ARM64 executable and its matching loader are fetched during the Gradle build from pinned URLs, SHA-256 checked, and packaged under `lib/arm64-v8a/` so Android extracts them to `nativeLibraryDir`.
+- Runtime starts Debian with PRoot as a separate process and opens `/dev` and `/proc` only. Shared storage and other apps' private data are not bound into the guest.
+- Android `INTERNET` permission is added for first-time setup and APT; DNS resolver entries are refreshed from the active Android network when available.
+- The current implementation supports 64-bit ARM64 processes only. Other ABIs retain the Android Shell fallback and receive an explicit unsupported message.
+
+## Validation still required
+
+- CI must pass the Gradle build and verify that the two PRoot binaries inside the APK still match their expected SHA-256 values.
+- The downloaded Debian layer has a pinned digest, but full installation, symlink handling, PRoot loader startup, APT package installation, and persistence still require instrumented and real-device tests.
+- CI success alone is not evidence that the rootfs was installed or that PRoot launched successfully on a physical Android 11 device.
+- No Root capability, kernel isolation, or cross-application access is provided.
