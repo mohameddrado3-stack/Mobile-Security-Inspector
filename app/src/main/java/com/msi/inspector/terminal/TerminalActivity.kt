@@ -115,7 +115,7 @@ class TerminalActivity : Activity(), TerminalSessionClient, TerminalViewClient {
         root.addView(heading, LinearLayout.LayoutParams(-1, -2))
         
         val limitation = label(
-            "الجلسة الحالية: Android Shell داخل مساحة التطبيق. بيئة Debian وAPT ليست مفعّلة في هذه المرحلة.",
+            "طرفية محلية داخل مساحة التطبيق. ثبّت Debian للحصول على Linux Userland وAPT؛ يعمل Android Shell بديلًا عند عدم التثبيت.",
             11f, terminalMuted
         ).apply {
             setPadding(dp(9), dp(8), dp(9), dp(8))
