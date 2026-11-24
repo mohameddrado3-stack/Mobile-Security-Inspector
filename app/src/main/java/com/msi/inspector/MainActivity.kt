@@ -275,7 +275,7 @@ class MainActivity : Activity() {
                 signals.add("صلاحيات حساسة ممنوحة ضمن: " + categories.joinToString("، ") + ".")
                 score += categories.size.coerceAtMost(3)
             }
-            if (installer == "غير معروف") {
+            if (installer == "غير معروف" && !isSystem) {
                 signals.add("تعذّر تحديد مصدر التثبيت؛ هذه المعلومة وحدها لا تعني أن التطبيق ضار.")
                 score += 1
             }
@@ -351,11 +351,13 @@ class MainActivity : Activity() {
         manager.activeAdmins?.map { it.packageName }?.toSet() ?: emptySet()
     } catch (_: Exception) { emptySet() }
 
-    private fun isVpnActive(): Boolean = try {
-        val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-        val network = cm.activeNetwork ?: return false
-        cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
-    } catch (_: Exception) { false }
+    private fun isVpnActive(): Boolean {
+        return try {
+            val cm = getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
+            val network = cm.activeNetwork ?: return false
+            cm.getNetworkCapabilities(network)?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+        } catch (_: Exception) { false }
+    }
 
     private fun renderSummary() {
         val review = allResults.count { it.needsReview }
