@@ -13,6 +13,8 @@ import android.provider.Settings
 import com.msi.inspector.domain.analyzer.PermissionAnalyzer
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanSnapshot
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import java.util.Locale
 
 class AndroidAppScanner(context: Context) : AppScanner {
@@ -20,7 +22,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
     private val packageManager = appContext.packageManager
     private val dangerousPermissionCache = HashMap<String, Boolean>()
 
-    override fun scan(): ScanSnapshot {
+    override suspend fun scan(): ScanSnapshot {
         val accessibilityPackages = enabledAccessibilityPackages()
         val adminPackages = activeAdminPackages()
         val vpnActive = isVpnActive()
@@ -28,9 +30,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
         val results = ArrayList<AppAudit>(installedApplications.size)
 
         installedApplications.forEach { appInfo ->
-            if (Thread.currentThread().isInterrupted) {
-                throw InterruptedException("تم إلغاء فحص التطبيقات.")
-            }
+            currentCoroutineContext().ensureActive()
 
             val packageName = appInfo.packageName
             val packageInfo = getPackageInfo(packageName)
