@@ -7,6 +7,7 @@ import com.msi.inspector.data.repository.AppAuditRepository
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
+import com.msi.inspector.domain.model.ScanSnapshot
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.navigation.MsiDestination
 import kotlinx.coroutines.CancellationException
@@ -41,12 +42,21 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         viewModelScope.launch {
-            val entries = withContext(Dispatchers.IO) { repository.loadHistory() }
-            mutableState.update { current ->
-                current.copy(
-                    history = entries,
-                    lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
-                )
+            try {
+                val entries = withContext(Dispatchers.IO) { repository.loadHistory() }
+                mutableState.update { current ->
+                    current.copy(
+                        history = entries,
+                        lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                mutableState.update {
+                    it.copy(error = exception.localizedMessage?.takeIf(String::isNotBlank)
+                        ?: "تعذر تحميل سجل الفحوصات.")
+                }
             }
         }
     }
@@ -76,8 +86,23 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         if (mutableState.value.isScanning) return
         mutableState.update { it.copy(isScanning = true, error = null, destination = MsiDestination.HOME) }
         viewModelScope.launch {
+            val snapshot = try {
+                withContext(Dispatchers.IO) { repository.scan() }
+            } catch (cancelled: CancellationException) {
+                mutableState.update { it.copy(isScanning = false) }
+                throw cancelled
+            } catch (exception: Exception) {
+                mutableState.update {
+                    it.copy(
+                        isScanning = false,
+                        error = exception.localizedMessage?.takeIf(String::isNotBlank)
+                            ?: "حدث خطأ غير معروف أثناء الفحص."
+                    )
+                }
+                return@launch
+            }
+
             try {
-                val snapshot = withContext(Dispatchers.IO) { repository.scan() }
                 val history = withContext(Dispatchers.IO) {
                     repository.saveHistory(snapshot)
                     repository.loadHistory()
@@ -93,14 +118,24 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     )
                 }
             } catch (cancelled: CancellationException) {
-                mutableState.update { it.copy(isScanning = false) }
+                mutableState.update {
+                    it.copy(
+                        applications = snapshot.applications,
+                        vpnActive = snapshot.vpnActive,
+                        lastScanAt = snapshot.completedAt,
+                        isScanning = false
+                    )
+                }
                 throw cancelled
             } catch (exception: Exception) {
                 mutableState.update {
                     it.copy(
+                        applications = snapshot.applications,
+                        vpnActive = snapshot.vpnActive,
+                        lastScanAt = snapshot.completedAt,
                         isScanning = false,
-                        error = exception.localizedMessage?.takeIf { message -> message.isNotBlank() }
-                            ?: "حدث خطأ غير معروف أثناء الفحص."
+                        error = "اكتمل الفحص لكن تعذر حفظ السجل: " +
+                            (exception.localizedMessage ?: "خطأ غير معروف")
                     )
                 }
             }
@@ -109,8 +144,19 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun clearHistory() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) { repository.clearHistory() }
-            mutableState.update { it.copy(history = emptyList()) }
+            try {
+                withContext(Dispatchers.IO) { repository.clearHistory() }
+                mutableState.update { it.copy(history = emptyList(), error = null) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                mutableState.update {
+                    it.copy(
+                        error = "تعذر مسح سجل الفحوصات: " +
+                            (exception.localizedMessage ?: "خطأ غير معروف")
+                    )
+                }
+            }
         }
     }
 
