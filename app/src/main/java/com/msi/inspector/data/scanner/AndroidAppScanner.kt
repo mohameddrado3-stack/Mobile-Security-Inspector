@@ -148,22 +148,19 @@ class AndroidAppScanner(context: Context) : AppScanner {
 
     private fun signingFingerprint(info: PackageInfo): String? {
         return try {
+            // Compare the certificates that sign the installed APK now, not the
+            // historical rotation chain. Sort all current signers for stable multi-signer output.
             val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                val signingInfo = info.signingInfo ?: return null
-                if (signingInfo.hasMultipleSigners()) {
-                    signingInfo.apkContentsSigners
-                } else {
-                    signingInfo.signingCertificateHistory
-                }
+                info.signingInfo?.apkContentsSigners ?: return null
             } else {
                 @Suppress("DEPRECATION")
                 info.signatures
             } ?: return null
-            signatures.firstOrNull()?.toByteArray()?.let { certificate ->
+            signatures.map { signature ->
                 MessageDigest.getInstance("SHA-256")
-                    .digest(certificate)
+                    .digest(signature.toByteArray())
                     .joinToString("") { byte -> "%02X".format(byte) }
-            }
+            }.sorted().joinToString(",").takeIf { it.isNotBlank() }
         } catch (_: Exception) {
             null
         }
