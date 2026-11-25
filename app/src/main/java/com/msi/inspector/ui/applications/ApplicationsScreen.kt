@@ -336,11 +336,12 @@ private fun ApplicationCard(
     ) {
         Box {
         Row(
-            modifier = Modifier.combinedClickable(
-                onClick = onClick,
-                onLongClick = { showQuickActions = true }
-            ),
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showQuickActions = true }
+                )
+                .padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
