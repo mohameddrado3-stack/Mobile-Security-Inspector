@@ -23,7 +23,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -57,6 +62,8 @@ fun ApplicationsScreen(
     onQueryChange: (String) -> Unit,
     onFilterChange: (AppFilter) -> Unit,
     onSelect: (AppAudit) -> Unit,
+    onCopyPackage: (String) -> Unit = {},
+    onOpenSettings: (String) -> Unit = {},
     trustedPackages: Set<String> = emptySet(),
     ignoredPackages: Set<String> = emptySet()
 ) {
@@ -139,8 +146,10 @@ fun ApplicationsScreen(
                             )
                         }
                         items(apps, key = { it.packageName }) { app ->
-                            ApplicationCard(
+                            SwipeableApplicationCard(
                                 app = app,
+                                onCopyPackage = onCopyPackage,
+                                onOpenSettings = onOpenSettings,
                                 selectedForComparison = app.packageName in selectedForComparison,
                                 isTrusted = app.packageName in trustedPackages,
                                 isIgnored = app.packageName in ignoredPackages,
@@ -158,8 +167,10 @@ fun ApplicationsScreen(
                     }
                 } else {
                     items(sorted, key = { it.packageName }) { app ->
-                        ApplicationCard(
+                        SwipeableApplicationCard(
                             app = app,
+                            onCopyPackage = onCopyPackage,
+                            onOpenSettings = onOpenSettings,
                             selectedForComparison = app.packageName in selectedForComparison,
                             isTrusted = app.packageName in trustedPackages,
                             isIgnored = app.packageName in ignoredPackages,
@@ -230,6 +241,59 @@ private fun EmptyApplications() {
             fontSize = 12.sp
         )
     }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SwipeableApplicationCard(
+    app: AppAudit,
+    selectedForComparison: Boolean,
+    isTrusted: Boolean,
+    isIgnored: Boolean,
+    onCompareChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    onCopyPackage: (String) -> Unit,
+    onOpenSettings: (String) -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState()
+    LaunchedEffect(dismissState.currentValue) {
+        when (dismissState.currentValue) {
+            SwipeToDismissBoxValue.StartToEnd -> onCopyPackage(app.packageName)
+            SwipeToDismissBoxValue.EndToStart -> onOpenSettings(app.packageName)
+            SwipeToDismissBoxValue.Settled -> Unit
+        }
+        if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            dismissState.reset()
+        }
+    }
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 18.dp, vertical = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("نسخ اسم الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text("إعدادات التطبيق", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            }
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        content = {
+            ApplicationCard(
+                app = app,
+                selectedForComparison = selectedForComparison,
+                isTrusted = isTrusted,
+                isIgnored = isIgnored,
+                onCompareChange = onCompareChange,
+                onClick = onClick
+            )
+        }
+    )
 }
 
 @Composable
