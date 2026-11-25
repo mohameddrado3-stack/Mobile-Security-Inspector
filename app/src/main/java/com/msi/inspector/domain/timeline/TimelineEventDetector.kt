@@ -62,17 +62,19 @@ object TimelineEventDetector {
                         "الصلاحيات التي لم تعد تظهر كممنوحة: ${removedGranted.joinToString()}.")
                 }
             }
-            val oldSpecial = old.specialAccessReasons.toSet()
-            val newSpecial = new.specialAccessReasons.toSet()
-            if (oldSpecial != newSpecial) {
-                val added = (newSpecial - oldSpecial).sorted()
-                val removed = (oldSpecial - newSpecial).sorted()
-                val parts = buildList {
-                    if (added.isNotEmpty()) add("ظهرت: ${added.joinToString()}")
-                    if (removed.isNotEmpty()) add("لم تعد ظاهرة: ${removed.joinToString()}")
+            if (old.specialAccessStateAvailable && new.specialAccessStateAvailable) {
+                val oldSpecial = old.specialAccessReasons.toSet()
+                val newSpecial = new.specialAccessReasons.toSet()
+                if (oldSpecial != newSpecial) {
+                    val added = (newSpecial - oldSpecial).sorted()
+                    val removed = (oldSpecial - newSpecial).sorted()
+                    val parts = buildList {
+                        if (added.isNotEmpty()) add("ظهرت: ${added.joinToString()}")
+                        if (removed.isNotEmpty()) add("لم تعد ظاهرة: ${removed.joinToString()}")
+                    }
+                    events += event(current, TimelineEventType.SPECIAL_ACCESS_CHANGED, new,
+                        "تغيّر الوصول الخاص النشط", parts.joinToString("؛ ") + ".")
                 }
-                events += event(current, TimelineEventType.SPECIAL_ACCESS_CHANGED, new,
-                    "تغيّر الوصول الخاص النشط", parts.joinToString("؛ ") + ".")
             }
         }
 
