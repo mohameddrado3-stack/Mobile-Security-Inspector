@@ -228,6 +228,20 @@ fun MsiApp(
                             onQueryChange = viewModel::updateQuery,
                             onFilterChange = viewModel::updateFilter,
                             onSelect = viewModel::selectApplication,
+                            onCopyPackage = { packageName ->
+                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                clipboard.setPrimaryClip(ClipData.newPlainText("اسم الحزمة", packageName))
+                                Toast.makeText(context, "تم نسخ اسم الحزمة", Toast.LENGTH_SHORT).show()
+                            },
+                            onOpenSettings = { packageName ->
+                                openSystemPage(
+                                    context,
+                                    Intent(
+                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                                        Uri.parse("package:$packageName")
+                                    )
+                                )
+                            },
                             trustedPackages = state.trustedPackages,
                             ignoredPackages = state.ignoredPackages
                         )
