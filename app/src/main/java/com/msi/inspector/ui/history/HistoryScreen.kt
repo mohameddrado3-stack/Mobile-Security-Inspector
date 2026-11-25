@@ -171,7 +171,12 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
         modifier = Modifier.fillMaxWidth().height(104.dp)
     ) {
         if (points.size == 1) {
-            drawCircle(chartColor, radius = 5.dp.toPx(), center = Offset(size.width / 2, size.height / 2))
+            val pointColor = when (points.single().vpnActive) {
+                true -> MsiColors.Attention
+                false -> chartColor
+                null -> unknownColor
+            }
+            drawCircle(pointColor, radius = 5.dp.toPx(), center = Offset(size.width / 2, size.height / 2))
         } else if (points.size > 1) {
             val path = Path()
             points.forEachIndexed { index, entry ->
