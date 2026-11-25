@@ -11,6 +11,11 @@ import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedCard
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -30,6 +35,14 @@ fun PermissionsScreen(
     onCategorySelected: (Set<String>) -> Unit = {}
 ) {
     val categories = PermissionAnalyzer.dashboardCategories(applications)
+    var sortBySensitivity by remember { mutableStateOf(false) }
+    val sensitivityOrder = listOf(
+        "sms", "phone", "contacts", "location", "microphone", "camera",
+        "storage", "sensors", "nearby", "media", "calendar", "notifications"
+    )
+    val displayCategories = if (sortBySensitivity) {
+        categories.sortedBy { sensitivityOrder.indexOf(it.id).let { index -> if (index < 0) Int.MAX_VALUE else index } }
+    } else categories
     val ungrantedRequests = applications.sumOf { app ->
         (app.requestedSensitive.toSet() - app.grantedSensitive.toSet()).size
     }
@@ -41,6 +54,12 @@ fun PermissionsScreen(
             "مركز الصلاحيات",
             "الفئات الـ12 المعروفة في هذا الفحص. العدد يميز التطبيقات التي طلبت الفئة والممنوح منها."
         )
+        OutlinedButton(
+            onClick = { sortBySensitivity = !sortBySensitivity },
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            Text(if (sortBySensitivity) "الترتيب حسب الحساسية مفعّل" else "رتّب حسب الحساسية")
+        }
         Text(
             "طلبات حساسة غير ممنوحة: $ungrantedRequests",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -58,7 +77,7 @@ fun PermissionsScreen(
                 verticalArrangement = Arrangement.spacedBy(9.dp),
                 horizontalArrangement = Arrangement.spacedBy(9.dp)
             ) {
-                items(categories, key = { it.id }) { category ->
+                items(displayCategories, key = { it.id }) { category ->
                     OutlinedCard(
                         modifier = Modifier
                             .fillMaxWidth()
