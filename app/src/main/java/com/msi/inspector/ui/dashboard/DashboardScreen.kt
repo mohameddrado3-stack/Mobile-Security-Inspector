@@ -36,7 +36,7 @@ import com.msi.inspector.design.theme.MsiColors
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.AuditSummary
-import com.msi.inspector.ui.MsiUiState
+import com.msi.inspector.ui.state.MsiUiState
 import com.msi.inspector.ui.navigation.MsiDestination
 import java.text.DateFormat
 import java.util.Date
