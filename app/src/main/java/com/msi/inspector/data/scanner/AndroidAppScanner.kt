@@ -3,7 +3,6 @@ package com.msi.inspector.data.scanner
 import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
-import com.msi.inspector.domain.analyzer.AppCategoryCoherenceAnalyzer
 import com.msi.inspector.domain.analyzer.PermissionAnalyzer
 import com.msi.inspector.domain.analyzer.SpecialPermissionCatalog
 import com.msi.inspector.domain.model.AppAudit
@@ -26,6 +25,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
     override suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit): ScanSnapshot {
         val accessibilityPackages = systemAccessReader.enabledAccessibilityPackages()
         val adminPackages = systemAccessReader.activeAdminPackages()
+        val specialAccessStateAvailable = accessibilityPackages != null && adminPackages != null
         val vpnActive = systemAccessReader.vpnActive()
         val lastUsedByPackage = usageAccessReader.lastUsedByPackage()
         val installedApplications = packageReader.installedApplications()
@@ -36,7 +36,8 @@ class AndroidAppScanner(context: Context) : AppScanner {
             currentCoroutineContext().ensureActive()
 
             val packageName = appInfo.packageName
-            val packageInfo = packageReader.packageInfo(packageName)
+            val packageRead = packageReader.readPackageInfo(packageName)
+            val packageInfo = packageRead.packageInfo
             val requested = packageInfo?.requestedPermissions?.toList().orEmpty()
             val flags = packageInfo?.requestedPermissionsFlags
             val granted = requested.filterIndexed { permissionIndex, _ ->
@@ -44,12 +45,14 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     permissionIndex < flags.size &&
                     (flags[permissionIndex] and PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0
             }
-            val grantedSensitive = granted.filter(packageReader::isDangerousPermission)
-            val requestedSensitive = requested.filter(packageReader::isDangerousPermission)
+            val classifications = requested.associateWith(packageReader::isDangerousPermission)
+            val grantedSensitive = granted.filter { classifications[it] == true }
+            val requestedSensitive = requested.filter { classifications[it] == true }
+            val unclassifiedPermissions = requested.filter { classifications[it] == null }
             val requestedSpecial = requested.mapNotNull(SpecialPermissionCatalog::requestLabel).distinct()
             val categories = grantedSensitive.mapNotNull(PermissionAnalyzer::categoryFor).distinct()
-            val activeAccessibility = accessibilityPackages.contains(packageName)
-            val activeAdmin = adminPackages.contains(packageName)
+            val activeAccessibility = accessibilityPackages?.contains(packageName) == true
+            val activeAdmin = adminPackages?.contains(packageName) == true
             val lastUsedAt = lastUsedByPackage[packageName]
             val unusedForAtLeastThirtyDays = lastUsedAt != null &&
                 System.currentTimeMillis() - lastUsedAt >= THIRTY_DAYS_MILLIS
@@ -59,14 +62,28 @@ class AndroidAppScanner(context: Context) : AppScanner {
             }
             val signals = buildList {
                 addAll(specialReasons)
+                if (!specialAccessStateAvailable) {
+                    add("تعذّر التحقق من بعض حالات الوصول الخاص؛ غياب المؤشر لا يعني أن الحالة غير مفعّلة.")
+                }
+                if (packageInfo == null) {
+                    add(
+                        when (packageRead.state) {
+                            com.msi.inspector.domain.model.PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE ->
+                                "تعذرت قراءة بيانات الحزمة؛ قد تكون غير متاحة أو تغيّرت أثناء الفحص."
+                            com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED ->
+                                "رفض Android الوصول إلى بيانات هذه الحزمة."
+                            com.msi.inspector.domain.model.PackageMetadataState.ERROR ->
+                                "حدث خطأ أثناء قراءة بيانات هذه الحزمة."
+                            com.msi.inspector.domain.model.PackageMetadataState.AVAILABLE -> ""
+                        }.takeIf { it.isNotBlank() } ?: ""
+                    )
+                }
+                if (unclassifiedPermissions.isNotEmpty()) {
+                    add("تعذر تحديد مستوى حساسية ${unclassifiedPermissions.size} صلاحية؛ لم تُحتسب كصلاحيات عادية أو حساسة.")
+                }
                 if (requestedSpecial.isNotEmpty()) {
                     add("التطبيق يطلب إعدادات وصول خاصة في ملفه، لكن حالة تفعيلها لا يمكن تأكيدها من هذا الفحص.")
                 }
-                AppCategoryCoherenceAnalyzer.note(
-                    category = appInfo.category,
-                    categoryName = packageReader.categoryLabel(appInfo.category),
-                    grantedCategories = categories
-                )?.let(::add)
                 if (categories.isNotEmpty()) {
                     add(
                         "صلاحيات Android الحساسة الممنوحة: " +
@@ -93,7 +110,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     grantedSensitive = grantedSensitive,
                     requestedSensitive = requestedSensitive,
                     requestedSpecialAccess = requestedSpecial,
-                    signals = signals,
+                    signals = signals.filter(String::isNotBlank),
                     specialAccessReasons = specialReasons,
                     targetSdk = appInfo.targetSdkVersion,
                     firstInstallTime = packageInfo?.firstInstallTime,
@@ -101,7 +118,10 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     signingCertificateSha256 = packageInfo?.let(packageReader::signingFingerprint),
                     categoryLabel = packageReader.categoryLabel(appInfo.category),
                     lastUsedAt = lastUsedAt,
-                    packageMetadataAvailable = packageInfo != null
+                    packageMetadataAvailable = packageInfo != null,
+                    packageMetadataState = packageRead.state,
+                    unclassifiedPermissions = unclassifiedPermissions,
+                    specialAccessStateAvailable = specialAccessStateAvailable
                 )
             )
             onProgress(index + 1, installedApplications.size)
