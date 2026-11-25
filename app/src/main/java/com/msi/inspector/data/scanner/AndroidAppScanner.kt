@@ -269,6 +269,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
         }
     }
 
+    // Reports the default network visible to MSI; it cannot enumerate every app's VPN route.
     private fun isVpnActive(): Boolean? {
         return try {
             val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
