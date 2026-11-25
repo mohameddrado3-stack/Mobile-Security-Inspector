@@ -43,7 +43,6 @@ class AppAuditRepository(context: Context) {
     fun close() = history.close()
 
     private companion object {
-        // Foreground scans and WorkManager share this process-wide read/compare/write boundary.
         val SCAN_HISTORY_LOCK = Any()
     }
 

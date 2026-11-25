@@ -3,7 +3,6 @@ package com.msi.inspector.domain.timeline
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanSnapshot
 
-/** Factual local change log. It never classifies apps as safe, malicious, or dangerous. */
 object TimelineEventDetector {
     fun detect(previous: ScanSnapshot?, current: ScanSnapshot): List<TimelineEvent> {
         if (previous == null) return listOf(
@@ -37,8 +36,6 @@ object TimelineEventDetector {
         (oldApps.keys intersect newApps.keys).sorted().forEach { key ->
             val old = oldApps.getValue(key)
             val new = newApps.getValue(key)
-            // PackageManager may fail to return metadata for a package that changed
-            // during scanning. Unknown data must never be interpreted as revoked access.
             if (old.packageMetadataAvailable && new.packageMetadataAvailable) {
                 if (old.version != new.version) {
                     events += event(current, TimelineEventType.APP_VERSION_CHANGED, new,

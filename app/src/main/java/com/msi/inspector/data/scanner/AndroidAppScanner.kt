@@ -149,8 +149,6 @@ class AndroidAppScanner(context: Context) : AppScanner {
 
     private fun signingFingerprint(info: PackageInfo): String? {
         return try {
-            // Compare the certificates that sign the installed APK now, not the
-            // historical rotation chain. Sort all current signers for stable multi-signer output.
             val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 info.signingInfo?.apkContentsSigners ?: return null
             } else {
@@ -269,7 +267,6 @@ class AndroidAppScanner(context: Context) : AppScanner {
         }
     }
 
-    // Reports the default network visible to MSI; it cannot enumerate every app's VPN route.
     private fun isVpnActive(): Boolean? {
         return try {
             val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager

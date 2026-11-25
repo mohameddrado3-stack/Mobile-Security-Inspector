@@ -30,8 +30,6 @@ class ScanHistoryDatabase(context: Context) :
         }
         if (oldVersion < 3) createTimelineTable(database)
         if (oldVersion < 4) {
-            // Previous versions stored false when Android returned no network/capabilities.
-            // Those rows are ambiguous, so preserve only confirmed active observations.
             database.execSQL("UPDATE scan_history SET vpn_active = -1 WHERE vpn_active = 0")
         }
     }
@@ -73,10 +71,6 @@ class ScanHistoryDatabase(context: Context) :
 
     fun save(snapshot: ScanSnapshot) = saveWithTimeline(snapshot, emptyList())
 
-    /**
-     * Persists the scan and the events derived from it as one SQLite transaction.
-     * A failed event insert must never leave a newer baseline without its timeline.
-     */
     fun saveWithTimeline(snapshot: ScanSnapshot, events: List<TimelineEvent>) {
         val summary = AuditSummary.from(snapshot.applications)
         val values = ContentValues().apply {
