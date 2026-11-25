@@ -36,15 +36,18 @@ jobs:
           APK="app/build/outputs/apk/release/app-release-unsigned.apk"
           test -s "$APK"
           test -s "app/build/outputs/mapping/release/mapping.txt"
-          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
-          test -n "$AAPT"
-          MANIFEST="$($AAPT dump xmltree "$APK" AndroidManifest.xml)"
-          echo "$MANIFEST" | grep -q 'targetSdkVersion.*36'
-          if echo "$MANIFEST" | grep -q 'debuggable'; then
-            echo "Release manifest contains debuggable attribute" >&2
+          ANALYZER="$(find "$ANDROID_HOME" -type f -name apkanalyzer | head -n 1)"
+          test -n "$ANALYZER"
+          TARGET_SDK="$("$ANALYZER" manifest target-sdk "$APK")"
+          DEBUGGABLE="$("$ANALYZER" manifest debuggable "$APK")"
+          PERMISSIONS="$("$ANALYZER" manifest permissions "$APK")"
+          MANIFEST="$("$ANALYZER" manifest print "$APK")"
+          test "$TARGET_SDK" -ge 36
+          if [ "$DEBUGGABLE" != "false" ]; then
+            echo "Release APK must not be debuggable (actual: $DEBUGGABLE)" >&2
             exit 1
           fi
-          if echo "$MANIFEST" | grep -q 'android.permission.INTERNET'; then
+          if echo "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
             echo "Unexpected INTERNET permission in release APK" >&2
             exit 1
           fi
@@ -52,6 +55,7 @@ jobs:
             echo "Unexpected PreviewActivity in release APK" >&2
             exit 1
           fi
+          echo "Release manifest verified: targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; no INTERNET or PreviewActivity."
       - name: Generate and verify checksums
         run: |
           cd app/build/outputs/apk

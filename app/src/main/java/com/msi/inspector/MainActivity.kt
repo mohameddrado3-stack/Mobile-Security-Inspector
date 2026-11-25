@@ -78,7 +78,12 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun acceptShortcutIntent(intent: android.content.Intent?) {
-        val action = intent?.getStringExtra(EXTRA_SHORTCUT) ?: return
+        val action = when (intent?.action) {
+            ACTION_SHORTCUT_SCAN -> "scan"
+            ACTION_SHORTCUT_PERMISSIONS -> "permissions"
+            ACTION_SHORTCUT_HISTORY -> "history"
+            else -> intent?.getStringExtra(EXTRA_SHORTCUT)
+        } ?: return
         if (action in VALID_SHORTCUTS) {
             shortcutSequence += 1
             shortcutRequest = shortcutSequence to action
@@ -165,6 +170,9 @@ class MainActivity : FragmentActivity() {
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val EXTRA_SHORTCUT = "com.msi.inspector.shortcut"
+        const val ACTION_SHORTCUT_SCAN = "com.msi.inspector.action.SCAN"
+        const val ACTION_SHORTCUT_PERMISSIONS = "com.msi.inspector.action.PERMISSIONS"
+        const val ACTION_SHORTCUT_HISTORY = "com.msi.inspector.action.HISTORY"
         val VALID_SHORTCUTS = setOf("scan", "permissions", "history")
     }
 }

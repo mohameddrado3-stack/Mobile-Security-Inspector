@@ -199,7 +199,6 @@ private fun rememberDeviceHealth(context: Context): DeviceHealth {
         DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE -> "مشفّر ونشط"
         DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE -> "غير نشط"
         DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING -> "جارٍ التفعيل"
-        DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE_PER_USER -> "غير نشط لهذا المستخدم"
         DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED -> "غير مدعوم أو غير متاح"
         else -> "غير معروف"
     }

@@ -128,7 +128,7 @@ fun HistoryScreen(
                                 val delta = entry.totalApplications - olderEntry.totalApplications
                                 Text(
                                     "مقارنة بالفحص الأقدم: ${signed(delta)} تطبيقًا",
-                                    color = MaterialTheme.colorScheme.primary,
+                                    color = chartColor,
                                     fontSize = 11.sp
                                 )
                             }
@@ -161,11 +161,12 @@ fun HistoryScreen(
 private fun HistoryTrend(history: List<ScanHistoryEntry>) {
     val points = history.take(50).reversed()
     val maximum = (points.maxOfOrNull { it.activeSpecialAccess } ?: 0).coerceAtLeast(1)
+    val chartColor = MaterialTheme.colorScheme.primary
     Canvas(
         modifier = Modifier.fillMaxWidth().height(104.dp)
     ) {
         if (points.size == 1) {
-            drawCircle(MaterialTheme.colorScheme.primary, radius = 5.dp.toPx(), center = Offset(size.width / 2, size.height / 2))
+            drawCircle(chartColor, radius = 5.dp.toPx(), center = Offset(size.width / 2, size.height / 2))
         } else if (points.size > 1) {
             val path = Path()
             points.forEachIndexed { index, entry ->
@@ -173,12 +174,12 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
                 val y = size.height - (entry.activeSpecialAccess.toFloat() / maximum) * size.height
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 drawCircle(
-                    color = MaterialTheme.colorScheme.primary,
+                    color = chartColor,
                     radius = 3.dp.toPx(),
                     center = Offset(x, y)
                 )
             }
-            drawPath(path, MaterialTheme.colorScheme.primary, style = Stroke(width = 2.dp.toPx()))
+            drawPath(path, chartColor, style = Stroke(width = 2.dp.toPx()))
         }
     }
     Text(
