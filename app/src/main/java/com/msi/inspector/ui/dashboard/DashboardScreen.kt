@@ -238,8 +238,11 @@ fun DashboardScreen(
         MsiCard {
             MsiSectionHeading("حالة اتصال الجهاز")
             Text(
-                if (state.vpnActive) "● تم رصد اتصال VPN على مستوى الجهاز."
-                else "○ لم يُرصد اتصال VPN نشط أو أن الحالة غير متاحة.",
+                when (state.vpnActive) {
+                    true -> "● تم رصد اتصال VPN على مستوى الجهاز."
+                    false -> "○ رُصد عدم وجود اتصال VPN نشط وقت الفحص."
+                    null -> "؟ تعذّر تحديد حالة VPN من بيانات Android المتاحة."
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
