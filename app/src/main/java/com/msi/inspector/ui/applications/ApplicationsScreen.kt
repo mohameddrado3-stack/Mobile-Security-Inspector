@@ -41,16 +41,13 @@ import androidx.compose.ui.viewinterop.AndroidView
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.domain.analyzer.AppFilter
+import com.msi.inspector.domain.analyzer.ApplicationSortOrder
+import com.msi.inspector.domain.analyzer.compareApplications
+import com.msi.inspector.domain.analyzer.sortApplications
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.AuditStatus
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-
-private enum class AppSort(val title: String) {
-    INDICATORS("الأكثر مؤشرات"),
-    RECENT("الأحدث تحديثًا"),
-    NAME("الاسم")
-}
 
 @Composable
 fun ApplicationsScreen(
@@ -64,20 +61,11 @@ fun ApplicationsScreen(
     ignoredPackages: Set<String> = emptySet()
 ) {
     val filters = AppFilter.values().toList()
-    var sort by remember { mutableStateOf(AppSort.INDICATORS) }
+    var sort by remember { mutableStateOf(ApplicationSortOrder.INDICATORS) }
     var groupBySource by remember { mutableStateOf(false) }
     val selectedForComparison = remember { mutableStateListOf<String>() }
     val selectedApps = applications.filter { it.packageName in selectedForComparison }.take(2)
-    val sorted = when (sort) {
-        AppSort.INDICATORS -> applications.sortedWith(
-            compareByDescending<AppAudit> { it.specialAccessReasons.isNotEmpty() }
-                .thenByDescending { it.requestedSpecialAccess.isNotEmpty() }
-                .thenByDescending { it.grantedSensitive.size }
-                .thenBy { it.label.lowercase() }
-        )
-        AppSort.RECENT -> applications.sortedByDescending { it.lastUpdateTime ?: 0L }
-        AppSort.NAME -> applications.sortedBy { it.label.lowercase() }
-    }
+    val sorted = sortApplications(applications, sort)
     Column(
         modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -101,7 +89,7 @@ fun ApplicationsScreen(
             }
         }
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(AppSort.values().toList()) { item ->
+            items(ApplicationSortOrder.values().toList()) { item ->
                 FilterChip(
                     selected = sort == item,
                     onClick = { sort = item },
@@ -194,21 +182,36 @@ fun ApplicationsScreen(
 
 @Composable
 private fun ComparisonCard(first: AppAudit, second: AppAudit) {
+    val comparison = compareApplications(first, second)
+    val signatureStatus = when (comparison.signaturesMatch) {
+        true -> "بصمتا التوقيع متطابقتان"
+        false -> "بصمتا التوقيع مختلفتان"
+        null -> "مقارنة التوقيع غير متاحة: بصمة واحدة على الأقل غير متوفرة"
+    }
+    fun display(values: List<String>): String =
+        values.ifEmpty { listOf("لا يوجد اختلاف") }
+            .joinToString("، ") { it.substringAfterLast('.') }
+
     Card(
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("مقارنة تطبيقين", style = MaterialTheme.typography.titleSmall)
             Text("${first.label}  مقابل  ${second.label}", fontSize = 12.sp)
             Text("الإصدار: ${first.version} / ${second.version}", fontSize = 11.sp)
-            Text("Target SDK: ${first.targetSdk ?: "؟"} / ${second.targetSdk ?: "؟"}", fontSize = 11.sp)
+            Text("Target SDK: ${first.targetSdk ?: "غير متاح"} / ${second.targetSdk ?: "غير متاح"}", fontSize = 11.sp)
             Text("مصدر التثبيت: ${first.installer} / ${second.installer}", fontSize = 11.sp)
+            Text(signatureStatus, fontSize = 11.sp)
+            Text("صلاحيات ممنوحة في الأول فقط: ${display(comparison.grantedOnlyInFirst)}", fontSize = 11.sp)
+            Text("صلاحيات ممنوحة في الثاني فقط: ${display(comparison.grantedOnlyInSecond)}", fontSize = 11.sp)
+            Text("صلاحيات مطلوبة في الأول فقط: ${display(comparison.requestedOnlyInFirst)}", fontSize = 11.sp)
+            Text("صلاحيات مطلوبة في الثاني فقط: ${display(comparison.requestedOnlyInSecond)}", fontSize = 11.sp)
             Text(
-                "بصمة التوقيع متطابقة: ${first.signingCertificateSha256 != null && first.signingCertificateSha256 == second.signingCertificateSha256}",
-                fontSize = 11.sp
+                "المقارنة تعرض اختلافات البيانات المتاحة، ولا تعني أن تطبيقًا أكثر أمانًا من الآخر.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
             )
-            Text("صلاحيات ممنوحة: ${first.grantedSensitive.size} / ${second.grantedSensitive.size}", fontSize = 11.sp)
         }
     }
 }
