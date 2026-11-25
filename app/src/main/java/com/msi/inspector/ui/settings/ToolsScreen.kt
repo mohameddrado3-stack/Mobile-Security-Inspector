@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.design.theme.MsiThemeMode
@@ -215,4 +217,22 @@ private fun rememberDeviceHealth(context: Context): DeviceHealth {
         adb = if (adbEnabled) "مفعّل" else "غير مفعّل",
         developerOptions = if (developerEnabled) "مفعّلة" else "غير مفعّلة"
     )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ToolsScreenPreview() {
+    MsiTheme {
+        ToolsScreen(
+            appLockEnabled = false,
+            onToggleAppLock = {},
+            onManageApps = {},
+            onAccessibilitySettings = {},
+            onSecuritySettings = {},
+            onGeneralSettings = {},
+            themeMode = MsiThemeMode.DARK,
+            useDynamicColor = false,
+            onThemeChanged = { _, _ -> }
+        )
+    }
 }
