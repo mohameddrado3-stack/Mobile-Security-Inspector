@@ -101,7 +101,7 @@ jobs:
                       if name in allowed_exported:
                           continue
                       permission = component.get(ns + "permission", "")
-                      if tag == "service" and (name, permission) in protected_framework_services:
+                      if tag in ("service", "receiver") and (name, permission) in protected_framework_services:
                           continue
                       raise SystemExit(f"Unexpected exported component or missing protected permission: {tag} {name} permission={permission}")
           PY
