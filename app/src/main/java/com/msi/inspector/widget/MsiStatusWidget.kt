@@ -41,6 +41,7 @@ private val LAST_SCAN = longPreferencesKey("msi_widget_last_scan")
 private val TOTAL_APPS = intPreferencesKey("msi_widget_total_apps")
 private val ACTIVE_SPECIAL = intPreferencesKey("msi_widget_active_special")
 private val REQUESTED_SPECIAL = intPreferencesKey("msi_widget_requested_special")
+private val VPN_STATE = intPreferencesKey("msi_widget_vpn_state")
 
 class MsiStatusWidget : GlanceAppWidget() {
     override val stateDefinition: GlanceStateDefinition<*> = PreferencesGlanceStateDefinition
@@ -52,13 +53,14 @@ class MsiStatusWidget : GlanceAppWidget() {
                 lastScan = preferences[LAST_SCAN] ?: 0L,
                 total = preferences[TOTAL_APPS] ?: 0,
                 active = preferences[ACTIVE_SPECIAL] ?: 0,
-                requested = preferences[REQUESTED_SPECIAL] ?: 0
+                requested = preferences[REQUESTED_SPECIAL] ?: 0,
+                vpnState = preferences[VPN_STATE] ?: -1
             )
         }
     }
 
     @Composable
-    private fun WidgetContent(lastScan: Long, total: Int, active: Int, requested: Int) {
+    private fun WidgetContent(lastScan: Long, total: Int, active: Int, requested: Int, vpnState: Int) {
         val context = androidx.glance.LocalContext.current
         Column(
             modifier = GlanceModifier
@@ -94,6 +96,14 @@ class MsiStatusWidget : GlanceAppWidget() {
                     style = TextStyle(color = ColorProvider(Color(0xFFFFC857)), fontSize = 11.sp)
                 )
             }
+            Text(
+                when (vpnState) {
+                    1 -> "VPN: نشط وقت الفحص"
+                    0 -> "VPN: غير نشط وقت الفحص"
+                    else -> "VPN: الحالة غير معروفة"
+                },
+                style = TextStyle(color = ColorProvider(Color(0xFFB8C7D9)), fontSize = 10.sp)
+            )
             androidx.glance.Button(
                 text = "افحص الآن",
                 onClick = actionStartActivity(
@@ -125,6 +135,7 @@ object MsiWidgetStateUpdater {
                 preferences[TOTAL_APPS] = summary.totalApplications
                 preferences[ACTIVE_SPECIAL] = summary.activeSpecialAccess
                 preferences[REQUESTED_SPECIAL] = summary.requestedSpecialAccess
+                preferences[VPN_STATE] = snapshot.vpnActive?.let { if (it) 1 else 0 } ?: -1
             }
             widget.update(context, id)
         }
