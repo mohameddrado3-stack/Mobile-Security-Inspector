@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.msi.inspector.data.serialization.AppAuditJsonCodec
+import com.msi.inspector.data.serialization.DeviceSecurityJsonCodec
 import com.msi.inspector.domain.analyzer.AuditSummary
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
@@ -35,6 +36,7 @@ class ScanHistoryDatabase(context: Context) :
             put("sensitive_permissions", summary.applicationsWithSensitivePermissions)
             put("vpn_active", VpnObservationStorage.encode(snapshot.vpnActive))
             put("applications_json", AppAuditJsonCodec.encode(snapshot.applications))
+            put("device_security_json", DeviceSecurityJsonCodec.encode(snapshot.deviceSecurity))
         }
         val database = writableDatabase
         database.beginTransaction()
@@ -145,8 +147,10 @@ class ScanHistoryDatabase(context: Context) :
         readableDatabase.query(
             "scan_history",
             arrayOf("id", "scanned_at", "total_applications", "active_special_access",
-                "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json"),
-            null, null, null, null, "scanned_at DESC, id DESC", limit.coerceIn(1, MAX_SCAN_SESSIONS).toString()
+                "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json",
+                "device_security_json"),
+            null, null, null, null, "scanned_at DESC, id DESC",
+            limit.coerceIn(1, MAX_SCAN_SESSIONS).toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 entries += ScanHistoryEntry(
@@ -154,7 +158,8 @@ class ScanHistoryDatabase(context: Context) :
                     totalApplications = cursor.getInt(2), activeSpecialAccess = cursor.getInt(3),
                     requestedSpecialAccess = cursor.getInt(4), sensitivePermissions = cursor.getInt(5),
                     vpnActive = VpnObservationStorage.decode(cursor.getInt(6)),
-                    applicationsJson = cursor.getString(7) ?: "[]"
+                    applicationsJson = cursor.getString(7) ?: "[]",
+                    deviceSecuritySnapshot = DeviceSecurityJsonCodec.decode(cursor.getString(8))
                 )
             }
         }

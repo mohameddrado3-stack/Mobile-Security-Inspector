@@ -68,9 +68,10 @@ class ScanHistoryDatabaseTest {
             null
         ).use { it.moveToFirst() }
 
-        assertEquals(4, database.version)
+        assertEquals(5, database.version)
         assertEquals(listOf(-1, 1), values)
         assertTrue("applications_json" in columns)
+        assertTrue("device_security_json" in columns)
         assertTrue(timelineExists)
         assertEquals(2L, database.rawQuery(
             "SELECT COUNT(*) FROM scan_history",

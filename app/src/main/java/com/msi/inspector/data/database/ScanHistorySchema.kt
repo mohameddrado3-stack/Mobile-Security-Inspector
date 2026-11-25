@@ -3,7 +3,7 @@ package com.msi.inspector.data.database
 import android.database.sqlite.SQLiteDatabase
 
 internal object ScanHistorySchema {
-    const val VERSION = 4
+    const val VERSION = 5
 
     fun create(database: SQLiteDatabase) {
         createScanHistoryTable(database)
@@ -20,6 +20,11 @@ internal object ScanHistorySchema {
         if (oldVersion < 4) {
             database.execSQL("UPDATE scan_history SET vpn_active = -1 WHERE vpn_active = 0")
         }
+        if (oldVersion < 5) {
+            database.execSQL(
+                "ALTER TABLE scan_history ADD COLUMN device_security_json TEXT NOT NULL DEFAULT 'null'"
+            )
+        }
         database.execSQL("CREATE INDEX IF NOT EXISTS scan_history_scanned_at_idx ON scan_history(scanned_at DESC)")
     }
 
@@ -34,7 +39,8 @@ internal object ScanHistorySchema {
                 requested_special_access INTEGER NOT NULL,
                 sensitive_permissions INTEGER NOT NULL,
                 vpn_active INTEGER NOT NULL,
-                applications_json TEXT NOT NULL DEFAULT '[]'
+                applications_json TEXT NOT NULL DEFAULT '[]',
+                device_security_json TEXT NOT NULL DEFAULT 'null'
             )
             """.trimIndent()
         )

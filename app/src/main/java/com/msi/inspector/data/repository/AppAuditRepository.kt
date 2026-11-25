@@ -23,7 +23,8 @@ class AppAuditRepository(context: Context) {
                 ScanSnapshot(
                     applications = AppAuditJsonCodec.decode(entry.applicationsJson),
                     vpnActive = entry.vpnActive,
-                    completedAt = entry.scannedAt
+                    completedAt = entry.scannedAt,
+                    deviceSecurity = entry.deviceSecuritySnapshot
                 )
             }.getOrNull()
         }

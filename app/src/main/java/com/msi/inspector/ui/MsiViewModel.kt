@@ -49,6 +49,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     current.copy(
                         history = entries,
                         timelineEvents = loaded.second,
+                        deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
                         vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
                         lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
                     )
@@ -210,6 +211,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         history = history,
                         timelineEvents = recorded.second,
                         vpnActive = snapshot.vpnActive,
+                        deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
                         scanProgress = snapshot.applications.size,
@@ -222,6 +224,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         applications = snapshot.applications,
                         vpnActive = snapshot.vpnActive,
+                        deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false
                     )

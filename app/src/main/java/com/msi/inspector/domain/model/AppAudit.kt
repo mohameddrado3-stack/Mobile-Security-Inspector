@@ -55,7 +55,8 @@ enum class AuditStatus {
 data class ScanSnapshot(
     val applications: List<AppAudit>,
     val vpnActive: Boolean?,
-    val completedAt: Long
+    val completedAt: Long,
+    val deviceSecurity: DeviceSecuritySnapshot? = null
 )
 
 data class ScanHistoryEntry(
@@ -66,5 +67,6 @@ data class ScanHistoryEntry(
     val requestedSpecialAccess: Int,
     val sensitivePermissions: Int,
     val vpnActive: Boolean?,
-    val applicationsJson: String = "[]"
+    val applicationsJson: String = "[]",
+    val deviceSecuritySnapshot: DeviceSecuritySnapshot? = null
 )

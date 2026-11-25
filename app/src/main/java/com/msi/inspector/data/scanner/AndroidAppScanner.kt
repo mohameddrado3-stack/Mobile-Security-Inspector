@@ -5,16 +5,17 @@ import com.msi.inspector.domain.analyzer.AppAuditAnalyzer
 import com.msi.inspector.domain.model.ScanSnapshot
 
 /**
- * Coordinates the Android collector and domain analyzer without coupling either
- * responsibility to the other.
+ * Coordinates independent Android data collectors and the domain analyzer.
  */
 class AndroidAppScanner(context: Context) : AppScanner {
-    private val collector = AndroidAppDataCollector(context.applicationContext)
+    private val appCollector = AndroidAppDataCollector(context.applicationContext)
+    private val deviceSecurityReader = AndroidDeviceSecurityReader(context.applicationContext)
 
     override suspend fun scan(
         onProgress: (completed: Int, total: Int) -> Unit
     ): ScanSnapshot {
-        val evidence = collector.collect(onProgress)
-        return AppAuditAnalyzer.analyze(evidence)
+        val appEvidence = appCollector.collect(onProgress)
+        val appSnapshot = AppAuditAnalyzer.analyze(appEvidence)
+        return appSnapshot.copy(deviceSecurity = deviceSecurityReader.read())
     }
 }
