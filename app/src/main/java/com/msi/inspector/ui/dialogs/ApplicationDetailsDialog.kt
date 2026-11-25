@@ -106,11 +106,16 @@ fun ApplicationDetailsDialog(
                 Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     when {
+                        application.specialAccessReasons.isNotEmpty() &&
+                            !application.specialAccessStateAvailable ->
+                            application.specialAccessReasons.joinToString("\n") +
+                                "\nتعذر التحقق من بعض مصادر الوصول الخاص الأخرى."
+                        application.specialAccessReasons.isNotEmpty() ->
+                            application.specialAccessReasons.joinToString("\n")
                         !application.specialAccessStateAvailable ->
                             "تعذر التحقق من بعض مصادر الوصول الخاص. لا يمكن اعتبار غياب النتيجة دليلًا على عدم التفعيل."
-                        application.specialAccessReasons.isEmpty() ->
+                        else ->
                             "لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق."
-                        else -> application.specialAccessReasons.joinToString("\n")
                     },
                     fontSize = 11.sp,
                     color = if (application.specialAccessStateAvailable) MaterialTheme.colorScheme.onSurfaceVariant
