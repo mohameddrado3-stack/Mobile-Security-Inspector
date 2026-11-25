@@ -83,7 +83,8 @@ jobs:
           package_name = manifest.get("package", "com.msi.inspector")
           allowed_exported = {package_name + ".MainActivity"}
           protected_framework_services = {
-              ("androidx.glance.appwidget.GlanceRemoteViewsService", "android.permission.BIND_REMOTEVIEWS")
+              ("androidx.glance.appwidget.GlanceRemoteViewsService", "android.permission.BIND_REMOTEVIEWS"),
+              ("androidx.work.impl.background.systemjob.SystemJobService", "android.permission.BIND_JOB_SERVICE")
           }
           def normalize_name(name):
               if name.startswith("."):
