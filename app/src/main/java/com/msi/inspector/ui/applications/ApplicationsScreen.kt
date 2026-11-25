@@ -347,7 +347,13 @@ private fun ApplicationCard(
         ) {
             if (icon != null) {
                 AndroidView(
-                    factory = { viewContext -> ImageView(viewContext).apply { scaleType = ImageView.ScaleType.FIT_CENTER } },
+                    factory = {
+                        viewContext ->
+                        ImageView(viewContext).apply {
+                            scaleType = ImageView.ScaleType.FIT_CENTER
+                            contentDescription = "أيقونة ${app.label}"
+                        }
+                    },
                     update = { it.setImageDrawable(icon) },
                     modifier = Modifier.size(48.dp)
                         .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
