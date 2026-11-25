@@ -14,6 +14,7 @@ class PeriodicScanWorker(
 ) : CoroutineWorker(context, parameters) {
 
     override suspend fun doWork(): Result {
+        if (!PeriodicScanScheduler.isEnabled(applicationContext)) return Result.success()
         val repository = AppAuditRepository(applicationContext)
         return try {
             val previous = repository.loadHistory().firstOrNull()
