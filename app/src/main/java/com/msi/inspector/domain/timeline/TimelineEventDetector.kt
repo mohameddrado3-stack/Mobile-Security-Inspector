@@ -92,7 +92,14 @@ object TimelineEventDetector {
     private fun event(
         snapshot: ScanSnapshot, type: TimelineEventType, app: AppAudit,
         title: String, details: String
-    ) = TimelineEvent(snapshot.completedAt, type, app.packageName, app.label, title, details)
+    ) = TimelineEvent(
+        occurredAt = snapshot.completedAt,
+        type = type,
+        packageName = app.packageName,
+        appLabel = app.label,
+        title = title,
+        details = details
+    )
 
     private const val MAX_EVENTS_PER_SCAN = 500
 }
