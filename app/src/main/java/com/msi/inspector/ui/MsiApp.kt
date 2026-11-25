@@ -27,10 +27,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,6 +69,8 @@ import com.msi.inspector.ui.applications.ApplicationsScreen
 import com.msi.inspector.ui.dashboard.DashboardScreen
 import com.msi.inspector.ui.history.HistoryScreen
 import com.msi.inspector.ui.timeline.TimelineScreen
+import com.msi.inspector.ui.navigation.MsiBottomNavigation
+import com.msi.inspector.ui.navigation.MsiNavigationRail
 import com.msi.inspector.ui.navigation.MsiDestination
 import com.msi.inspector.ui.permissions.PermissionsScreen
 import com.msi.inspector.ui.reports.ReportFileFormat
@@ -158,47 +156,13 @@ fun MsiApp(
                 )
             },
             bottomBar = {
-                if (!expandedWidth) {
-                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                        MsiDestination.values().forEach { destination ->
-                            NavigationBarItem(
-                                selected = state.destination == destination,
-                                onClick = { viewModel.navigate(destination) },
-                                icon = {
-                                    Text(
-                                        destination.symbol,
-                                        fontSize = 20.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                label = { Text(destination.title, fontSize = 10.sp) }
-                            )
-                        }
-                    }
-                }
+                if (!expandedWidth) MsiBottomNavigation(state.destination, viewModel::navigate)
             }
         ) { padding ->
             androidx.compose.foundation.layout.Row(
                 modifier = Modifier.fillMaxSize().padding(padding)
             ) {
-                if (expandedWidth) {
-                    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
-                        MsiDestination.values().forEach { destination ->
-                            NavigationRailItem(
-                                selected = state.destination == destination,
-                                onClick = { viewModel.navigate(destination) },
-                                icon = {
-                                    Text(
-                                        destination.symbol,
-                                        fontSize = 20.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                label = { Text(destination.title, fontSize = 10.sp) }
-                            )
-                        }
-                    }
-                }
+                if (expandedWidth) MsiNavigationRail(state.destination, viewModel::navigate)
                 AnimatedContent(
                     targetState = state.destination,
                     modifier = Modifier.fillMaxSize().weight(1f),
