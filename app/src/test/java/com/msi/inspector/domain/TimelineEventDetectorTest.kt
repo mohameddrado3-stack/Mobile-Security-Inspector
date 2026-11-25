@@ -42,6 +42,29 @@ class TimelineEventDetectorTest {
         assertTrue(events.any { it.type == TimelineEventType.SIGNATURE_CHANGED })
     }
 
+    @Test fun missingAppIsReportedAsNoLongerVisibleNotAsUninstalled() {
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(app())),
+            snapshot(emptyList(), 2_000L)
+        )
+        val event = events.single { it.type == TimelineEventType.APP_REMOVED }
+        assertTrue(event.title.contains("ظاهرًا"))
+        assertTrue(event.details.contains("لا يثبت"))
+    }
+
+    @Test fun detectsRemovedSensitivePermissionAndVpnTransition() {
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(app(granted = listOf("android.permission.CAMERA"))), 1_000L),
+            ScanSnapshot(
+                applications = listOf(app(granted = emptyList())),
+                vpnActive = true,
+                completedAt = 2_000L
+            )
+        )
+        assertTrue(events.any { it.type == TimelineEventType.SENSITIVE_PERMISSION_REMOVED })
+        assertTrue(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
+    }
+
     private fun snapshot(apps: List<AppAudit> = emptyList(), at: Long = 1_000L) =
         ScanSnapshot(apps, false, at)
 
