@@ -13,58 +13,14 @@ import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventType
 
 class ScanHistoryDatabase(context: Context) :
-    SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
+    SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, ScanHistorySchema.VERSION) {
 
     override fun onCreate(database: SQLiteDatabase) {
-        createScanHistoryTable(database)
-        createTimelineTable(database)
+        ScanHistorySchema.create(database)
     }
 
     override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2) {
-            database.execSQL(
-                "ALTER TABLE scan_history ADD COLUMN applications_json TEXT NOT NULL DEFAULT '[]'"
-            )
-        }
-        if (oldVersion < 3) createTimelineTable(database)
-        if (oldVersion < 4) {
-            database.execSQL("UPDATE scan_history SET vpn_active = -1 WHERE vpn_active = 0")
-        }
-    }
-
-    private fun createScanHistoryTable(database: SQLiteDatabase) {
-        database.execSQL(
-            """
-            CREATE TABLE scan_history (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                scanned_at INTEGER NOT NULL,
-                total_applications INTEGER NOT NULL,
-                active_special_access INTEGER NOT NULL,
-                requested_special_access INTEGER NOT NULL,
-                sensitive_permissions INTEGER NOT NULL,
-                vpn_active INTEGER NOT NULL,
-                applications_json TEXT NOT NULL DEFAULT '[]'
-            )
-            """.trimIndent()
-        )
-        database.execSQL("CREATE INDEX scan_history_scanned_at_idx ON scan_history(scanned_at DESC)")
-    }
-
-    private fun createTimelineTable(database: SQLiteDatabase) {
-        database.execSQL(
-            """
-            CREATE TABLE timeline_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                occurred_at INTEGER NOT NULL,
-                event_type TEXT NOT NULL,
-                package_name TEXT,
-                app_label TEXT,
-                title TEXT NOT NULL,
-                details TEXT NOT NULL
-            )
-            """.trimIndent()
-        )
-        database.execSQL("CREATE INDEX timeline_events_occurred_at_idx ON timeline_events(occurred_at DESC)")
+        ScanHistorySchema.upgrade(database, oldVersion)
     }
 
     fun save(snapshot: ScanSnapshot) = saveWithTimeline(snapshot, emptyList())
@@ -193,6 +149,5 @@ class ScanHistoryDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "msi_security_history.db"
-        private const val DATABASE_VERSION = 4
     }
 }
