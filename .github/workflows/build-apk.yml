@@ -76,12 +76,19 @@ jobs:
           import xml.etree.ElementTree as ET
           manifest = ET.parse(sys.argv[1]).getroot()
           ns = "{http://schemas.android.com/apk/res/android}"
-          allowed_exported = {"com.msi.inspector.MainActivity"}
+          package_name = manifest.get("package", "com.msi.inspector")
+          allowed_exported = {package_name + ".MainActivity"}
+          def normalize_name(name):
+              if name.startswith("."):
+                  return package_name + name
+              if "." not in name:
+                  return package_name + "." + name
+              return name
           for tag in ("activity", "activity-alias", "service", "receiver", "provider"):
               for component in manifest.findall(f"./application/{tag}"):
                   exported = component.get(ns + "exported", "false").lower() == "true"
                   if exported:
-                      name = component.get(ns + "name", "")
+                      name = normalize_name(component.get(ns + "name", ""))
                       if name not in allowed_exported:
                           raise SystemExit(f"Unexpected exported component: {tag} {name}")
           PY
