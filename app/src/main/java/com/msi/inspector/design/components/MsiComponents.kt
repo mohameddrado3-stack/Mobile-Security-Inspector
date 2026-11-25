@@ -1,6 +1,7 @@
 package com.msi.inspector.design.components
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -17,9 +18,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.msi.inspector.design.theme.MsiColors
 
 @Composable
 fun MsiCard(
@@ -28,7 +32,7 @@ fun MsiCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(22.dp),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -46,10 +50,15 @@ fun MsiMetricCard(
     value: String,
     detail: String,
     accent: Color,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    statusSymbol: String = "●",
+    onClick: (() -> Unit)? = null
 ) {
+    val cardModifier = if (onClick == null) modifier else modifier
+        .clickable(onClick = onClick)
+        .semantics { contentDescription = "$title: $value. $detail" }
     Card(
-        modifier = modifier,
+        modifier = cardModifier,
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
@@ -57,7 +66,10 @@ fun MsiMetricCard(
             modifier = Modifier.padding(15.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
-            Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text(statusSymbol, color = accent, fontSize = 12.sp)
+                Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            }
             Text(value, color = accent, fontSize = 25.sp, fontWeight = FontWeight.Bold)
             Text(detail, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
         }
@@ -84,9 +96,9 @@ fun MsiBrandHeader() {
             .fillMaxWidth()
             .background(
                 Brush.linearGradient(
-                    listOf(Color(0xFF102B38), Color(0xFF111B2B), Color(0xFF171B31))
+                    listOf(MsiColors.Surface, Color(0xFF112A3A), Color(0xFF111D30))
                 ),
-                RoundedCornerShape(24.dp)
+                RoundedCornerShape(20.dp)
             )
             .padding(horizontal = 18.dp, vertical = 17.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -95,7 +107,7 @@ fun MsiBrandHeader() {
         Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Text(
                 "MSI  /  MOBILE SECURITY",
-                color = Color(0xFF70E5CD),
+                color = MsiColors.Accent,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = 1.4.sp,
                 fontSize = 16.sp
@@ -106,6 +118,12 @@ fun MsiBrandHeader() {
                 fontSize = 11.sp
             )
         }
-        Text("◈", color = Color(0xFF70E5CD), fontSize = 34.sp, fontWeight = FontWeight.Light)
+        Text(
+            "⬡",
+            modifier = Modifier.semantics { contentDescription = "شعار Mobile Security Inspector" },
+            color = MsiColors.Accent,
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Light
+        )
     }
 }

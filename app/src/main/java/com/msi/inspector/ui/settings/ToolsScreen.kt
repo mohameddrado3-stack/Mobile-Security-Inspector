@@ -1,10 +1,17 @@
 package com.msi.inspector.ui.settings
 
+import android.app.admin.DevicePolicyManager
+import android.app.KeyguardManager
+import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -14,10 +21,14 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiSectionHeading
+import com.msi.inspector.design.theme.MsiThemeMode
 
 @Composable
 fun ToolsScreen(
@@ -26,8 +37,19 @@ fun ToolsScreen(
     onManageApps: () -> Unit,
     onAccessibilitySettings: () -> Unit,
     onSecuritySettings: () -> Unit,
-    onGeneralSettings: () -> Unit
+    onGeneralSettings: () -> Unit,
+    onDeveloperSettings: () -> Unit = onGeneralSettings,
+    themeMode: MsiThemeMode,
+    useDynamicColor: Boolean,
+    onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
+    periodicScanEnabled: Boolean = false,
+    onPeriodicScanChanged: (Boolean) -> Unit = {},
+    usageAccessOptIn: Boolean = false,
+    usageAccessGranted: Boolean = false,
+    onUsageAccessChanged: (Boolean) -> Unit = {}
 ) {
+    val context = LocalContext.current
+    val health = rememberDeviceHealth(context)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -35,6 +57,100 @@ fun ToolsScreen(
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
+        MsiCard {
+            Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
+            HealthRow("مستوى تصحيح الأمان", health.securityPatch, onSecuritySettings)
+            HealthRow("قفل شاشة آمن", health.secureLock, onSecuritySettings)
+            HealthRow("تشفير التخزين", health.encryption, onSecuritySettings)
+            HealthRow("تصحيح USB (ADB)", health.adb, onDeveloperSettings)
+            HealthRow("خيارات المطوّر", health.developerOptions, onDeveloperSettings)
+            Text(
+                "قراءة فقط. لا يغيّر MSI أي إعداد في الجهاز.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+            OutlinedButton(onClick = onSecuritySettings, modifier = Modifier.fillMaxWidth()) {
+                Text("فتح إعدادات الأمان")
+            }
+            OutlinedButton(onClick = onGeneralSettings, modifier = Modifier.fillMaxWidth()) {
+                Text("فتح إعدادات المطوّر")
+            }
+        }
+        MsiCard {
+            Text("مظهر التطبيق", style = MaterialTheme.typography.titleMedium)
+            Text("اختيار الثيم", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ThemeButton("داكن", MsiThemeMode.DARK, themeMode, useDynamicColor, onThemeChanged)
+                ThemeButton("فاتح", MsiThemeMode.LIGHT, themeMode, useDynamicColor, onThemeChanged)
+                ThemeButton("AMOLED", MsiThemeMode.AMOLED, themeMode, useDynamicColor, onThemeChanged)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("ألوان النظام الديناميكية", fontSize = 13.sp)
+                    Text(
+                        "متاحة على Android 12 وما بعده.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                Switch(
+                    checked = useDynamicColor,
+                    onCheckedChange = { onThemeChanged(themeMode, it) },
+                    enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                )
+            }
+        }
+        MsiCard {
+            Text("الفحص الدوري الاختياري", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("فحص محلي كل 24 ساعة", fontSize = 13.sp)
+                    Text(
+                        "لا يحتاج اتصال شبكة. يرسل إشعارًا فقط إذا تغيّرت مؤشرات محددة.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                Switch(checked = periodicScanEnabled, onCheckedChange = onPeriodicScanChanged)
+            }
+            Text(
+                "سيطلب Android إذن الإشعارات عند تفعيل هذا الخيار فقط. إيقافه يلغي المهام المجدولة.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
+            )
+        }
+        MsiCard {
+            Text("استخدام بيانات الاستخدام (اختياري)", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("مراجعة التطبيقات غير المستخدمة", fontSize = 13.sp)
+                    Text(
+                        if (usageAccessGranted && usageAccessOptIn) "الوصول الخاص مفعّل بإذن المستخدم."
+                        else "مغلق افتراضيًا. يفتح إعدادات Usage Access فقط بعد تفعيل الخيار.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                Switch(checked = usageAccessOptIn, onCheckedChange = onUsageAccessChanged)
+            }
+            Text(
+                "عند تفعيله، يقرأ MSI آخر وقت استخدام معروف محليًا ليشير إلى تطبيقات لديها صلاحيات حساسة ولم تُستخدم منذ 30 يومًا. قد تكون البيانات غير مكتملة، ولا يُسحب أي إذن تلقائيًا.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
+            )
+        }
         MsiCard {
             Text("التحكم في صلاحيات التطبيقات", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -94,5 +210,92 @@ fun ToolsScreen(
                 fontSize = 11.sp
             )
         }
+    }
+}
+
+@Composable
+private fun ThemeButton(
+    label: String,
+    selectedMode: MsiThemeMode,
+    currentMode: MsiThemeMode,
+    dynamic: Boolean,
+    onThemeChanged: (MsiThemeMode, Boolean) -> Unit
+) {
+    if (selectedMode == currentMode) {
+        Button(onClick = { onThemeChanged(selectedMode, dynamic) }) { Text(label) }
+    } else {
+        OutlinedButton(onClick = { onThemeChanged(selectedMode, dynamic) }) { Text(label) }
+    }
+}
+
+@Composable
+private fun HealthRow(label: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(
+            "$value  ›",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+private data class DeviceHealth(
+    val securityPatch: String,
+    val secureLock: String,
+    val encryption: String,
+    val adb: String,
+    val developerOptions: String
+)
+
+private fun rememberDeviceHealth(context: Context): DeviceHealth {
+    val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+    val policy = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    val encrypted = runCatching { policy.storageEncryptionStatus }.getOrDefault(DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED)
+    val encryptionText = when (encrypted) {
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE -> "مشفّر ونشط"
+        DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE -> "غير نشط"
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING -> "جارٍ التفعيل"
+        DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED -> "غير مدعوم أو غير متاح"
+        else -> "غير معروف"
+    }
+    val adbEnabled = Settings.Global.getInt(context.contentResolver, Settings.Global.ADB_ENABLED, 0) == 1
+    val developerEnabled = Settings.Global.getInt(
+        context.contentResolver,
+        Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+        0
+    ) == 1
+    return DeviceHealth(
+        securityPatch = Build.VERSION.SECURITY_PATCH.ifBlank { "غير متاح" },
+        secureLock = if (keyguard.isDeviceSecure) "مفعّل" else "غير مفعّل",
+        encryption = encryptionText,
+        adb = if (adbEnabled) "مفعّل" else "غير مفعّل",
+        developerOptions = if (developerEnabled) "مفعّلة" else "غير مفعّلة"
+    )
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ToolsScreenPreview() {
+    MsiTheme {
+        ToolsScreen(
+            appLockEnabled = false,
+            onToggleAppLock = {},
+            onManageApps = {},
+            onAccessibilitySettings = {},
+            onSecuritySettings = {},
+            onGeneralSettings = {},
+            themeMode = MsiThemeMode.DARK,
+            useDynamicColor = false,
+            onThemeChanged = { _, _ -> }
+        )
     }
 }

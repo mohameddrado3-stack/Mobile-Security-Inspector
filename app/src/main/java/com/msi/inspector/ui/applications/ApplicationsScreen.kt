@@ -1,10 +1,18 @@
 package com.msi.inspector.ui.applications
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,23 +25,40 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.SwipeToDismissBox
+import androidx.compose.material3.SwipeToDismissBoxValue
+import androidx.compose.material3.rememberSwipeToDismissBoxState
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateListOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import com.msi.inspector.design.components.MsiSectionHeading
+import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.domain.analyzer.AppFilter
+import com.msi.inspector.domain.analyzer.ApplicationSortOrder
+import com.msi.inspector.domain.analyzer.compareApplications
+import com.msi.inspector.domain.analyzer.sortApplications
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.AuditStatus
 import kotlinx.coroutines.Dispatchers
@@ -46,16 +71,23 @@ fun ApplicationsScreen(
     filter: AppFilter,
     onQueryChange: (String) -> Unit,
     onFilterChange: (AppFilter) -> Unit,
-    onSelect: (AppAudit) -> Unit
+    onSelect: (AppAudit) -> Unit,
+    onCopyPackage: (String) -> Unit = {},
+    onOpenSettings: (String) -> Unit = {},
+    trustedPackages: Set<String> = emptySet(),
+    ignoredPackages: Set<String> = emptySet()
 ) {
     val filters = AppFilter.values().toList()
+    var sort by remember { mutableStateOf(ApplicationSortOrder.INDICATORS) }
+    var groupBySource by remember { mutableStateOf(false) }
+    val selectedForComparison = remember { mutableStateListOf<String>() }
+    val selectedApps = applications.filter { it.packageName in selectedForComparison }.take(2)
+    val sorted = sortApplications(applications, sort)
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(horizontal = 16.dp, vertical = 12.dp),
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        MsiSectionHeading("التطبيقات المثبتة", "ابحث بالاسم أو اسم الحزمة وحدد نوع المؤشر.")
+        MsiSectionHeading("التطبيقات المثبتة", "بحث بالاسم أو الحزمة، وفرز وتجميع ومقارنة.")
         OutlinedTextField(
             value = query,
             onValueChange = onQueryChange,
@@ -73,6 +105,32 @@ fun ApplicationsScreen(
                 )
             }
         }
+        LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            items(ApplicationSortOrder.values().toList()) { item ->
+                FilterChip(
+                    selected = sort == item,
+                    onClick = { sort = item },
+                    label = { Text(item.title) }
+                )
+            }
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Text("تجميع حسب مصدر التثبيت", fontSize = 12.sp)
+            Switch(checked = groupBySource, onCheckedChange = { groupBySource = it })
+        }
+        if (selectedApps.size == 2) {
+            ComparisonCard(selectedApps[0], selectedApps[1])
+        } else if (selectedForComparison.isNotEmpty()) {
+            Text(
+                "اختر تطبيقًا آخر لإكمال المقارنة (${selectedForComparison.size}/2).",
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 11.sp
+            )
+        }
         if (applications.isEmpty()) {
             EmptyApplications()
         } else {
@@ -82,13 +140,61 @@ fun ApplicationsScreen(
             ) {
                 item {
                     Text(
-                        "عدد النتائج: ${applications.size}",
+                        "عدد النتائج: ${applications.size} — حدّد تطبيقين للمقارنة",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
-                items(applications, key = { it.packageName }) { app ->
-                    ApplicationCard(app = app, onClick = { onSelect(app) })
+                if (groupBySource) {
+                    sorted.groupBy { it.installer }.toSortedMap().forEach { (source, apps) ->
+                        item(key = "source-$source") {
+                            Text(
+                                "مصدر التثبيت: $source",
+                                color = MaterialTheme.colorScheme.primary,
+                                style = MaterialTheme.typography.titleSmall,
+                                modifier = Modifier.padding(top = 8.dp, bottom = 3.dp)
+                            )
+                        }
+                        items(apps, key = { it.packageName }) { app ->
+                            SwipeableApplicationCard(
+                                app = app,
+                                onCopyPackage = onCopyPackage,
+                                onOpenSettings = onOpenSettings,
+                                selectedForComparison = app.packageName in selectedForComparison,
+                                isTrusted = app.packageName in trustedPackages,
+                                isIgnored = app.packageName in ignoredPackages,
+                                onCompareChange = { checked ->
+                                    if (checked) {
+                                        if (selectedForComparison.size == 2) selectedForComparison.removeAt(0)
+                                        selectedForComparison.add(app.packageName)
+                                    } else {
+                                        selectedForComparison.remove(app.packageName)
+                                    }
+                                },
+                                onClick = { onSelect(app) }
+                            )
+                        }
+                    }
+                } else {
+                    items(sorted, key = { it.packageName }) { app ->
+                        SwipeableApplicationCard(
+                            app = app,
+                            onCopyPackage = onCopyPackage,
+                            onOpenSettings = onOpenSettings,
+                            selectedForComparison = app.packageName in selectedForComparison,
+                            isTrusted = app.packageName in trustedPackages,
+                            isIgnored = app.packageName in ignoredPackages,
+                            onCompareChange = { checked ->
+                                if (checked) {
+                                    if (selectedForComparison.size == 2) selectedForComparison.removeAt(0)
+                                    selectedForComparison.add(app.packageName)
+                                } else {
+                                    selectedForComparison.remove(app.packageName)
+                                }
+                            },
+                            onClick = { onSelect(app) }
+                        )
+                    }
                 }
             }
         }
@@ -96,11 +202,45 @@ fun ApplicationsScreen(
 }
 
 @Composable
+private fun ComparisonCard(first: AppAudit, second: AppAudit) {
+    val comparison = compareApplications(first, second)
+    val signatureStatus = when (comparison.signaturesMatch) {
+        true -> "بصمتا التوقيع متطابقتان"
+        false -> "بصمتا التوقيع مختلفتان"
+        null -> "مقارنة التوقيع غير متاحة: بصمة واحدة على الأقل غير متوفرة"
+    }
+    fun display(values: List<String>): String =
+        values.ifEmpty { listOf("لا يوجد اختلاف") }
+            .joinToString("، ") { it.substringAfterLast('.') }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("مقارنة تطبيقين", style = MaterialTheme.typography.titleSmall)
+            Text("${first.label}  مقابل  ${second.label}", fontSize = 12.sp)
+            Text("الإصدار: ${first.version} / ${second.version}", fontSize = 11.sp)
+            Text("Target SDK: ${first.targetSdk ?: "غير متاح"} / ${second.targetSdk ?: "غير متاح"}", fontSize = 11.sp)
+            Text("مصدر التثبيت: ${first.installer} / ${second.installer}", fontSize = 11.sp)
+            Text(signatureStatus, fontSize = 11.sp)
+            Text("صلاحيات ممنوحة في الأول فقط: ${display(comparison.grantedOnlyInFirst)}", fontSize = 11.sp)
+            Text("صلاحيات ممنوحة في الثاني فقط: ${display(comparison.grantedOnlyInSecond)}", fontSize = 11.sp)
+            Text("صلاحيات مطلوبة في الأول فقط: ${display(comparison.requestedOnlyInFirst)}", fontSize = 11.sp)
+            Text("صلاحيات مطلوبة في الثاني فقط: ${display(comparison.requestedOnlyInSecond)}", fontSize = 11.sp)
+            Text(
+                "المقارنة تعرض اختلافات البيانات المتاحة، ولا تعني أن تطبيقًا أكثر أمانًا من الآخر.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
+            )
+        }
+    }
+}
+
+@Composable
 private fun EmptyApplications() {
     Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(28.dp),
+        modifier = Modifier.fillMaxSize().padding(28.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
@@ -113,86 +253,212 @@ private fun EmptyApplications() {
     }
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun ApplicationCard(app: AppAudit, onClick: () -> Unit) {
+private fun SwipeableApplicationCard(
+    app: AppAudit,
+    selectedForComparison: Boolean,
+    isTrusted: Boolean,
+    isIgnored: Boolean,
+    onCompareChange: (Boolean) -> Unit,
+    onClick: () -> Unit,
+    onCopyPackage: (String) -> Unit,
+    onOpenSettings: (String) -> Unit
+) {
+    val dismissState = rememberSwipeToDismissBoxState()
+    LaunchedEffect(dismissState.currentValue) {
+        when (dismissState.currentValue) {
+            SwipeToDismissBoxValue.StartToEnd -> onCopyPackage(app.packageName)
+            SwipeToDismissBoxValue.EndToStart -> onOpenSettings(app.packageName)
+            SwipeToDismissBoxValue.Settled -> Unit
+        }
+        if (dismissState.currentValue != SwipeToDismissBoxValue.Settled) {
+            dismissState.reset()
+        }
+    }
+    SwipeToDismissBox(
+        state = dismissState,
+        backgroundContent = {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(20.dp))
+                    .padding(horizontal = 18.dp, vertical = 20.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text("نسخ اسم الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text("إعدادات التطبيق", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+            }
+        },
+        enableDismissFromStartToEnd = true,
+        enableDismissFromEndToStart = true,
+        content = {
+            ApplicationCard(
+                app = app,
+                selectedForComparison = selectedForComparison,
+                isTrusted = isTrusted,
+                isIgnored = isIgnored,
+                onCompareChange = onCompareChange,
+                onClick = onClick
+            )
+        }
+    )
+}
+
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun ApplicationCard(
+    app: AppAudit,
+    selectedForComparison: Boolean,
+    isTrusted: Boolean,
+    isIgnored: Boolean,
+    onCompareChange: (Boolean) -> Unit,
+    onClick: () -> Unit
+) {
     val context = LocalContext.current
+    var showQuickActions by remember(app.packageName) { mutableStateOf(false) }
     val icon by produceState<Drawable?>(initialValue = null, app.packageName) {
         value = withContext(Dispatchers.IO) {
-            runCatching {
-                context.packageManager.getApplicationIcon(app.packageName)
-            }.getOrNull()
+            runCatching { context.packageManager.getApplicationIcon(app.packageName) }.getOrNull()
         }
     }
     val accent = when (app.status) {
-        AuditStatus.REVIEW -> Color(0xFFFFC278)
-        AuditStatus.REQUESTED -> Color(0xFFFFC278)
+        AuditStatus.REVIEW -> Color(0xFFFF7A6B)
+        AuditStatus.REQUESTED -> Color(0xFFFFC857)
         AuditStatus.SENSITIVE -> Color(0xFF85B8FF)
-        AuditStatus.INFORMATIONAL -> Color(0xFF70E5CD)
+        AuditStatus.INFORMATIONAL -> Color(0xFF70E7D1)
     }
     Card(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        shape = RoundedCornerShape(19.dp),
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
+        Box {
         Row(
-            modifier = Modifier.padding(15.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { showQuickActions = true }
+                )
+                .padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
             if (icon != null) {
                 AndroidView(
-                    factory = { viewContext ->
+                    factory = {
+                        viewContext ->
                         ImageView(viewContext).apply {
                             scaleType = ImageView.ScaleType.FIT_CENTER
+                            contentDescription = "أيقونة ${app.label}"
                         }
                     },
                     update = { it.setImageDrawable(icon) },
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(15.dp))
+                    modifier = Modifier.size(48.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
                         .padding(5.dp)
                 )
             } else {
                 Text(
-                    text = app.label.firstOrNull()?.uppercase() ?: "A",
-                    modifier = Modifier
-                        .size(48.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(15.dp))
+                    app.label.firstOrNull()?.uppercase() ?: "A",
+                    modifier = Modifier.size(48.dp)
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
                         .padding(10.dp),
                     color = MaterialTheme.colorScheme.primary,
-                    fontSize = 22.sp,
-                    fontWeight = FontWeight.Bold
+                    fontSize = 22.sp
                 )
             }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(app.label, fontWeight = FontWeight.Bold, maxLines = 1)
-                Text(
-                    app.packageName,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp,
-                    maxLines = 1
-                )
+                Text(app.label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
+                Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
                 Text(
                     when (app.status) {
-                        AuditStatus.REVIEW -> "إعداد وصول خاص نشط — راجع السبب"
-                        AuditStatus.REQUESTED -> "طلب إعداد وصول خاص — غير مؤكد التفعيل"
-                        AuditStatus.SENSITIVE -> "صلاحيات حساسة ممنوحة"
-                        AuditStatus.INFORMATIONAL -> "لم تُرصد المؤشرات المحددة"
+                        AuditStatus.REVIEW -> "● وصول خاص نشط — راجع السبب"
+                        AuditStatus.REQUESTED -> "◷ طلب وصول خاص — التفعيل غير مؤكد"
+                        AuditStatus.SENSITIVE -> "◈ صلاحيات حساسة ممنوحة"
+                        AuditStatus.INFORMATIONAL -> "○ لم تُرصد المؤشرات المحددة"
                     },
                     color = accent,
                     fontSize = 11.sp
                 )
                 Text(
-                    "${if (app.isSystem) "تطبيق نظام" else "تطبيق مثبت"}  •  ${app.version}",
+                    "${if (app.isSystem) "تطبيق نظام" else "تطبيق مثبت"} • ${app.version}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp
                 )
+                if (isTrusted || isIgnored) {
+                    Text(
+                        if (isTrusted) "✓ موثوق لدي — تسمية محلية" else "↘ متجاهل — تسمية محلية",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 10.sp
+                    )
+                }
             }
+            Checkbox(
+                checked = selectedForComparison,
+                onCheckedChange = onCompareChange
+            )
         }
+        DropdownMenu(
+            expanded = showQuickActions,
+            onDismissRequest = { showQuickActions = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("نسخ اسم الحزمة") },
+                onClick = {
+                    showQuickActions = false
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("اسم الحزمة", app.packageName))
+                    Toast.makeText(context, "تم نسخ اسم الحزمة", Toast.LENGTH_SHORT).show()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("مشاركة مؤشرات التطبيق") },
+                onClick = {
+                    showQuickActions = false
+                    val shareText = buildString {
+                        appendLine("MSI — مؤشرات التطبيق")
+                        appendLine(app.label)
+                        appendLine(app.packageName)
+                        appendLine("الإصدار: ${app.version}")
+                        appendLine("Target SDK: ${app.targetSdk ?: "غير متاح"}")
+                        appendLine("مصدر التثبيت: ${app.installer}")
+                        appendLine("إعدادات وصول خاصة نشطة: ${app.specialAccessReasons.joinToString("، ").ifBlank { "لا يوجد ضمن المؤشرات المتاحة" }}")
+                        appendLine("صلاحيات حساسة ممنوحة: ${app.grantedSensitive.joinToString("، ").ifBlank { "لا يوجد ضمن المعلومات المتاحة" }}")
+                        appendLine("صلاحيات حساسة مطلوبة: ${app.requestedSensitive.joinToString("، ").ifBlank { "لا يوجد ضمن المعلومات المتاحة" }}")
+                        appendLine("هذه مؤشرات وليست حكمًا على سلامة التطبيق.")
+                    }
+                    runCatching {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "مشاركة مؤشرات MSI"))
+                    }.onFailure {
+                        Toast.makeText(context, "تعذر فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
+        }
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun ApplicationsScreenPreview() {
+    MsiTheme {
+        ApplicationsScreen(
+            applications = emptyList(),
+            query = "",
+            filter = AppFilter.ALL,
+            onQueryChange = {},
+            onFilterChange = {},
+            onSelect = {}
+        )
     }
 }

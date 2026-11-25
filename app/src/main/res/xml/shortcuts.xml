@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="scan_now"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_scan_short"
+        android:shortcutLongLabel="@string/shortcut_scan_long">
+        <intent
+            android:action="com.msi.inspector.action.SCAN"
+            android:targetPackage="com.msi.inspector"
+            android:targetClass="com.msi.inspector.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="sensitive_permissions"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_permissions_short"
+        android:shortcutLongLabel="@string/shortcut_permissions_long">
+        <intent
+            android:action="com.msi.inspector.action.PERMISSIONS"
+            android:targetPackage="com.msi.inspector"
+            android:targetClass="com.msi.inspector.MainActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="last_report"
+        android:enabled="true"
+        android:icon="@drawable/ic_launcher_foreground"
+        android:shortcutShortLabel="@string/shortcut_history_short"
+        android:shortcutLongLabel="@string/shortcut_history_long">
+        <intent
+            android:action="com.msi.inspector.action.HISTORY"
+            android:targetPackage="com.msi.inspector"
+            android:targetClass="com.msi.inspector.MainActivity" />
+    </shortcut>
+</shortcuts>

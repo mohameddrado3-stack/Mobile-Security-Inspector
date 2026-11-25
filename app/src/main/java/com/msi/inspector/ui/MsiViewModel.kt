@@ -4,12 +4,14 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.msi.inspector.data.repository.AppAuditRepository
+import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
-import com.msi.inspector.domain.model.ScanSnapshot
 import com.msi.inspector.security.applock.AppLockSettings
+import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.ui.navigation.MsiDestination
+import com.msi.inspector.widget.MsiWidgetStateUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -25,15 +27,24 @@ data class MsiUiState(
     val selectedApplication: AppAudit? = null,
     val query: String = "",
     val filter: AppFilter = AppFilter.ALL,
+    val packageScope: Set<String>? = null,
+    val trustedPackages: Set<String> = emptySet(),
+    val ignoredPackages: Set<String> = emptySet(),
     val isScanning: Boolean = false,
+    val scanProgress: Int = 0,
+    val scanTotal: Int = 0,
     val vpnActive: Boolean = false,
     val lastScanAt: Long? = null,
     val appLockEnabled: Boolean = false,
+    val usageAccessOptIn: Boolean = false,
+    val usageAccessGranted: Boolean = false,
     val error: String? = null
 )
 
 class MsiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppAuditRepository(application)
+    private val localLists = AppLocalLists(application)
+    private val usageAccessReader = UsageAccessReader(application)
     private val appLockSettings = AppLockSettings(application)
     private val mutableState = MutableStateFlow(
         MsiUiState(appLockEnabled = appLockSettings.isEnabled())
@@ -41,6 +52,14 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
     val state = mutableState.asStateFlow()
 
     init {
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages(),
+                usageAccessOptIn = usageAccessReader.isOptedIn(),
+                usageAccessGranted = usageAccessReader.isAccessGranted()
+            )
+        }
         viewModelScope.launch {
             try {
                 val entries = withContext(Dispatchers.IO) { repository.loadHistory() }
@@ -70,11 +89,70 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateFilter(filter: AppFilter) {
-        mutableState.update { it.copy(filter = filter) }
+        mutableState.update {
+            it.copy(filter = filter, packageScope = null, destination = MsiDestination.APPLICATIONS)
+        }
+    }
+
+    fun showPackageScope(packageNames: Set<String>) {
+        mutableState.update {
+            it.copy(
+                packageScope = packageNames,
+                filter = AppFilter.ALL,
+                query = "",
+                destination = MsiDestination.APPLICATIONS
+            )
+        }
+    }
+
+    fun markApplicationTrusted(packageName: String) {
+        localLists.markTrusted(packageName)
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
+            )
+        }
+    }
+
+    fun markApplicationIgnored(packageName: String) {
+        localLists.markIgnored(packageName)
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
+            )
+        }
+    }
+
+    fun clearApplicationLabel(packageName: String) {
+        localLists.clear(packageName)
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
+            )
+        }
     }
 
     fun selectApplication(application: AppAudit?) {
         mutableState.update { it.copy(selectedApplication = application) }
+    }
+
+    fun setUsageAccessOptIn(enabled: Boolean) {
+        usageAccessReader.setOptedIn(enabled)
+        mutableState.update {
+            it.copy(
+                usageAccessOptIn = enabled,
+                usageAccessGranted = usageAccessReader.isAccessGranted()
+            )
+        }
+    }
+
+    fun refreshUsageAccessState() {
+        mutableState.update {
+            it.copy(usageAccessGranted = usageAccessReader.isAccessGranted())
+        }
     }
 
     fun setAppLockEnabled(enabled: Boolean) {
@@ -84,10 +162,24 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startScan() {
         if (mutableState.value.isScanning) return
-        mutableState.update { it.copy(isScanning = true, error = null, destination = MsiDestination.HOME) }
+        mutableState.update {
+            it.copy(
+                isScanning = true,
+                scanProgress = 0,
+                scanTotal = 0,
+                error = null,
+                destination = MsiDestination.HOME
+            )
+        }
         viewModelScope.launch {
             val snapshot = try {
-                withContext(Dispatchers.IO) { repository.scan() }
+                withContext(Dispatchers.IO) {
+                    repository.scan { completed, total ->
+                        mutableState.update {
+                            it.copy(scanProgress = completed, scanTotal = total)
+                        }
+                    }
+                }
             } catch (cancelled: CancellationException) {
                 mutableState.update { it.copy(isScanning = false) }
                 throw cancelled
@@ -105,6 +197,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val history = withContext(Dispatchers.IO) {
                     repository.saveHistory(snapshot)
+                    runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
                     repository.loadHistory()
                 }
                 mutableState.update {
@@ -114,6 +207,8 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         vpnActive = snapshot.vpnActive,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
+                        scanProgress = snapshot.applications.size,
+                        scanTotal = snapshot.applications.size,
                         error = null
                     )
                 }

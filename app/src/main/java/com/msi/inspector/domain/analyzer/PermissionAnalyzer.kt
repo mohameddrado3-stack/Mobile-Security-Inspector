@@ -6,10 +6,28 @@ data class PermissionCategory(
     val id: String,
     val title: String,
     val permissions: List<String>,
-    val applicationCount: Int
+    val applicationCount: Int,
+    val grantedApplicationCount: Int = applicationCount,
+    val requestedApplicationCount: Int = applicationCount,
+    val packageNames: Set<String> = emptySet()
 )
 
 object PermissionAnalyzer {
+    private val categoryDefinitions = listOf(
+        "camera" to "الكاميرا",
+        "microphone" to "الميكروفون",
+        "location" to "الموقع",
+        "sms" to "الرسائل",
+        "contacts" to "جهات الاتصال",
+        "phone" to "الهاتف وسجل المكالمات",
+        "calendar" to "التقويم",
+        "storage" to "الملفات والتخزين",
+        "sensors" to "النشاط ومستشعرات الجسم",
+        "nearby" to "الأجهزة القريبة والبلوتوث",
+        "notifications" to "الإشعارات",
+        "media" to "الصور والفيديو والصوت"
+    )
+
     fun categoryFor(permission: String): String? {
         val value = permission.lowercase()
         return when {
@@ -43,24 +61,44 @@ object PermissionAnalyzer {
     }
 
     fun categories(applications: List<AppAudit>): List<PermissionCategory> {
-        val grouped = linkedMapOf<String, MutableSet<String>>()
-        val appCounts = linkedMapOf<String, MutableSet<String>>()
-        applications.forEach { app ->
-            app.grantedSensitive.forEach { permission ->
-                val category = categoryFor(permission)
-                if (category != null) {
-                    grouped.getOrPut(category) { linkedSetOf() }.add(permission)
-                    appCounts.getOrPut(category) { linkedSetOf() }.add(app.packageName)
-                }
+        return buildCategories(applications, includeEmpty = false)
+    }
+
+    fun dashboardCategories(applications: List<AppAudit>): List<PermissionCategory> {
+        return buildCategories(applications, includeEmpty = true)
+    }
+
+    private fun buildCategories(
+        applications: List<AppAudit>,
+        includeEmpty: Boolean
+    ): List<PermissionCategory> {
+        return categoryDefinitions.mapNotNull { (id, title) ->
+            val grantedApps = applications.filter { app ->
+                app.grantedSensitive.any { categoryFor(it) == title }
             }
-        }
-        return grouped.map { (title, permissions) ->
+            val requestedApps = applications.filter { app ->
+                app.requestedSensitive.any { categoryFor(it) == title }
+            }
+            val matchingApps = if (includeEmpty) {
+                (grantedApps + requestedApps).distinctBy { it.packageName }
+            } else {
+                grantedApps
+            }
+            if (!includeEmpty && matchingApps.isEmpty()) return@mapNotNull null
+            val permissions = if (includeEmpty) {
+                (grantedApps.flatMap { it.grantedSensitive } + requestedApps.flatMap { it.requestedSensitive })
+            } else {
+                grantedApps.flatMap { it.grantedSensitive }
+            }.filter { categoryFor(it) == title }.distinct()
             PermissionCategory(
-                id = title,
+                id = id,
                 title = title,
-                permissions = permissions.toList(),
-                applicationCount = appCounts[title]?.size ?: 0
+                permissions = permissions,
+                applicationCount = matchingApps.size,
+                grantedApplicationCount = grantedApps.size,
+                requestedApplicationCount = requestedApps.size,
+                packageNames = matchingApps.map { it.packageName }.toSet()
             )
-        }.sortedByDescending { it.applicationCount }
+        }
     }
 }

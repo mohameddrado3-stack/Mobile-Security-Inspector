@@ -10,7 +10,13 @@ data class AppAudit(
     val requestedSensitive: List<String>,
     val requestedSpecialAccess: List<String>,
     val signals: List<String>,
-    val specialAccessReasons: List<String>
+    val specialAccessReasons: List<String>,
+    val targetSdk: Int? = null,
+    val firstInstallTime: Long? = null,
+    val lastUpdateTime: Long? = null,
+    val signingCertificateSha256: String? = null,
+    val categoryLabel: String? = null,
+    val lastUsedAt: Long? = null
 ) {
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
@@ -44,5 +50,6 @@ data class ScanHistoryEntry(
     val activeSpecialAccess: Int,
     val requestedSpecialAccess: Int,
     val sensitivePermissions: Int,
-    val vpnActive: Boolean
+    val vpnActive: Boolean,
+    val applicationsJson: String = "[]"
 )

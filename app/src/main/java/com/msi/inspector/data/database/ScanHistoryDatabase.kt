@@ -5,8 +5,11 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.msi.inspector.domain.analyzer.AuditSummary
+import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
+import org.json.JSONArray
+import org.json.JSONObject
 
 class ScanHistoryDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -21,7 +24,8 @@ class ScanHistoryDatabase(context: Context) :
                 active_special_access INTEGER NOT NULL,
                 requested_special_access INTEGER NOT NULL,
                 sensitive_permissions INTEGER NOT NULL,
-                vpn_active INTEGER NOT NULL
+                vpn_active INTEGER NOT NULL,
+                applications_json TEXT NOT NULL DEFAULT '[]'
             )
             """.trimIndent()
         )
@@ -31,7 +35,11 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 1) onCreate(database)
+        if (oldVersion < 2) {
+            database.execSQL(
+                "ALTER TABLE scan_history ADD COLUMN applications_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        }
     }
 
     fun save(snapshot: ScanSnapshot) {
@@ -43,6 +51,7 @@ class ScanHistoryDatabase(context: Context) :
             put("requested_special_access", summary.requestedSpecialAccess)
             put("sensitive_permissions", summary.applicationsWithSensitivePermissions)
             put("vpn_active", if (snapshot.vpnActive) 1 else 0)
+            put("applications_json", encodeApplications(snapshot.applications))
         }
         writableDatabase.beginTransaction()
         try {
@@ -56,7 +65,7 @@ class ScanHistoryDatabase(context: Context) :
         }
     }
 
-    fun recent(limit: Int = 20): List<ScanHistoryEntry> {
+    fun recent(limit: Int = 50): List<ScanHistoryEntry> {
         val entries = ArrayList<ScanHistoryEntry>()
         readableDatabase.query(
             "scan_history",
@@ -67,7 +76,8 @@ class ScanHistoryDatabase(context: Context) :
                 "active_special_access",
                 "requested_special_access",
                 "sensitive_permissions",
-                "vpn_active"
+                "vpn_active",
+                "applications_json"
             ),
             null,
             null,
@@ -85,7 +95,8 @@ class ScanHistoryDatabase(context: Context) :
                         activeSpecialAccess = cursor.getInt(3),
                         requestedSpecialAccess = cursor.getInt(4),
                         sensitivePermissions = cursor.getInt(5),
-                        vpnActive = cursor.getInt(6) == 1
+                        vpnActive = cursor.getInt(6) == 1,
+                        applicationsJson = cursor.getString(7) ?: "[]"
                     )
                 )
             }
@@ -97,8 +108,34 @@ class ScanHistoryDatabase(context: Context) :
         writableDatabase.delete("scan_history", null, null)
     }
 
+    private fun encodeApplications(applications: List<AppAudit>): String {
+        val result = JSONArray()
+        applications.forEach { app ->
+            result.put(
+                JSONObject().apply {
+                    put("label", app.label)
+                    put("packageName", app.packageName)
+                    put("version", app.version)
+                    put("installer", app.installer)
+                    put("isSystem", app.isSystem)
+                    put("targetSdk", app.targetSdk ?: JSONObject.NULL)
+                    put("firstInstallTime", app.firstInstallTime ?: JSONObject.NULL)
+                    put("lastUpdateTime", app.lastUpdateTime ?: JSONObject.NULL)
+                    put("signatureSha256", app.signingCertificateSha256 ?: JSONObject.NULL)
+                    put("category", app.categoryLabel ?: JSONObject.NULL)
+                    put("lastUsedAt", app.lastUsedAt ?: JSONObject.NULL)
+                    put("grantedSensitive", JSONArray(app.grantedSensitive))
+                    put("requestedSensitive", JSONArray(app.requestedSensitive))
+                    put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
+                    put("activeSpecialAccess", JSONArray(app.specialAccessReasons))
+                }
+            )
+        }
+        return result.toString()
+    }
+
     companion object {
         private const val DATABASE_NAME = "msi_security_history.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
     }
 }

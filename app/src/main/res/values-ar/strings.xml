@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">MSI</string>
+    <string name="shortcut_scan_short">افحص الآن</string>
+    <string name="shortcut_scan_long">ابدأ فحص مؤشرات التطبيقات</string>
+    <string name="shortcut_permissions_short">الصلاحيات</string>
+    <string name="shortcut_permissions_long">راجع الصلاحيات الحساسة للتطبيقات</string>
+    <string name="shortcut_history_short">آخر تقرير</string>
+    <string name="shortcut_history_long">افتح سجل الفحوصات وآخر تقرير</string>
+    <string name="widget_description">ملخص آخر فحص محلي وزر بدء الفحص</string>
+</resources>
