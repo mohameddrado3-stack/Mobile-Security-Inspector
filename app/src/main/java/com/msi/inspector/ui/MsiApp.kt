@@ -64,7 +64,6 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.filterApplications
-import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.ui.dialogs.ApplicationDetailsDialog
 import com.msi.inspector.ui.platform.findActivity
 import com.msi.inspector.ui.platform.openSystemPage
@@ -463,11 +462,3 @@ fun MsiApp(
     }
 }
 
-
-private fun allowedAuthenticators(): Int =
-    if (Build.VERSION.SDK_INT >= 30) {
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
-    } else {
-        BiometricManager.Authenticators.BIOMETRIC_STRONG
-    }
