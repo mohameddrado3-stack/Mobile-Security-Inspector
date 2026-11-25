@@ -35,7 +35,7 @@ data class MsiUiState(
     val isScanning: Boolean = false,
     val scanProgress: Int = 0,
     val scanTotal: Int = 0,
-    val vpnActive: Boolean = false,
+    val vpnActive: Boolean? = null,
     val lastScanAt: Long? = null,
     val appLockEnabled: Boolean = false,
     val usageAccessOptIn: Boolean = false,
