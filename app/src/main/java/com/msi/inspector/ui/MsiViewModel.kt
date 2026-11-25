@@ -5,6 +5,9 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.msi.inspector.data.repository.AppAuditRepository
 import com.msi.inspector.ui.state.MsiUiState
+import com.msi.inspector.domain.analyzer.AppFilter
+import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.ui.navigation.MsiDestination
 import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.security.usage.UsageAccessReader
