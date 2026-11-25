@@ -3,7 +3,7 @@ name: Verify Android builds
 on:
   workflow_dispatch:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "feature/**" ]
   pull_request:
     branches: [ "main", "feature/**" ]
 
