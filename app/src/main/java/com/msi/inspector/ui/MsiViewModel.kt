@@ -8,6 +8,7 @@ import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
+import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.ui.navigation.MsiDestination
@@ -24,6 +25,7 @@ data class MsiUiState(
     val destination: MsiDestination = MsiDestination.HOME,
     val applications: List<AppAudit> = emptyList(),
     val history: List<ScanHistoryEntry> = emptyList(),
+    val timelineEvents: List<TimelineEvent> = emptyList(),
     val selectedApplication: AppAudit? = null,
     val query: String = "",
     val filter: AppFilter = AppFilter.ALL,
@@ -62,10 +64,12 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             try {
-                val entries = withContext(Dispatchers.IO) { repository.loadHistory() }
+                val loaded = withContext(Dispatchers.IO) { repository.loadHistory() to repository.loadTimeline() }
+                val entries = loaded.first
                 mutableState.update { current ->
                     current.copy(
                         history = entries,
+                        timelineEvents = loaded.second,
                         lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
                     )
                 }
@@ -195,15 +199,17 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             try {
-                val history = withContext(Dispatchers.IO) {
+                val recorded = withContext(Dispatchers.IO) {
                     repository.saveHistory(snapshot)
                     runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
-                    repository.loadHistory()
+                    repository.loadHistory() to repository.loadTimeline()
                 }
+                val history = recorded.first
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
                         history = history,
+                        timelineEvents = recorded.second,
                         vpnActive = snapshot.vpnActive,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
@@ -241,7 +247,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { repository.clearHistory() }
-                mutableState.update { it.copy(history = emptyList(), error = null) }
+                mutableState.update { it.copy(history = emptyList(), timelineEvents = emptyList(), error = null) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (exception: Exception) {
