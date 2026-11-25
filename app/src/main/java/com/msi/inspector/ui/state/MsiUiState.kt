@@ -3,6 +3,7 @@ package com.msi.inspector.ui.state
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
+import com.msi.inspector.domain.model.DeviceSecuritySnapshot
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.ui.navigation.MsiDestination
 
@@ -25,5 +26,7 @@ data class MsiUiState(
     val appLockEnabled: Boolean = false,
     val usageAccessOptIn: Boolean = false,
     val usageAccessGranted: Boolean = false,
+    val deviceSecurity: DeviceSecuritySnapshot? = null,
+    val isLoadingDeviceSecurity: Boolean = false,
     val error: String? = null
 )

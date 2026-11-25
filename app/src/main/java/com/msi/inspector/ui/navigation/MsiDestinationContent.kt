@@ -160,6 +160,9 @@ fun MsiDestinationContent(
             onScheduledTimeChanged = onScheduledTimeChanged,
             usageAccessOptIn = state.usageAccessOptIn,
             usageAccessGranted = state.usageAccessGranted,
+            deviceSecurity = state.deviceSecurity,
+            isLoadingDeviceSecurity = state.isLoadingDeviceSecurity,
+            onRefreshDeviceSecurity = viewModel::refreshDeviceSecurity,
             onUsageAccessChanged = { enabled ->
                 viewModel.setUsageAccessOptIn(enabled)
                 if (enabled) {

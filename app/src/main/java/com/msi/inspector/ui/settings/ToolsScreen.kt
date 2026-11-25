@@ -1,11 +1,8 @@
 package com.msi.inspector.ui.settings
 
-import android.app.admin.DevicePolicyManager
 import android.app.TimePickerDialog
-import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
-import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,6 +27,9 @@ import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.design.theme.MsiThemeMode
+import com.msi.inspector.domain.model.DeviceSecurityEvidence
+import com.msi.inspector.domain.model.DeviceSecuritySnapshot
+import com.msi.inspector.domain.model.EvidenceAvailability
 
 @Composable
 fun ToolsScreen(
@@ -50,10 +50,12 @@ fun ToolsScreen(
     onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
-    onUsageAccessChanged: (Boolean) -> Unit = {}
+    onUsageAccessChanged: (Boolean) -> Unit = {},
+    deviceSecurity: DeviceSecuritySnapshot? = null,
+    isLoadingDeviceSecurity: Boolean = false,
+    onRefreshDeviceSecurity: () -> Unit = {}
 ) {
     val context = LocalContext.current
-    val health = rememberDeviceHealth(context)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -63,11 +65,38 @@ fun ToolsScreen(
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
-            HealthRow("مستوى تصحيح الأمان", health.securityPatch, onSecuritySettings)
-            HealthRow("قفل شاشة آمن", health.secureLock, onSecuritySettings)
-            HealthRow("تشفير التخزين", health.encryption, onSecuritySettings)
-            HealthRow("تصحيح USB (ADB)", health.adb, onDeveloperSettings)
-            HealthRow("خيارات المطوّر", health.developerOptions, onDeveloperSettings)
+            val security = deviceSecurity
+            if (security == null) {
+                Text(
+                    if (isLoadingDeviceSecurity) "جارٍ قراءة مؤشرات أمان Android..."
+                    else "لم تُقرأ مؤشرات أمان النظام بعد.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            } else {
+                DeviceSecurityRow("إصدار Android", security.androidRelease)
+                DeviceSecurityRow("مستوى API", security.apiLevel)
+                DeviceSecurityRow("مستوى تصحيح الأمان", security.securityPatch)
+                DeviceSecurityRow("قفل شاشة آمن", security.secureScreenLock, onSecuritySettings)
+                DeviceSecurityRow("تشفير التخزين", security.storageEncryption, onSecuritySettings)
+                DeviceSecurityRow("تصحيح USB (ADB)", security.adbEnabled, onDeveloperSettings)
+                DeviceSecurityRow("خيارات المطوّر", security.developerOptionsEnabled, onDeveloperSettings)
+                Text(
+                    "آخر قراءة: " + java.text.DateFormat.getDateTimeInstance(
+                        java.text.DateFormat.MEDIUM,
+                        java.text.DateFormat.SHORT
+                    ).format(java.util.Date(security.collectedAt)),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp
+                )
+            }
+            OutlinedButton(
+                onClick = onRefreshDeviceSecurity,
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !isLoadingDeviceSecurity
+            ) {
+                Text(if (isLoadingDeviceSecurity) "جارٍ التحديث..." else "تحديث مؤشرات النظام")
+            }
             Text(
                 "قراءة فقط. لا يغيّر MSI أي إعداد في الجهاز.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -270,38 +299,47 @@ private fun HealthRow(label: String, value: String, onClick: () -> Unit) {
     }
 }
 
-private data class DeviceHealth(
-    val securityPatch: String,
-    val secureLock: String,
-    val encryption: String,
-    val adb: String,
-    val developerOptions: String
-)
-
-private fun rememberDeviceHealth(context: Context): DeviceHealth {
-    val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
-    val policy = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-    val encrypted = runCatching { policy.storageEncryptionStatus }.getOrDefault(DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED)
-    val encryptionText = when (encrypted) {
-        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE -> "مشفّر ونشط"
-        DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE -> "غير نشط"
-        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING -> "جارٍ التفعيل"
-        DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED -> "غير مدعوم أو غير متاح"
-        else -> "غير معروف"
+private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
+    when (evidence.availability) {
+        EvidenceAvailability.UNAVAILABLE -> "غير متاح"
+        EvidenceAvailability.UNSUPPORTED -> "غير مدعوم"
+        EvidenceAvailability.ACCESS_DENIED -> "رفض Android الوصول"
+        EvidenceAvailability.ERROR -> "تعذرت القراءة"
+        EvidenceAvailability.AVAILABLE -> when (evidence.value) {
+            "enabled" -> "مفعّل"
+            "disabled" -> "غير مفعّل"
+            "active" -> "مشفّر ونشط"
+            "inactive" -> "غير نشط"
+            "activating" -> "جارٍ التفعيل"
+            else -> evidence.value ?: "غير متاح"
+        }
     }
-    val adbEnabled = Settings.Global.getInt(context.contentResolver, Settings.Global.ADB_ENABLED, 0) == 1
-    val developerEnabled = Settings.Global.getInt(
-        context.contentResolver,
-        Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
-        0
-    ) == 1
-    return DeviceHealth(
-        securityPatch = Build.VERSION.SECURITY_PATCH.ifBlank { "غير متاح" },
-        secureLock = if (keyguard.isDeviceSecure) "مفعّل" else "غير مفعّل",
-        encryption = encryptionText,
-        adb = if (adbEnabled) "مفعّل" else "غير مفعّل",
-        developerOptions = if (developerEnabled) "مفعّلة" else "غير مفعّلة"
-    )
+
+@Composable
+private fun DeviceSecurityRow(
+    label: String,
+    evidence: DeviceSecurityEvidence,
+    onClick: () -> Unit = {}
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(
+            "${deviceEvidenceLabel(evidence)}  ›",
+            fontSize = 12.sp,
+            color = when (evidence.availability) {
+                EvidenceAvailability.AVAILABLE -> MaterialTheme.colorScheme.onSurfaceVariant
+                else -> MaterialTheme.colorScheme.tertiary
+            }
+        )
+    }
 }
 
 @Preview(showBackground = true)
