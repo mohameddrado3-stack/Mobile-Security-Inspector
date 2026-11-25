@@ -38,7 +38,7 @@ class AppAuditRepository(context: Context) {
 
     fun loadTimeline(): List<TimelineEvent> = history.recentTimelineEvents()
 
-    fun clearHistory() = history.clearHistory()
+    fun clearHistory() = synchronized(SCAN_HISTORY_LOCK) { history.clearHistory() }
 
     fun close() = history.close()
 
