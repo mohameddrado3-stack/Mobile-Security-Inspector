@@ -107,7 +107,8 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     lastUpdateTime = packageInfo?.lastUpdateTime,
                     signingCertificateSha256 = packageInfo?.let(::signingFingerprint),
                     categoryLabel = categoryLabel(appInfo.category),
-                    lastUsedAt = lastUsedAt
+                    lastUsedAt = lastUsedAt,
+                    packageMetadataAvailable = packageInfo != null
                 )
             )
             onProgress(index + 1, installedApplications.size)
