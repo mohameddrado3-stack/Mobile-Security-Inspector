@@ -1,5 +1,6 @@
 package com.msi.inspector.ui
 
+import android.animation.ValueAnimator
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
@@ -10,7 +11,10 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.biometric.BiometricManager
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.ExitTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -27,6 +31,8 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
+import androidx.compose.material3.NavigationRail
+import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -39,7 +45,10 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
@@ -78,6 +87,16 @@ fun MsiApp(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val configuration = LocalConfiguration.current
+    val haptic = LocalHapticFeedback.current
+    val expandedWidth = configuration.screenWidthDp >= 600
+    var wasScanning by remember { mutableStateOf(false) }
+    LaunchedEffect(state.isScanning, state.error) {
+        if (wasScanning && !state.isScanning && state.error == null) {
+            haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+        }
+        wasScanning = state.isScanning
+    }
     var showShareConfirmation by remember { mutableStateOf(false) }
     var onboardingPage by remember { mutableStateOf(0) }
     var showOnboarding by remember {
@@ -91,6 +110,10 @@ fun MsiApp(
             "permissions" -> viewModel.navigate(MsiDestination.PERMISSIONS)
             "history" -> viewModel.navigate(MsiDestination.HISTORY)
         }
+    }
+
+    BackHandler(enabled = state.destination != MsiDestination.HOME) {
+        viewModel.navigate(MsiDestination.HOME)
     }
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
@@ -109,35 +132,60 @@ fun MsiApp(
                 )
             },
             bottomBar = {
-                NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                    MsiDestination.values().forEach { destination ->
-                        NavigationBarItem(
-                            selected = state.destination == destination,
-                            onClick = { viewModel.navigate(destination) },
-                            icon = {
-                                Text(
-                                    destination.symbol,
-                                    fontSize = 20.sp,
-                                    color = MaterialTheme.colorScheme.primary
-                                )
-                            },
-                            label = { Text(destination.title, fontSize = 10.sp) }
-                        )
+                if (!expandedWidth) {
+                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
+                        MsiDestination.values().forEach { destination ->
+                            NavigationBarItem(
+                                selected = state.destination == destination,
+                                onClick = { viewModel.navigate(destination) },
+                                icon = {
+                                    Text(
+                                        destination.symbol,
+                                        fontSize = 20.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                label = { Text(destination.title, fontSize = 10.sp) }
+                            )
+                        }
                     }
                 }
             }
         ) { padding ->
-            AnimatedContent(
-                targetState = state.destination,
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding),
-                transitionSpec = {
-                    (fadeIn() + slideInHorizontally { it / 14 })
-                        .togetherWith(fadeOut() + slideOutHorizontally { -it / 14 })
-                },
-                label = "msi-screen-transition"
-            ) { destination ->
+            androidx.compose.foundation.layout.Row(
+                modifier = Modifier.fillMaxSize().padding(padding)
+            ) {
+                if (expandedWidth) {
+                    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
+                        MsiDestination.values().forEach { destination ->
+                            NavigationRailItem(
+                                selected = state.destination == destination,
+                                onClick = { viewModel.navigate(destination) },
+                                icon = {
+                                    Text(
+                                        destination.symbol,
+                                        fontSize = 20.sp,
+                                        color = MaterialTheme.colorScheme.primary
+                                    )
+                                },
+                                label = { Text(destination.title, fontSize = 10.sp) }
+                            )
+                        }
+                    }
+                }
+                AnimatedContent(
+                    targetState = state.destination,
+                    modifier = Modifier.fillMaxSize().weight(1f),
+                    transitionSpec = {
+                        if (ValueAnimator.areAnimatorsEnabled()) {
+                            (fadeIn() + slideInHorizontally { it / 14 })
+                                .togetherWith(fadeOut() + slideOutHorizontally { -it / 14 })
+                        } else {
+                            EnterTransition.None togetherWith ExitTransition.None
+                        }
+                    },
+                    label = "msi-screen-transition"
+                ) { destination ->
                 when (destination) {
                     MsiDestination.HOME -> DashboardScreen(
                         state = state,
@@ -219,6 +267,7 @@ fun MsiApp(
                         onPeriodicScanChanged = onPeriodicScanChanged
                     )
                 }
+            }
             }
         }
         state.selectedApplication?.let { application ->
