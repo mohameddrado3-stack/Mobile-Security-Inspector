@@ -151,8 +151,9 @@ fun MsiApp(
                         onOpenFilter = viewModel::updateFilter
                     )
                     MsiDestination.APPLICATIONS -> {
+                        val packageScope = state.packageScope
                         val filtered = filterApplications(state.applications, state.query, state.filter)
-                            .filter { state.packageScope == null || it.packageName in state.packageScope }
+                            .filter { packageScope == null || it.packageName in packageScope }
                         ApplicationsScreen(
                             applications = filtered,
                             query = state.query,
