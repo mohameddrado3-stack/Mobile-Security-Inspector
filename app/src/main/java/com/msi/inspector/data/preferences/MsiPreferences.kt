@@ -27,7 +27,8 @@ class MsiPreferences(context: Context) {
     }
 
     fun loadScanSchedule(): Pair<Int, Int> =
-        PeriodicScanScheduler.scheduledTime(preferences)
+        preferences.getInt(PeriodicScanScheduler.KEY_SCAN_HOUR, 9) to
+            preferences.getInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, 0)
 
     fun isPeriodicScanEnabled(): Boolean =
         preferences.getBoolean(KEY_PERIODIC_SCAN, false)
