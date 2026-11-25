@@ -65,7 +65,13 @@ class ScanHistoryDatabase(context: Context) :
         database.execSQL("CREATE INDEX timeline_events_occurred_at_idx ON timeline_events(occurred_at DESC)")
     }
 
-    fun save(snapshot: ScanSnapshot) {
+    fun save(snapshot: ScanSnapshot) = saveWithTimeline(snapshot, emptyList())
+
+    /**
+     * Persists the scan and the events derived from it as one SQLite transaction.
+     * A failed event insert must never leave a newer baseline without its timeline.
+     */
+    fun saveWithTimeline(snapshot: ScanSnapshot, events: List<TimelineEvent>) {
         val summary = AuditSummary.from(snapshot.applications)
         val values = ContentValues().apply {
             put("scanned_at", snapshot.completedAt)
@@ -76,15 +82,16 @@ class ScanHistoryDatabase(context: Context) :
             put("vpn_active", if (snapshot.vpnActive) 1 else 0)
             put("applications_json", encodeApplications(snapshot.applications))
         }
-        writableDatabase.beginTransaction()
+        val database = writableDatabase
+        database.beginTransaction()
         try {
-            writableDatabase.insertOrThrow("scan_history", null, values)
-            writableDatabase.execSQL(
-                "DELETE FROM scan_history WHERE id NOT IN (SELECT id FROM scan_history ORDER BY scanned_at DESC LIMIT 50)"
-            )
-            writableDatabase.setTransactionSuccessful()
+            database.insertOrThrow("scan_history", null, values)
+            trimScanHistory(database)
+            insertTimelineEvents(database, events)
+            trimTimelineEvents(database)
+            database.setTransactionSuccessful()
         } finally {
-            writableDatabase.endTransaction()
+            database.endTransaction()
         }
     }
 
@@ -93,24 +100,40 @@ class ScanHistoryDatabase(context: Context) :
         val database = writableDatabase
         database.beginTransaction()
         try {
-            events.forEach { event ->
-                val values = ContentValues().apply {
-                    put("occurred_at", event.occurredAt)
-                    put("event_type", event.type.name)
-                    put("package_name", event.packageName)
-                    put("app_label", event.appLabel)
-                    put("title", event.title)
-                    put("details", event.details)
-                }
-                database.insertOrThrow("timeline_events", null, values)
-            }
-            database.execSQL(
-                "DELETE FROM timeline_events WHERE id NOT IN (SELECT id FROM timeline_events ORDER BY occurred_at DESC, id DESC LIMIT 500)"
-            )
+            insertTimelineEvents(database, events)
+            trimTimelineEvents(database)
             database.setTransactionSuccessful()
         } finally {
             database.endTransaction()
         }
+    }
+
+    private fun trimScanHistory(database: SQLiteDatabase) {
+        database.execSQL(
+            "DELETE FROM scan_history WHERE id NOT IN " +
+                "(SELECT id FROM scan_history ORDER BY scanned_at DESC, id DESC LIMIT 50)"
+        )
+    }
+
+    private fun insertTimelineEvents(database: SQLiteDatabase, events: List<TimelineEvent>) {
+        events.forEach { event ->
+            val values = ContentValues().apply {
+                put("occurred_at", event.occurredAt)
+                put("event_type", event.type.name)
+                put("package_name", event.packageName)
+                put("app_label", event.appLabel)
+                put("title", event.title)
+                put("details", event.details)
+            }
+            database.insertOrThrow("timeline_events", null, values)
+        }
+    }
+
+    private fun trimTimelineEvents(database: SQLiteDatabase) {
+        database.execSQL(
+            "DELETE FROM timeline_events WHERE id NOT IN " +
+                "(SELECT id FROM timeline_events ORDER BY occurred_at DESC, id DESC LIMIT 500)"
+        )
     }
 
     fun recentTimelineEvents(limit: Int = 500): List<TimelineEvent> {
