@@ -5,6 +5,8 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.ContextWrapper
+import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
@@ -36,6 +38,10 @@ import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
+import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
+import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
+import androidx.activity.ComponentActivity
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -77,7 +83,10 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
+@OptIn(
+    androidx.compose.material3.ExperimentalMaterial3Api::class,
+    ExperimentalMaterial3WindowSizeClassApi::class
+)
 @Composable
 fun MsiApp(
     onAppLockChanged: (Boolean) -> Unit,
@@ -101,7 +110,14 @@ fun MsiApp(
     }
     val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
-    val expandedWidth = configuration.screenWidthDp >= 600
+    val activity = context.findActivity()
+    val windowWidthClass = (activity as? ComponentActivity)
+        ?.let { calculateWindowSizeClass(it).widthSizeClass }
+    val expandedWidth = when (windowWidthClass) {
+        WindowWidthSizeClass.Medium, WindowWidthSizeClass.Expanded -> true
+        WindowWidthSizeClass.Compact -> false
+        else -> configuration.screenWidthDp >= 600
+    }
     var wasScanning by remember { mutableStateOf(false) }
     LaunchedEffect(state.isScanning, state.error) {
         if (wasScanning && !state.isScanning && state.error == null) {
@@ -615,4 +631,11 @@ private fun openSystemPage(context: Context, intent: Intent) {
     } catch (_: Exception) {
         Toast.makeText(context, "الإعداد غير متاح على هذا الجهاز.", Toast.LENGTH_SHORT).show()
     }
+}
+
+
+private tailrec fun Context.findActivity(): Activity? = when (this) {
+    is Activity -> this
+    is ContextWrapper -> baseContext.findActivity()
+    else -> null
 }
