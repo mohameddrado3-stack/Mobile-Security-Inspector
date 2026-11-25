@@ -1,10 +1,18 @@
 package com.msi.inspector.ui.applications
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
+import android.content.Intent
+import android.widget.Toast
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
 import androidx.compose.foundation.background
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -17,6 +25,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -296,6 +306,7 @@ private fun SwipeableApplicationCard(
     )
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ApplicationCard(
     app: AppAudit,
@@ -306,6 +317,7 @@ private fun ApplicationCard(
     onClick: () -> Unit
 ) {
     val context = LocalContext.current
+    var showQuickActions by remember(app.packageName) { mutableStateOf(false) }
     val icon by produceState<Drawable?>(initialValue = null, app.packageName) {
         value = withContext(Dispatchers.IO) {
             runCatching { context.packageManager.getApplicationIcon(app.packageName) }.getOrNull()
@@ -318,11 +330,16 @@ private fun ApplicationCard(
         AuditStatus.INFORMATIONAL -> Color(0xFF70E7D1)
     }
     Card(
-        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
     ) {
+        Box {
         Row(
+            modifier = Modifier.combinedClickable(
+                onClick = onClick,
+                onLongClick = { showQuickActions = true }
+            ),
             modifier = Modifier.padding(12.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically
@@ -378,6 +395,48 @@ private fun ApplicationCard(
                 checked = selectedForComparison,
                 onCheckedChange = onCompareChange
             )
+        }
+        DropdownMenu(
+            expanded = showQuickActions,
+            onDismissRequest = { showQuickActions = false }
+        ) {
+            DropdownMenuItem(
+                text = { Text("نسخ اسم الحزمة") },
+                onClick = {
+                    showQuickActions = false
+                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText("اسم الحزمة", app.packageName))
+                    Toast.makeText(context, "تم نسخ اسم الحزمة", Toast.LENGTH_SHORT).show()
+                }
+            )
+            DropdownMenuItem(
+                text = { Text("مشاركة مؤشرات التطبيق") },
+                onClick = {
+                    showQuickActions = false
+                    val shareText = buildString {
+                        appendLine("MSI — مؤشرات التطبيق")
+                        appendLine(app.label)
+                        appendLine(app.packageName)
+                        appendLine("الإصدار: ${app.version}")
+                        appendLine("Target SDK: ${app.targetSdk ?: "غير متاح"}")
+                        appendLine("مصدر التثبيت: ${app.installer}")
+                        appendLine("إعدادات وصول خاصة نشطة: ${app.specialAccessReasons.joinToString("، ").ifBlank { "لا يوجد ضمن المؤشرات المتاحة" }}")
+                        appendLine("صلاحيات حساسة ممنوحة: ${app.grantedSensitive.joinToString("، ").ifBlank { "لا يوجد ضمن المعلومات المتاحة" }}")
+                        appendLine("صلاحيات حساسة مطلوبة: ${app.requestedSensitive.joinToString("، ").ifBlank { "لا يوجد ضمن المعلومات المتاحة" }}")
+                        appendLine("هذه مؤشرات وليست حكمًا على سلامة التطبيق.")
+                    }
+                    runCatching {
+                        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+                            type = "text/plain"
+                            putExtra(Intent.EXTRA_TEXT, shareText)
+                        }
+                        context.startActivity(Intent.createChooser(sendIntent, "مشاركة مؤشرات MSI"))
+                    }.onFailure {
+                        Toast.makeText(context, "تعذر فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
+                    }
+                }
+            )
+        }
         }
     }
 }
