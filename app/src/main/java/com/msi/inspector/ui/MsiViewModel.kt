@@ -3,43 +3,22 @@ package com.msi.inspector.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.msi.inspector.data.repository.AppAuditRepository
 import com.msi.inspector.data.preferences.AppLocalLists
+import com.msi.inspector.data.repository.AppAuditRepository
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
-import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.ui.navigation.MsiDestination
+import com.msi.inspector.ui.state.MsiUiState
 import com.msi.inspector.widget.MsiWidgetStateUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-
-data class MsiUiState(
-    val destination: MsiDestination = MsiDestination.HOME,
-    val applications: List<AppAudit> = emptyList(),
-    val history: List<ScanHistoryEntry> = emptyList(),
-    val selectedApplication: AppAudit? = null,
-    val query: String = "",
-    val filter: AppFilter = AppFilter.ALL,
-    val packageScope: Set<String>? = null,
-    val trustedPackages: Set<String> = emptySet(),
-    val ignoredPackages: Set<String> = emptySet(),
-    val isScanning: Boolean = false,
-    val scanProgress: Int = 0,
-    val scanTotal: Int = 0,
-    val vpnActive: Boolean = false,
-    val lastScanAt: Long? = null,
-    val appLockEnabled: Boolean = false,
-    val usageAccessOptIn: Boolean = false,
-    val usageAccessGranted: Boolean = false,
-    val error: String? = null
-)
 
 class MsiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppAuditRepository(application)
@@ -62,10 +41,13 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             try {
-                val entries = withContext(Dispatchers.IO) { repository.loadHistory() }
+                val loaded = withContext(Dispatchers.IO) { repository.loadHistory() to repository.loadTimeline() }
+                val entries = loaded.first
                 mutableState.update { current ->
                     current.copy(
                         history = entries,
+                        timelineEvents = loaded.second,
+                        vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
                         lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
                     )
                 }
@@ -195,15 +177,17 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             try {
-                val history = withContext(Dispatchers.IO) {
+                val recorded = withContext(Dispatchers.IO) {
                     repository.saveHistory(snapshot)
                     runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
-                    repository.loadHistory()
+                    repository.loadHistory() to repository.loadTimeline()
                 }
+                val history = recorded.first
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
                         history = history,
+                        timelineEvents = recorded.second,
                         vpnActive = snapshot.vpnActive,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
@@ -241,7 +225,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { repository.clearHistory() }
-                mutableState.update { it.copy(history = emptyList(), error = null) }
+                mutableState.update { it.copy(history = emptyList(), timelineEvents = emptyList(), error = null) }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (exception: Exception) {

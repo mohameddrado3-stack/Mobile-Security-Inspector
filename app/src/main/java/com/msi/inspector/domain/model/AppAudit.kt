@@ -16,7 +16,8 @@ data class AppAudit(
     val lastUpdateTime: Long? = null,
     val signingCertificateSha256: String? = null,
     val categoryLabel: String? = null,
-    val lastUsedAt: Long? = null
+    val lastUsedAt: Long? = null,
+    val packageMetadataAvailable: Boolean = true
 ) {
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
@@ -39,7 +40,7 @@ enum class AuditStatus {
 
 data class ScanSnapshot(
     val applications: List<AppAudit>,
-    val vpnActive: Boolean,
+    val vpnActive: Boolean?,
     val completedAt: Long
 )
 
@@ -50,6 +51,6 @@ data class ScanHistoryEntry(
     val activeSpecialAccess: Int,
     val requestedSpecialAccess: Int,
     val sensitivePermissions: Int,
-    val vpnActive: Boolean,
+    val vpnActive: Boolean?,
     val applicationsJson: String = "[]"
 )

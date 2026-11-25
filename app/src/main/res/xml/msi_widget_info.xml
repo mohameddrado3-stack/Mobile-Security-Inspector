@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
     android:minWidth="230dp"
-    android:minHeight="125dp"
+    android:minHeight="150dp"
     android:initialLayout="@layout/msi_widget_loading"
     android:resizeMode="horizontal|vertical"
     android:updatePeriodMillis="0"

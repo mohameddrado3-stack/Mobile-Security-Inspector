@@ -1,43 +1,21 @@
 package com.msi.inspector.ui
 
-import android.animation.ValueAnimator
 import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
-import android.content.ContextWrapper
-import android.app.Activity
 import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
-import androidx.biometric.BiometricManager
 import androidx.activity.compose.BackHandler
-import androidx.compose.animation.AnimatedContent
-import androidx.compose.animation.EnterTransition
-import androidx.compose.animation.ExitTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationRail
-import androidx.compose.material3.NavigationRailItem
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -66,22 +44,17 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.msi.inspector.design.theme.MsiThemeMode
-import com.msi.inspector.domain.analyzer.AppFilter
-import com.msi.inspector.domain.analyzer.filterApplications
-import com.msi.inspector.domain.model.AppAudit
-import com.msi.inspector.ui.applications.ApplicationsScreen
-import com.msi.inspector.ui.dashboard.DashboardScreen
-import com.msi.inspector.ui.history.HistoryScreen
+import com.msi.inspector.data.preferences.MsiPreferences
+import com.msi.inspector.ui.navigation.MsiDestinationContent
+import com.msi.inspector.ui.dialogs.ApplicationDetailsDialog
+import com.msi.inspector.ui.platform.findActivity
+import com.msi.inspector.ui.platform.openSystemPage
+import com.msi.inspector.ui.reports.ReportShareConfirmationDialog
+import com.msi.inspector.ui.onboarding.MsiOnboardingDialog
+import com.msi.inspector.ui.reports.shareReport
+import com.msi.inspector.ui.navigation.MsiBottomNavigation
+import com.msi.inspector.ui.navigation.MsiNavigationRail
 import com.msi.inspector.ui.navigation.MsiDestination
-import com.msi.inspector.ui.permissions.PermissionsScreen
-import com.msi.inspector.ui.reports.ReportFormatter
-import com.msi.inspector.ui.reports.ReportExportManager
-import com.msi.inspector.ui.reports.ReportFileFormat
-import com.msi.inspector.ui.settings.ToolsScreen
-import java.text.DateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
 
 @OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
@@ -96,10 +69,14 @@ fun MsiApp(
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit = { _, _ -> },
     periodicScanEnabled: Boolean = false,
     onPeriodicScanChanged: (Boolean) -> Unit = {},
+    scheduledHour: Int = 9,
+    scheduledMinute: Int = 0,
+    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val preferences = remember(context) { MsiPreferences(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -128,8 +105,7 @@ fun MsiApp(
     var showShareConfirmation by remember { mutableStateOf(false) }
     var onboardingPage by remember { mutableStateOf(0) }
     var showOnboarding by remember {
-        mutableStateOf(!context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-            .getBoolean("onboarding_complete", false))
+        mutableStateOf(!preferences.isOnboardingComplete())
     }
 
     LaunchedEffect(shortcutRequest) {
@@ -160,167 +136,36 @@ fun MsiApp(
                 )
             },
             bottomBar = {
-                if (!expandedWidth) {
-                    NavigationBar(containerColor = MaterialTheme.colorScheme.surface) {
-                        MsiDestination.values().forEach { destination ->
-                            NavigationBarItem(
-                                selected = state.destination == destination,
-                                onClick = { viewModel.navigate(destination) },
-                                icon = {
-                                    Text(
-                                        destination.symbol,
-                                        fontSize = 20.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                label = { Text(destination.title, fontSize = 10.sp) }
-                            )
-                        }
-                    }
-                }
+                if (!expandedWidth) MsiBottomNavigation(state.destination, viewModel::navigate)
             }
         ) { padding ->
             androidx.compose.foundation.layout.Row(
                 modifier = Modifier.fillMaxSize().padding(padding)
             ) {
-                if (expandedWidth) {
-                    NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
-                        MsiDestination.values().forEach { destination ->
-                            NavigationRailItem(
-                                selected = state.destination == destination,
-                                onClick = { viewModel.navigate(destination) },
-                                icon = {
-                                    Text(
-                                        destination.symbol,
-                                        fontSize = 20.sp,
-                                        color = MaterialTheme.colorScheme.primary
-                                    )
-                                },
-                                label = { Text(destination.title, fontSize = 10.sp) }
-                            )
-                        }
-                    }
-                }
-                AnimatedContent(
-                    targetState = state.destination,
-                    modifier = Modifier.fillMaxSize().weight(1f),
-                    transitionSpec = {
-                        if (ValueAnimator.areAnimatorsEnabled()) {
-                            (fadeIn() + slideInHorizontally { it / 14 })
-                                .togetherWith(fadeOut() + slideOutHorizontally { -it / 14 })
+                if (expandedWidth) MsiNavigationRail(state.destination, viewModel::navigate)
+                MsiDestinationContent(
+                    destination = state.destination,
+                    state = state,
+                    context = context,
+                    viewModel = viewModel,
+                    onAppLockChanged = onAppLockChanged,
+                    themeMode = themeMode,
+                    useDynamicColor = useDynamicColor,
+                    onThemeChanged = onThemeChanged,
+                    periodicScanEnabled = periodicScanEnabled,
+                    onPeriodicScanChanged = onPeriodicScanChanged,
+                    scheduledHour = scheduledHour,
+                    scheduledMinute = scheduledMinute,
+                    onScheduledTimeChanged = onScheduledTimeChanged,
+                    onShareReportRequest = {
+                        if (state.applications.isEmpty()) {
+                            Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
                         } else {
-                            EnterTransition.None togetherWith ExitTransition.None
+                            showShareConfirmation = true
                         }
                     },
-                    label = "msi-screen-transition"
-                ) { destination ->
-                when (destination) {
-                    MsiDestination.HOME -> DashboardScreen(
-                        state = state,
-                        onScan = viewModel::startScan,
-                        onNavigate = viewModel::navigate,
-                        onShareReport = {
-                            if (state.applications.isEmpty()) {
-                                Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
-                            } else {
-                                showShareConfirmation = true
-                            }
-                        },
-                        onOpenFilter = viewModel::updateFilter
-                    )
-                    MsiDestination.APPLICATIONS -> {
-                        val packageScope = state.packageScope
-                        val filtered = filterApplications(
-                            state.applications,
-                            state.query,
-                            state.filter,
-                            state.trustedPackages,
-                            state.ignoredPackages
-                        ).filter { packageScope == null || it.packageName in packageScope }
-                        ApplicationsScreen(
-                            applications = filtered,
-                            query = state.query,
-                            filter = state.filter,
-                            onQueryChange = viewModel::updateQuery,
-                            onFilterChange = viewModel::updateFilter,
-                            onSelect = viewModel::selectApplication,
-                            onCopyPackage = { packageName ->
-                                val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                clipboard.setPrimaryClip(ClipData.newPlainText("اسم الحزمة", packageName))
-                                Toast.makeText(context, "تم نسخ اسم الحزمة", Toast.LENGTH_SHORT).show()
-                            },
-                            onOpenSettings = { packageName ->
-                                openSystemPage(
-                                    context,
-                                    Intent(
-                                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                                        Uri.parse("package:$packageName")
-                                    )
-                                )
-                            },
-                            trustedPackages = state.trustedPackages,
-                            ignoredPackages = state.ignoredPackages
-                        )
-                    }
-                    MsiDestination.PERMISSIONS -> PermissionsScreen(
-                        applications = state.applications,
-                        onCategorySelected = viewModel::showPackageScope
-                    )
-                    MsiDestination.HISTORY -> HistoryScreen(
-                        history = state.history,
-                        onClearHistory = viewModel::clearHistory
-                    )
-                    MsiDestination.TOOLS -> ToolsScreen(
-                        appLockEnabled = state.appLockEnabled,
-                        onToggleAppLock = { enabled ->
-                            if (enabled) {
-                                val result = BiometricManager.from(context).canAuthenticate(allowedAuthenticators())
-                                if (result == BiometricManager.BIOMETRIC_SUCCESS) {
-                                    viewModel.setAppLockEnabled(true)
-                                    onAppLockChanged(true)
-                                } else {
-                                    Toast.makeText(
-                                        context,
-                                        "فعّل بصمة قوية أو قفل شاشة آمنًا من إعدادات الجهاز أولًا.",
-                                        Toast.LENGTH_LONG
-                                    ).show()
-                                }
-                            } else {
-                                viewModel.setAppLockEnabled(false)
-                                onAppLockChanged(false)
-                            }
-                        },
-                        onManageApps = {
-                            openSystemPage(context, Intent(Settings.ACTION_MANAGE_APPLICATIONS_SETTINGS))
-                        },
-                        onAccessibilitySettings = {
-                            openSystemPage(context, Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                        },
-                        onSecuritySettings = {
-                            openSystemPage(context, Intent(Settings.ACTION_SECURITY_SETTINGS))
-                        },
-                        onGeneralSettings = {
-                            openSystemPage(context, Intent(Settings.ACTION_SETTINGS))
-                        },
-                        onDeveloperSettings = {
-                            openSystemPage(context, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
-                        },
-                        themeMode = themeMode,
-                        useDynamicColor = useDynamicColor,
-                        onThemeChanged = onThemeChanged,
-                        periodicScanEnabled = periodicScanEnabled,
-                        onPeriodicScanChanged = onPeriodicScanChanged,
-                        usageAccessOptIn = state.usageAccessOptIn,
-                        usageAccessGranted = state.usageAccessGranted,
-                        onUsageAccessChanged = { enabled ->
-                            viewModel.setUsageAccessOptIn(enabled)
-                            if (enabled) {
-                                openSystemPage(context, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
-                            }
-                        }
-                    )
-                }
-            }
+                    modifier = Modifier.fillMaxSize().weight(1f)
+                )
             }
         }
         state.selectedApplication?.let { application ->
@@ -390,252 +235,24 @@ fun MsiApp(
             )
         }
         if (showShareConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showShareConfirmation = false },
-                title = { Text("مشاركة تقرير الفحص") },
-                text = {
-                    Text(
-                        "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات وبصمات شهادات التوقيع المتاحة. لن يُرسل تلقائيًا؛ ستختار بنفسك التطبيق أو الجهة التي تشاركه معها."
-                    )
-                },
-                confirmButton = {
-                    Column {
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.TXT)
-                        }) { Text("تصدير TXT") }
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.CSV)
-                        }) { Text("تصدير CSV") }
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.JSON)
-                        }) { Text("تصدير JSON") }
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.PDF)
-                        }) { Text("تصدير PDF") }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showShareConfirmation = false }) { Text("إلغاء") }
+            ReportShareConfirmationDialog(
+                onDismiss = { showShareConfirmation = false },
+                onExport = { format ->
+                    showShareConfirmation = false
+                    shareReport(context, state.applications, state.lastScanAt, format)
                 }
             )
         }
         if (showOnboarding) {
-            val pages = listOf(
-                "MSI يقرأ مؤشرات التطبيقات المثبتة والصلاحيات المتاحة من Android، ويعرض التفاصيل بصورة مفهومة.",
-                "MSI لا يتصل بخادم ولا يرفع بيانات الفحص، ولا يمنح أو يسحب صلاحيات تطبيق آخر. أي تغيير يتم من إعدادات Android وبقرارك.",
-                "قد يقرأ MSI قائمة التطبيقات المسموح للنظام بعرضها، وبيانات الحزم والصلاحيات وبعض مؤشرات الجهاز. النتائج مؤشرات وليست أحكامًا على سلامة التطبيق."
-            )
-            AlertDialog(
-                onDismissRequest = {
+            MsiOnboardingDialog(
+                page = onboardingPage,
+                onPageChange = { onboardingPage = it },
+                onComplete = {
                     showOnboarding = false
-                    context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-                        .edit().putBoolean("onboarding_complete", true).apply()
-                },
-                title = { Text("مرحبًا بك في MSI — ${onboardingPage + 1}/3") },
-                text = { Text(pages[onboardingPage]) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        if (onboardingPage < 2) {
-                            onboardingPage += 1
-                        } else {
-                            showOnboarding = false
-                            context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-                                .edit().putBoolean("onboarding_complete", true).apply()
-                        }
-                    }) { Text(if (onboardingPage < 2) "التالي" else "ابدأ") }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showOnboarding = false
-                        context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-                            .edit().putBoolean("onboarding_complete", true).apply()
-                    }) { Text("تخطي") }
+                    preferences.setOnboardingComplete()
                 }
             )
         }
     }
 }
 
-@Composable
-private fun ApplicationDetailsDialog(
-    application: AppAudit,
-    onDismiss: () -> Unit,
-    isTrusted: Boolean,
-    isIgnored: Boolean,
-    onMarkTrusted: () -> Unit,
-    onMarkIgnored: () -> Unit,
-    onClearLabel: () -> Unit,
-    onCopyPackage: () -> Unit,
-    onOpenSettings: () -> Unit,
-    onOpenNotifications: () -> Unit,
-    onLaunch: () -> Unit,
-    onOpenStore: () -> Unit
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(application.label, fontWeight = FontWeight.Bold) },
-        text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
-                verticalArrangement = Arrangement.spacedBy(7.dp)
-            ) {
-                Text("اسم الحزمة: ${application.packageName}", fontSize = 11.sp)
-                Text("الإصدار: ${application.version}", fontSize = 12.sp)
-                Text(
-                    "الصلاحيات الحساسة: ${application.grantedSensitive.size} ممنوحة / ${application.requestedSensitive.size} مطلوبة",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-                Text("النوع: ${if (application.isSystem) "تطبيق نظام" else "تطبيق مثبت"}", fontSize = 12.sp)
-                Text("مصدر التثبيت: ${application.installer}", fontSize = 12.sp)
-                Text("تصنيف Android: ${application.categoryLabel ?: "غير محدد من التطبيق"}", fontSize = 12.sp)
-                Text("Target SDK: ${application.targetSdk ?: "غير متاح"}", fontSize = 12.sp)
-                Text("تاريخ التثبيت: ${formatLocalDate(application.firstInstallTime)}", fontSize = 12.sp)
-                Text("آخر تحديث: ${formatLocalDate(application.lastUpdateTime)}", fontSize = 12.sp)
-                Text("آخر استخدام معروف: ${formatLocalDate(application.lastUsedAt)}", fontSize = 12.sp)
-                Text("SHA-256 لشهادة التوقيع:", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
-                Text(
-                    application.signingCertificateSha256 ?: "غير متاح من Android لهذا التطبيق",
-                    fontSize = 10.sp
-                )
-                Text("التصنيف المحلي", color = MaterialTheme.colorScheme.primary)
-                Text(
-                    when {
-                        isTrusted -> "أنت وضعت هذا التطبيق في قائمة موثوق لدي. هذا لا يثبت سلامته."
-                        isIgnored -> "أنت وضعت هذا التطبيق في قائمة متجاهل لتقليل الضوضاء. بياناته لا تُحذف."
-                        else -> "يمكنك وضع تسمية محلية لتسهيل مراجعة القوائم."
-                    },
-                    fontSize = 11.sp
-                )
-                Text("ماذا أفعل؟", color = MaterialTheme.colorScheme.primary)
-                application.specialAccessReasons.forEach { reason ->
-                    Text(reason, fontSize = 11.sp)
-                    Text(
-                        com.msi.inspector.domain.analyzer.AppPermissionGuidance.explainSpecialAccess(reason),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
-                    )
-                }
-                (application.grantedSensitive + application.requestedSensitive).distinct().forEach { permission ->
-                    Text(permission.substringAfterLast('.'), fontSize = 10.sp)
-                    Text(
-                        com.msi.inspector.domain.analyzer.AppPermissionGuidance.explain(permission),
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
-                    )
-                }
-                Text("ملاحظات الفحص", color = MaterialTheme.colorScheme.primary)
-                application.signals.forEach { signal -> Text("• $signal", fontSize = 11.sp) }
-                Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
-                Text(
-                    application.specialAccessReasons.ifEmpty {
-                        listOf("لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق.")
-                    }.joinToString("\n"),
-                    fontSize = 11.sp
-                )
-                Text("إعدادات خاصة مطلوبة", color = MaterialTheme.colorScheme.primary)
-                Text(
-                    application.requestedSpecialAccess.ifEmpty {
-                        listOf("لم تُرصد طلبات الإعدادات الخاصة المعروفة.")
-                    }.joinToString("\n"),
-                    fontSize = 11.sp
-                )
-                Text("الصلاحيات الحساسة الممنوحة", color = MaterialTheme.colorScheme.primary)
-                Text(
-                    application.grantedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
-                        .joinToString("\n"),
-                    fontSize = 10.sp
-                )
-                Text("الصلاحيات الحساسة المطلوبة", color = MaterialTheme.colorScheme.primary)
-                Text(
-                    application.requestedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
-                        .joinToString("\n"),
-                    fontSize = 10.sp
-                )
-                Text(
-                    "وجود صلاحية أو إعداد خاص لا يثبت أن التطبيق ضار. قد تكون الصلاحيات ضرورية لوظيفته.",
-                    color = MaterialTheme.colorScheme.tertiary,
-                    fontSize = 10.sp
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onOpenSettings) { Text("إعدادات التطبيق") }
-        },
-        dismissButton = {
-            Column {
-                TextButton(onClick = onCopyPackage) { Text("نسخ اسم الحزمة") }
-                if (!isTrusted) TextButton(onClick = onMarkTrusted) { Text("أضف إلى موثوق لدي") }
-                if (!isIgnored) TextButton(onClick = onMarkIgnored) { Text("تجاهل هذا التطبيق") }
-                if (isTrusted || isIgnored) TextButton(onClick = onClearLabel) { Text("إلغاء التسمية المحلية") }
-                TextButton(onClick = onOpenNotifications) { Text("الإشعارات") }
-                TextButton(onClick = onLaunch) { Text("فتح التطبيق") }
-                if (application.installer == "Google Play") {
-                    TextButton(onClick = onOpenStore) { Text("Google Play") }
-                }
-                TextButton(onClick = onDismiss) { Text("إغلاق") }
-            }
-        }
-    )
-}
-
-private fun allowedAuthenticators(): Int =
-    if (Build.VERSION.SDK_INT >= 30) {
-        BiometricManager.Authenticators.BIOMETRIC_STRONG or
-            BiometricManager.Authenticators.DEVICE_CREDENTIAL
-    } else {
-        BiometricManager.Authenticators.BIOMETRIC_STRONG
-    }
-
-private fun shareReport(
-    context: Context,
-    applications: List<AppAudit>,
-    scannedAt: Long?,
-    format: ReportFileFormat
-) {
-    try {
-        val content = when (format) {
-            ReportFileFormat.TXT -> ReportFormatter.format(applications, scannedAt)
-            ReportFileFormat.CSV -> ReportFormatter.formatCsv(applications, scannedAt)
-            ReportFileFormat.JSON -> ReportFormatter.formatJson(applications, scannedAt)
-            ReportFileFormat.PDF -> ReportFormatter.format(applications, scannedAt)
-        }
-        val uri = ReportExportManager.export(context, format, content)
-        val sendIntent = Intent(Intent.ACTION_SEND).apply {
-            type = format.mimeType
-            putExtra(Intent.EXTRA_SUBJECT, "MSI — تقرير الفحص المحلي")
-            putExtra(Intent.EXTRA_STREAM, uri)
-            clipData = ClipData.newUri(context.contentResolver, "MSI report", uri)
-            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-        }
-        context.startActivity(Intent.createChooser(sendIntent, "مشاركة تقرير MSI"))
-    } catch (_: Exception) {
-        Toast.makeText(context, "تعذر إنشاء التقرير أو فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
-    }
-}
-
-private fun formatLocalDate(value: Long?): String =
-    value?.let {
-        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault())
-            .apply { timeZone = TimeZone.getDefault() }
-            .format(Date(it))
-    } ?: "غير متاح"
-
-private fun openSystemPage(context: Context, intent: Intent) {
-    try {
-        context.startActivity(intent)
-    } catch (_: Exception) {
-        Toast.makeText(context, "الإعداد غير متاح على هذا الجهاز.", Toast.LENGTH_SHORT).show()
-    }
-}
-
-
-private tailrec fun Context.findActivity(): Activity? = when (this) {
-    is Activity -> this
-    is ContextWrapper -> baseContext.findActivity()
-    else -> null
-}

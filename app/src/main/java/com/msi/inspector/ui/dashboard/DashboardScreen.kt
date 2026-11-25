@@ -36,7 +36,7 @@ import com.msi.inspector.design.theme.MsiColors
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.AuditSummary
-import com.msi.inspector.ui.MsiUiState
+import com.msi.inspector.ui.state.MsiUiState
 import com.msi.inspector.ui.navigation.MsiDestination
 import java.text.DateFormat
 import java.util.Date
@@ -238,13 +238,16 @@ fun DashboardScreen(
         MsiCard {
             MsiSectionHeading("حالة اتصال الجهاز")
             Text(
-                if (state.vpnActive) "● تم رصد اتصال VPN على مستوى الجهاز."
-                else "○ لم يُرصد اتصال VPN نشط أو أن الحالة غير متاحة.",
+                when (state.vpnActive) {
+                    true -> "● تم رصد VPN على الشبكة الافتراضية الحالية التي يراها MSI."
+                    false -> "○ رُصد عدم وجود اتصال VPN نشط وقت الفحص."
+                    null -> "؟ تعذّر تحديد حالة VPN من بيانات Android المتاحة."
+                },
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
             Text(
-                "هذه المعلومة لا تحدد التطبيق الذي أنشأ اتصال VPN.",
+                "تعكس المعلومة الشبكة الافتراضية التي يراها MSI فقط؛ ولا تحدد التطبيق الذي أنشأ VPN أو مسارات اتصال كل التطبيقات.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 11.sp
             )

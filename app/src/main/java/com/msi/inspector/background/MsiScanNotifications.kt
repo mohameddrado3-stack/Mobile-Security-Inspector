@@ -17,7 +17,7 @@ object MsiScanNotifications {
     private const val CHANNEL_ID = "msi_scan_changes"
     private const val NOTIFICATION_ID = 6001
 
-    fun showChange(context: Context, activeSpecialAccessCount: Int) {
+    fun showChange(context: Context, eventCount: Int) {
         if (
             Build.VERSION.SDK_INT >= 33 &&
             ContextCompat.checkSelfPermission(
@@ -40,10 +40,10 @@ object MsiScanNotifications {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("تغيّر في مؤشرات MSI")
-            .setContentText("اكتمل الفحص الدوري المحلي. تطبيقات ذات وصول خاص نشط: $activeSpecialAccessCount")
+            .setContentText("اكتمل الفحص الدوري المحلي. أحداث تغيّر مرصودة: $eventCount")
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
-                    "اكتمل الفحص الدوري المحلي. عدد التطبيقات التي رُصد لديها وصول خاص نشط الآن: $activeSpecialAccessCount. افتح MSI لمراجعة التفاصيل؛ هذا المؤشر ليس حكمًا على سلامة التطبيق."
+                    "اكتمل الفحص الدوري المحلي. تم تسجيل $eventCount حدث تغيّر بين الفحوصات. افتح MSI لمراجعة التفاصيل؛ هذه الأحداث ليست حكمًا على سلامة التطبيقات."
                 )
             )
             .setContentIntent(pendingIntent)
