@@ -85,7 +85,8 @@ jobs:
           protected_framework_services = {
               ("androidx.glance.appwidget.GlanceRemoteViewsService", "android.permission.BIND_REMOTEVIEWS"),
               ("androidx.work.impl.background.systemjob.SystemJobService", "android.permission.BIND_JOB_SERVICE"),
-              ("androidx.work.impl.diagnostics.DiagnosticsReceiver", "android.permission.DUMP")
+              ("androidx.work.impl.diagnostics.DiagnosticsReceiver", "android.permission.DUMP"),
+              ("androidx.profileinstaller.ProfileInstallReceiver", "android.permission.DUMP")
           }
           def normalize_name(name):
               if name.startswith("."):
