@@ -79,7 +79,7 @@ object TimelineEventDetector {
             }
         }
 
-        if (previous.vpnActive != current.vpnActive) {
+        if (previous.vpnActive != null && current.vpnActive != null && previous.vpnActive != current.vpnActive) {
             events += TimelineEvent(
                 occurredAt = current.completedAt,
                 type = TimelineEventType.VPN_STATE_CHANGED,
