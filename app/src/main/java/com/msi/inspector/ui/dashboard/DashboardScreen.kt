@@ -56,14 +56,26 @@ fun DashboardScreen(
     val summary = AuditSummary.from(state.applications)
     val indicatorTitle = when {
         state.applications.isEmpty() && state.lastScanAt == null -> "لم يُفحص بعد"
+        state.applications.isEmpty() && state.lastScanAt != null -> "بيانات الفحص غير محمّلة"
         summary.activeSpecialAccess > 0 -> "يحتاج انتباه"
+        summary.specialAccessEvidenceUnavailable -> "بيانات غير مكتملة"
         summary.requestedSpecialAccess > 0 -> "يحتاج مراجعة"
         else -> "هادئ"
     }
     val indicatorAccent = when (indicatorTitle) {
         "يحتاج انتباه" -> MsiColors.Attention
-        "يحتاج مراجعة" -> MsiColors.Review
+        "يحتاج مراجعة", "بيانات غير مكتملة", "بيانات الفحص غير محمّلة" -> MsiColors.Review
         else -> MsiColors.Calm
+    }
+    val indicatorDescription = when (indicatorTitle) {
+        "بيانات غير مكتملة" ->
+            "تعذّر التحقق من بعض حالات الوصول الخاص. لا يمكن اعتبار غياب المؤشر دليلًا على عدم التفعيل."
+        "بيانات الفحص غير محمّلة" ->
+            "يوجد سجل سابق، لكن قائمة التطبيقات الحالية لم تُحمّل بعد. أعد الفحص لعرض بياناتها."
+        "هادئ" ->
+            "لم تظهر مؤشرات الوصول الخاص المحددة ضمن البيانات التي أمكن قراءتها. هذا ليس تقييمًا شاملًا لأمان الجهاز أو التطبيقات."
+        else ->
+            "مؤشر إرشادي مبني على إعدادات الوصول الخاصة النشطة والطلبات المعلنة، وليس حكمًا على أن التطبيق ضار أو آمن."
     }
     val previous = state.history.getOrNull(1)
     PullToRefreshBox(
@@ -102,7 +114,7 @@ fun DashboardScreen(
                 )
             }
             Text(
-                "مؤشر إرشادي مبني على عدد إعدادات الوصول الخاصة النشطة والطلبات المعلنة، وليس تقييمًا لسلامة التطبيق أو حكمًا بالضرر.",
+                indicatorDescription,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
@@ -288,7 +300,7 @@ fun DashboardScreen(
             title = { Text("طريقة حساب مؤشر الانتباه") },
             text = {
                 Text(
-                    "يحتاج انتباه: عند رصد خدمة Accessibility مفعّلة أو مسؤول جهاز نشط. يحتاج مراجعة: عند وجود طلب إعداد وصول خاص دون إثبات تفعيله. هادئ: لا توجد هذه المؤشرات ضمن المعلومات المتاحة. الصلاحيات الحساسة العادية لا ترفع المؤشر وحدها."
+                    "يحتاج انتباه: عند رصد خدمة إمكانية وصول مفعّلة أو مسؤول جهاز نشط. بيانات غير مكتملة: عندما يتعذر التحقق من بعض مصادر الوصول الخاص، ولا يجوز افتراض أنها غير مفعّلة. يحتاج مراجعة: عند وجود طلب إعداد وصول خاص دون إثبات تفعيله. هادئ: لم تظهر المؤشرات المحددة ضمن البيانات التي أمكن قراءتها فقط. هذا المؤشر ليس شهادة أمان شاملة."
                 )
             },
             confirmButton = {

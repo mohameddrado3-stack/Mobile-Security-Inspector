@@ -70,7 +70,7 @@ object AppAuditJsonCodec {
                         packageMetadataAvailable = metadataAvailable,
                         packageMetadataState = metadataState,
                         unclassifiedPermissions = item.stringList("unclassifiedPermissions"),
-                        specialAccessStateAvailable = item.optBoolean("specialAccessStateAvailable", true)
+                        specialAccessStateAvailable = item.optBoolean("specialAccessStateAvailable", false)
                     )
                 )
             }
