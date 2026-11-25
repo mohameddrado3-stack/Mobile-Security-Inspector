@@ -113,8 +113,11 @@ fun HistoryScreen(
                             Text("طلبات وصول خاص: ${entry.requestedSpecialAccess}", fontSize = 12.sp)
                             Text("تطبيقات بصلاحيات حساسة: ${entry.sensitivePermissions}", fontSize = 12.sp)
                             Text(
-                                if (entry.vpnActive) "● VPN نشط وقت الفحص"
-                                else "○ VPN غير نشط أو غير متاح",
+                                when (entry.vpnActive) {
+                                    true -> "● VPN نشط وقت الفحص"
+                                    false -> "○ لم يُرصد VPN نشط وقت الفحص"
+                                    null -> "؟ حالة VPN غير متاحة في هذا الفحص"
+                                },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 fontSize = 11.sp
                             )
@@ -175,8 +178,12 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
                 val y = size.height - (entry.activeSpecialAccess.toFloat() / maximum) * size.height
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 drawCircle(
-                    color = if (entry.vpnActive) MsiColors.Attention else chartColor,
-                    radius = if (entry.vpnActive) 4.dp.toPx() else 3.dp.toPx(),
+                    color = when (entry.vpnActive) {
+                        true -> MsiColors.Attention
+                        false -> chartColor
+                        null -> MaterialTheme.colorScheme.outline
+                    },
+                    radius = if (entry.vpnActive == true) 4.dp.toPx() else 3.dp.toPx(),
                     center = Offset(x, y)
                 )
             }
@@ -187,19 +194,12 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(
-            "● فحص مع VPN نشط",
-            color = MsiColors.Attention,
-            fontSize = 10.sp
-        )
-        Text(
-            "● فحص دون VPN نشط",
-            color = chartColor,
-            fontSize = 10.sp
-        )
+        Text("● VPN نشط", color = MsiColors.Attention, fontSize = 10.sp)
+        Text("● VPN غير نشط", color = chartColor, fontSize = 10.sp)
+        Text("● غير معروف", color = MaterialTheme.colorScheme.outline, fontSize = 10.sp)
     }
     Text(
-        "الخط يوضح عدد التطبيقات التي لديها وصول خاص نشط في كل فحص، وليس مستوى خطورة. تختلف علامة النقطة حسب حالة VPN المسجلة وقت الفحص.",
+        "الخط يوضح عدد التطبيقات التي لديها وصول خاص نشط، وليس مستوى خطورة. النقطة الرمادية تعني أن Android لم يوفر حالة VPN موثوقة.",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 10.sp
     )
