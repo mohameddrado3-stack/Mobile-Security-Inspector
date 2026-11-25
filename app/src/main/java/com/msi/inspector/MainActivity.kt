@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.msi.inspector.background.PeriodicScanScheduler
+import com.msi.inspector.data.preferences.MsiPreferences
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.security.applock.AppLockSettings
@@ -24,6 +25,7 @@ import com.msi.inspector.ui.security.AppLockScreen
 
 class MainActivity : FragmentActivity() {
     private lateinit var appLockSettings: AppLockSettings
+    private lateinit var preferences: MsiPreferences
     private var appLocked by mutableStateOf(false)
     private var authenticated = false
     private var promptActive = false
@@ -55,6 +57,7 @@ class MainActivity : FragmentActivity() {
         installSplashScreen()
         super.onCreate(savedInstanceState)
         appLockSettings = AppLockSettings(this)
+        preferences = MsiPreferences(this)
         appLocked = appLockSettings.isEnabled()
         loadThemePreferences()
         loadPeriodicScanPreference()
@@ -84,19 +87,16 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun loadThemePreferences() {
-        val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
-        themeMode = runCatching {
-            MsiThemeMode.valueOf(preferences.getString(KEY_THEME_MODE, MsiThemeMode.DARK.name)!!)
-        }.getOrDefault(MsiThemeMode.DARK)
-        useDynamicColor = preferences.getBoolean(KEY_DYNAMIC_COLOR, false)
+        val stored = preferences.loadTheme()
+        themeMode = stored.first
+        useDynamicColor = stored.second
     }
 
     private fun loadPeriodicScanPreference() {
-        val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
-        val savedTime = PeriodicScanScheduler.scheduledTime(this)
+        val savedTime = preferences.loadScanSchedule()
         scheduledHour = savedTime.first
         scheduledMinute = savedTime.second
-        if (!preferences.getBoolean(KEY_PERIODIC_SCAN, false)) return
+        if (!preferences.isPeriodicScanEnabled()) return
         val permissionGranted = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
@@ -104,7 +104,7 @@ class MainActivity : FragmentActivity() {
             periodicScanEnabled = true
             PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
         } else {
-            preferences.edit().putBoolean(KEY_PERIODIC_SCAN, false).apply()
+            preferences.setPeriodicScanEnabled(false)
             PeriodicScanScheduler.disable(this)
         }
     }
@@ -127,9 +127,7 @@ class MainActivity : FragmentActivity() {
 
     private fun persistPeriodicScanEnabled(enabled: Boolean) {
         periodicScanEnabled = enabled
-        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
-            .putBoolean(KEY_PERIODIC_SCAN, enabled)
-            .apply()
+        preferences.setPeriodicScanEnabled(enabled)
         if (enabled) PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
         else PeriodicScanScheduler.disable(this)
     }
@@ -137,10 +135,7 @@ class MainActivity : FragmentActivity() {
     private fun saveScanSchedule(hour: Int, minute: Int) {
         scheduledHour = hour.coerceIn(0, 23)
         scheduledMinute = minute.coerceIn(0, 59)
-        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
-            .putInt(PeriodicScanScheduler.KEY_SCAN_HOUR, scheduledHour)
-            .putInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, scheduledMinute)
-            .apply()
+        preferences.saveScanSchedule(scheduledHour, scheduledMinute)
         if (periodicScanEnabled) {
             PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
         }
@@ -149,10 +144,7 @@ class MainActivity : FragmentActivity() {
     private fun saveThemePreferences(mode: MsiThemeMode, dynamic: Boolean) {
         themeMode = mode
         useDynamicColor = dynamic && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
-        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
-            .putString(KEY_THEME_MODE, themeMode.name)
-            .putBoolean(KEY_DYNAMIC_COLOR, useDynamicColor)
-            .apply()
+        preferences.saveTheme(themeMode, useDynamicColor)
     }
 
     override fun onNewIntent(intent: android.content.Intent) {
@@ -250,10 +242,6 @@ class MainActivity : FragmentActivity() {
     }
 
     companion object {
-        private const val PREFERENCES_NAME = "msi_preferences"
-        private const val KEY_THEME_MODE = "theme_mode"
-        private const val KEY_DYNAMIC_COLOR = "dynamic_color"
-        private const val KEY_PERIODIC_SCAN = "periodic_scan_enabled"
         const val EXTRA_SHORTCUT = "com.msi.inspector.shortcut"
         const val ACTION_SHORTCUT_SCAN = "com.msi.inspector.action.SCAN"
         const val ACTION_SHORTCUT_PERMISSIONS = "com.msi.inspector.action.PERMISSIONS"
