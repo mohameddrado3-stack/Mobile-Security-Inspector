@@ -166,6 +166,7 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
     val points = history.take(50).reversed()
     val maximum = (points.maxOfOrNull { it.activeSpecialAccess } ?: 0).coerceAtLeast(1)
     val chartColor = MaterialTheme.colorScheme.primary
+    val unknownColor = MaterialTheme.colorScheme.outline
     Canvas(
         modifier = Modifier.fillMaxWidth().height(104.dp)
     ) {
@@ -181,7 +182,7 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
                     color = when (entry.vpnActive) {
                         true -> MsiColors.Attention
                         false -> chartColor
-                        null -> MaterialTheme.colorScheme.outline
+                        null -> unknownColor
                     },
                     radius = if (entry.vpnActive == true) 4.dp.toPx() else 3.dp.toPx(),
                     center = Offset(x, y)
@@ -196,7 +197,7 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
     ) {
         Text("● VPN نشط", color = MsiColors.Attention, fontSize = 10.sp)
         Text("● VPN غير نشط", color = chartColor, fontSize = 10.sp)
-        Text("● غير معروف", color = MaterialTheme.colorScheme.outline, fontSize = 10.sp)
+        Text("● غير معروف", color = unknownColor, fontSize = 10.sp)
     }
     Text(
         "الخط يوضح عدد التطبيقات التي لديها وصول خاص نشط، وليس مستوى خطورة. النقطة الرمادية تعني أن Android لم يوفر حالة VPN موثوقة.",
