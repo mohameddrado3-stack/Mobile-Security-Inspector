@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.msi.inspector.data.repository.AppAuditRepository
-import com.msi.inspector.domain.analyzer.AuditSummary
+import com.msi.inspector.domain.timeline.TimelineEventType
 import com.msi.inspector.widget.MsiWidgetStateUpdater
 import kotlinx.coroutines.CancellationException
 
@@ -17,20 +17,13 @@ class PeriodicScanWorker(
         if (!PeriodicScanScheduler.isEnabled(applicationContext)) return Result.success()
         val repository = AppAuditRepository(applicationContext)
         return try {
-            val previous = repository.loadHistory().firstOrNull()
             val snapshot = repository.scan()
-            repository.saveHistory(snapshot)
+            val events = repository.saveHistory(snapshot)
 
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
-            val summary = AuditSummary.from(snapshot.applications)
-            val meaningfulChange = previous != null && (
-                previous.activeSpecialAccess != summary.activeSpecialAccess ||
-                    previous.requestedSpecialAccess != summary.requestedSpecialAccess ||
-                    previous.sensitivePermissions != summary.applicationsWithSensitivePermissions
-                )
-            if (meaningfulChange) {
-                MsiScanNotifications.showChange(applicationContext, summary.activeSpecialAccess)
+            if (events.any { it.type != TimelineEventType.BASELINE_CREATED }) {
+                MsiScanNotifications.showChange(applicationContext, events.size)
             }
             Result.success()
         } catch (cancelled: CancellationException) {
