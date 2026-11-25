@@ -56,6 +56,8 @@ import com.msi.inspector.ui.history.HistoryScreen
 import com.msi.inspector.ui.navigation.MsiDestination
 import com.msi.inspector.ui.permissions.PermissionsScreen
 import com.msi.inspector.ui.reports.ReportFormatter
+import com.msi.inspector.ui.reports.ReportExportManager
+import com.msi.inspector.ui.reports.ReportFileFormat
 import com.msi.inspector.ui.settings.ToolsScreen
 import java.text.DateFormat
 import java.util.Date
@@ -75,6 +77,11 @@ fun MsiApp(
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var showShareConfirmation by remember { mutableStateOf(false) }
+    var onboardingPage by remember { mutableStateOf(0) }
+    var showOnboarding by remember {
+        mutableStateOf(!context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
+            .getBoolean("onboarding_complete", false))
+    }
 
     LaunchedEffect(shortcutRequest) {
         when (shortcutRequest?.second) {
@@ -273,15 +280,61 @@ fun MsiApp(
                     )
                 },
                 confirmButton = {
-                    TextButton(
-                        onClick = {
+                    Column {
+                        TextButton(onClick = {
                             showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt)
-                        }
-                    ) { Text("متابعة") }
+                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.TXT)
+                        }) { Text("تصدير TXT") }
+                        TextButton(onClick = {
+                            showShareConfirmation = false
+                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.CSV)
+                        }) { Text("تصدير CSV") }
+                        TextButton(onClick = {
+                            showShareConfirmation = false
+                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.JSON)
+                        }) { Text("تصدير JSON") }
+                        TextButton(onClick = {
+                            showShareConfirmation = false
+                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.PDF)
+                        }) { Text("تصدير PDF") }
+                    }
                 },
                 dismissButton = {
                     TextButton(onClick = { showShareConfirmation = false }) { Text("إلغاء") }
+                }
+            )
+        }
+        if (showOnboarding) {
+            val pages = listOf(
+                "MSI يقرأ مؤشرات التطبيقات المثبتة والصلاحيات المتاحة من Android، ويعرض التفاصيل بصورة مفهومة.",
+                "MSI لا يتصل بخادم ولا يرفع بيانات الفحص، ولا يمنح أو يسحب صلاحيات تطبيق آخر. أي تغيير يتم من إعدادات Android وبقرارك.",
+                "قد يقرأ MSI قائمة التطبيقات المسموح للنظام بعرضها، وبيانات الحزم والصلاحيات وبعض مؤشرات الجهاز. النتائج مؤشرات وليست أحكامًا على سلامة التطبيق."
+            )
+            AlertDialog(
+                onDismissRequest = {
+                    showOnboarding = false
+                    context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
+                        .edit().putBoolean("onboarding_complete", true).apply()
+                },
+                title = { Text("مرحبًا بك في MSI — ${onboardingPage + 1}/3") },
+                text = { Text(pages[onboardingPage]) },
+                confirmButton = {
+                    TextButton(onClick = {
+                        if (onboardingPage < 2) {
+                            onboardingPage += 1
+                        } else {
+                            showOnboarding = false
+                            context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
+                                .edit().putBoolean("onboarding_complete", true).apply()
+                        }
+                    }) { Text(if (onboardingPage < 2) "التالي" else "ابدأ") }
+                },
+                dismissButton = {
+                    TextButton(onClick = {
+                        showOnboarding = false
+                        context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
+                            .edit().putBoolean("onboarding_complete", true).apply()
+                    }) { Text("تخطي") }
                 }
             )
         }
@@ -379,16 +432,30 @@ private fun allowedAuthenticators(): Int =
         BiometricManager.Authenticators.BIOMETRIC_STRONG
     }
 
-private fun shareReport(context: Context, applications: List<AppAudit>, scannedAt: Long?) {
-    val sendIntent = Intent(Intent.ACTION_SEND).apply {
-        type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "MSI — تقرير الفحص المحلي")
-        putExtra(Intent.EXTRA_TEXT, ReportFormatter.format(applications, scannedAt))
-    }
+private fun shareReport(
+    context: Context,
+    applications: List<AppAudit>,
+    scannedAt: Long?,
+    format: ReportFileFormat
+) {
     try {
-        context.startActivity(Intent.createChooser(sendIntent, "مشاركة التقرير"))
+        val content = when (format) {
+            ReportFileFormat.TXT -> ReportFormatter.format(applications, scannedAt)
+            ReportFileFormat.CSV -> ReportFormatter.formatCsv(applications, scannedAt)
+            ReportFileFormat.JSON -> ReportFormatter.formatJson(applications, scannedAt)
+            ReportFileFormat.PDF -> ReportFormatter.format(applications, scannedAt)
+        }
+        val uri = ReportExportManager.export(context, format, content)
+        val sendIntent = Intent(Intent.ACTION_SEND).apply {
+            type = format.mimeType
+            putExtra(Intent.EXTRA_SUBJECT, "MSI — تقرير الفحص المحلي")
+            putExtra(Intent.EXTRA_STREAM, uri)
+            clipData = ClipData.newUri(context.contentResolver, "MSI report", uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+        context.startActivity(Intent.createChooser(sendIntent, "مشاركة تقرير MSI"))
     } catch (_: Exception) {
-        Toast.makeText(context, "تعذر فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
+        Toast.makeText(context, "تعذر إنشاء التقرير أو فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
     }
 }
 
