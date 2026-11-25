@@ -5,6 +5,12 @@ plugins {
 }
 
 android {
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     namespace = "com.msi.inspector"
     compileSdk = 36
 
