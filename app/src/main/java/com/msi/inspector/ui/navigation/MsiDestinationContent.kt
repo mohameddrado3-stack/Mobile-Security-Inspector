@@ -17,8 +17,6 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.msi.inspector.design.theme.MsiThemeMode
@@ -55,7 +53,7 @@ fun MsiDestinationContent(
 ) {
     AnimatedContent(
         targetState = state.destination,
-        modifier = Modifier.fillMaxSize().weight(1f),
+        modifier = modifier,
         transitionSpec = {
             if (ValueAnimator.areAnimatorsEnabled()) {
                 (fadeIn() + slideInHorizontally { it / 14 })
@@ -71,13 +69,7 @@ fun MsiDestinationContent(
             state = state,
             onScan = viewModel::startScan,
             onNavigate = viewModel::navigate,
-            onShareReport = {
-                if (state.applications.isEmpty()) {
-                    Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
-                } else {
-                    showShareConfirmation = true
-                }
-            },
+            onShareReport = onShareReportRequest,
             onOpenFilter = viewModel::updateFilter
         )
         MsiDestination.APPLICATIONS -> {
