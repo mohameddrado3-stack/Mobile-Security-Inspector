@@ -1,23 +1,13 @@
 package com.msi.inspector.data.scanner
 
-import android.app.admin.DevicePolicyManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageInfo
-import android.content.pm.PackageManager
-import android.content.pm.PermissionInfo
-import android.net.ConnectivityManager
-import android.net.NetworkCapabilities
-import android.os.Build
-import android.provider.Settings
 import com.msi.inspector.domain.analyzer.PermissionAnalyzer
 import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanSnapshot
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import java.security.MessageDigest
 import java.util.Locale
 
 class AndroidAppScanner(context: Context) : AppScanner {
@@ -26,16 +16,16 @@ class AndroidAppScanner(context: Context) : AppScanner {
     }
 
     private val appContext = context.applicationContext
-    private val packageManager = appContext.packageManager
-    private val dangerousPermissionCache = HashMap<String, Boolean>()
+    private val packageReader = AndroidPackageReader(appContext)
+    private val systemAccessReader = AndroidSystemAccessReader(appContext)
     private val usageAccessReader = UsageAccessReader(appContext)
 
     override suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit): ScanSnapshot {
-        val accessibilityPackages = enabledAccessibilityPackages()
-        val adminPackages = activeAdminPackages()
-        val vpnActive = isVpnActive()
+        val accessibilityPackages = systemAccessReader.enabledAccessibilityPackages()
+        val adminPackages = systemAccessReader.activeAdminPackages()
+        val vpnActive = systemAccessReader.vpnActive()
         val lastUsedByPackage = usageAccessReader.lastUsedByPackage()
-        val installedApplications = getInstalledApplications()
+        val installedApplications = packageReader.installedApplications()
         val results = ArrayList<AppAudit>(installedApplications.size)
         onProgress(0, installedApplications.size)
 
@@ -43,7 +33,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
             currentCoroutineContext().ensureActive()
 
             val packageName = appInfo.packageName
-            val packageInfo = getPackageInfo(packageName)
+            val packageInfo = packageReader.packageInfo(packageName)
             val requested = packageInfo?.requestedPermissions?.toList().orEmpty()
             val flags = packageInfo?.requestedPermissionsFlags
             val granted = requested.filterIndexed { permissionIndex, _ ->
@@ -51,7 +41,7 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     permissionIndex < flags.size &&
                     (flags[permissionIndex] and PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0
             }
-            val grantedSensitive = granted.filter(::isDangerousPermission)
+            val grantedSensitive = granted.filter(packageReader::isDangerousPermission)
             val requestedSensitive = requested.filter(::isDangerousPermission)
             val requestedSpecial = requested.mapNotNull(::specialPermissionRequestLabel).distinct()
             val categories = grantedSensitive.mapNotNull(PermissionAnalyzer::categoryFor).distinct()
@@ -85,17 +75,13 @@ class AndroidAppScanner(context: Context) : AppScanner {
                 }
                 if (isEmpty()) add("لم تظهر المؤشرات المحددة في هذا الفحص.")
             }
-            val label = try {
-                packageManager.getApplicationLabel(appInfo).toString().ifBlank { packageName }
-            } catch (_: Exception) {
-                packageName
-            }
+            val label = packageReader.applicationLabel(appInfo)
             results.add(
                 AppAudit(
                     label = label,
                     packageName = packageName,
                     version = packageInfo?.versionName?.takeIf { it.isNotBlank() } ?: "غير متاح",
-                    installer = installerLabel(packageName),
+                    installer = packageReader.installerLabel(packageName),
                     isSystem = (appInfo.flags and ApplicationInfo.FLAG_SYSTEM) != 0,
                     grantedSensitive = grantedSensitive,
                     requestedSensitive = requestedSensitive,
@@ -105,8 +91,8 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     targetSdk = appInfo.targetSdkVersion,
                     firstInstallTime = packageInfo?.firstInstallTime,
                     lastUpdateTime = packageInfo?.lastUpdateTime,
-                    signingCertificateSha256 = packageInfo?.let(::signingFingerprint),
-                    categoryLabel = categoryLabel(appInfo.category),
+                    signingCertificateSha256 = packageInfo?.let(packageReader::signingFingerprint),
+                    categoryLabel = packageReader.categoryLabel(appInfo.category),
                     lastUsedAt = lastUsedAt,
                     packageMetadataAvailable = packageInfo != null
                 )
@@ -128,43 +114,6 @@ class AndroidAppScanner(context: Context) : AppScanner {
         )
     }
 
-    @Suppress("DEPRECATION")
-    private fun getInstalledApplications(): List<ApplicationInfo> =
-        packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
-
-    @Suppress("DEPRECATION")
-    private fun getPackageInfo(packageName: String): PackageInfo? {
-        return try {
-            val flags = PackageManager.GET_PERMISSIONS or
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    PackageManager.GET_SIGNING_CERTIFICATES
-                } else {
-                    PackageManager.GET_SIGNATURES
-                }
-            packageManager.getPackageInfo(packageName, flags)
-        } catch (_: Exception) {
-            null
-        }
-    }
-
-    private fun signingFingerprint(info: PackageInfo): String? {
-        return try {
-            val signatures = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                info.signingInfo?.apkContentsSigners ?: return null
-            } else {
-                @Suppress("DEPRECATION")
-                info.signatures
-            } ?: return null
-            signatures.map { signature ->
-                MessageDigest.getInstance("SHA-256")
-                    .digest(signature.toByteArray())
-                    .joinToString("") { byte -> "%02X".format(byte) }
-            }.sorted().joinToString(",").takeIf { it.isNotBlank() }
-        } catch (_: Exception) {
-            null
-        }
-    }
-
     private fun categoryCoherenceNote(category: Int, grantedCategories: List<String>): String? {
         if (category == ApplicationInfo.CATEGORY_UNDEFINED || grantedCategories.isEmpty()) return null
         val expected = when (category) {
@@ -180,101 +129,9 @@ class AndroidAppScanner(context: Context) : AppScanner {
         }
         val unexpected = grantedCategories.filterNot { it in expected }
         if (unexpected.isEmpty()) return null
-        val categoryName = categoryLabel(category) ?: return null
+        val categoryName = packageReader.categoryLabel(category) ?: return null
         return "قاعدة محلية تجريبية: بعض الصلاحيات الممنوحة قد لا تكون متوقعة تمامًا لتصنيف التطبيق ($categoryName): ${unexpected.joinToString("، ")}. قد تكون مبررة بوظائف فرعية؛ راجع سببها قبل اتخاذ قرار."
     }
 
-    private fun categoryLabel(category: Int): String? = when (category) {
-        ApplicationInfo.CATEGORY_GAME -> "ألعاب"
-        ApplicationInfo.CATEGORY_AUDIO -> "صوت"
-        ApplicationInfo.CATEGORY_VIDEO -> "فيديو"
-        ApplicationInfo.CATEGORY_IMAGE -> "صور"
-        ApplicationInfo.CATEGORY_SOCIAL -> "اجتماعي"
-        ApplicationInfo.CATEGORY_NEWS -> "أخبار"
-        ApplicationInfo.CATEGORY_MAPS -> "خرائط"
-        ApplicationInfo.CATEGORY_PRODUCTIVITY -> "إنتاجية"
-        else -> null
-    }
 
-    @Suppress("DEPRECATION")
-    private fun isDangerousPermission(permission: String): Boolean {
-        return dangerousPermissionCache.getOrPut(permission) {
-            try {
-                val info = packageManager.getPermissionInfo(permission, 0)
-                (info.protectionLevel and PermissionInfo.PROTECTION_DANGEROUS) != 0
-            } catch (_: Exception) {
-                false
-            }
-        }
-    }
-
-    private fun specialPermissionRequestLabel(permission: String): String? {
-        return when (permission) {
-            "android.permission.SYSTEM_ALERT_WINDOW" ->
-                "طلب صلاحية الظهور فوق التطبيقات — حالة التفعيل غير مؤكدة."
-            "android.permission.WRITE_SETTINGS" ->
-                "طلب تعديل إعدادات النظام — حالة التفعيل غير مؤكدة."
-            "android.permission.PACKAGE_USAGE_STATS" ->
-                "طلب الوصول إلى إحصاءات الاستخدام — حالة التفعيل غير مؤكدة."
-            "android.permission.MANAGE_EXTERNAL_STORAGE" ->
-                "طلب الوصول الشامل للملفات — حالة التفعيل غير مؤكدة."
-            "android.permission.REQUEST_INSTALL_PACKAGES" ->
-                "طلب صلاحية تثبيت حزم التطبيقات — حالة التفعيل غير مؤكدة."
-            "android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" ->
-                "طلب استثناء من تحسين البطارية — حالة التفعيل غير مؤكدة."
-            "android.permission.ACCESS_NOTIFICATION_POLICY" ->
-                "طلب الوصول إلى سياسة عدم الإزعاج — حالة التفعيل غير مؤكدة."
-            else -> null
-        }
-    }
-
-    private fun installerLabel(packageName: String): String {
-        return try {
-            val installer = if (Build.VERSION.SDK_INT >= 30) {
-                val source = packageManager.getInstallSourceInfo(packageName)
-                source.installingPackageName ?: source.initiatingPackageName
-            } else {
-                @Suppress("DEPRECATION")
-                packageManager.getInstallerPackageName(packageName)
-            }
-            when (installer) {
-                "com.android.vending" -> "Google Play"
-                "com.sec.android.app.samsungapps" -> "Galaxy Store"
-                null -> "غير معروف"
-                else -> installer
-            }
-        } catch (_: Exception) {
-            "غير معروف"
-        }
-    }
-
-    private fun enabledAccessibilityPackages(): Set<String> {
-        val raw = Settings.Secure.getString(
-            appContext.contentResolver,
-            Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-        ) ?: return emptySet()
-        return raw.split(':')
-            .mapNotNull { ComponentName.unflattenFromString(it)?.packageName }
-            .toSet()
-    }
-
-    private fun activeAdminPackages(): Set<String> {
-        return try {
-            val manager = appContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
-            manager.activeAdmins?.map { it.packageName }?.toSet() ?: emptySet()
-        } catch (_: Exception) {
-            emptySet()
-        }
-    }
-
-    private fun isVpnActive(): Boolean? {
-        return try {
-            val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = manager.activeNetwork ?: return null
-            val capabilities = manager.getNetworkCapabilities(network) ?: return null
-            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
-        } catch (_: Exception) {
-            null
-        }
-    }
 }
