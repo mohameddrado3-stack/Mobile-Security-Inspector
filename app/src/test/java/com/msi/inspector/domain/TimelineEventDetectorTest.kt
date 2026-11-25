@@ -104,6 +104,23 @@ class TimelineEventDetectorTest {
         assertFalse(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
     }
 
+    @Test fun unavailableSpecialAccessEvidenceDoesNotCreateFalseChange() {
+        val previous = snapshot(listOf(app())).copy(
+            applications = listOf(app().copy(
+                specialAccessReasons = listOf("Accessibility enabled"),
+                specialAccessStateAvailable = true
+            ))
+        )
+        val current = snapshot(listOf(app()), 2_000L).copy(
+            applications = listOf(app().copy(
+                specialAccessReasons = emptyList(),
+                specialAccessStateAvailable = false
+            ))
+        )
+        val events = TimelineEventDetector.detect(previous, current)
+        assertFalse(events.any { it.type == TimelineEventType.SPECIAL_ACCESS_CHANGED })
+    }
+
     @Test fun detectsRemovedSensitivePermissionAndVpnTransition() {
         val events = TimelineEventDetector.detect(
             snapshot(listOf(app(granted = listOf("android.permission.CAMERA"))), 1_000L),
