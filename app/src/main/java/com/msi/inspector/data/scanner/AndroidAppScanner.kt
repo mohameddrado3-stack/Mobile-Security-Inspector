@@ -269,14 +269,14 @@ class AndroidAppScanner(context: Context) : AppScanner {
         }
     }
 
-    private fun isVpnActive(): Boolean {
+    private fun isVpnActive(): Boolean? {
         return try {
             val manager = appContext.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
-            val network = manager.activeNetwork ?: return false
-            manager.getNetworkCapabilities(network)
-                ?.hasTransport(NetworkCapabilities.TRANSPORT_VPN) == true
+            val network = manager.activeNetwork ?: return null
+            val capabilities = manager.getNetworkCapabilities(network) ?: return null
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_VPN)
         } catch (_: Exception) {
-            false
+            null
         }
     }
 }
