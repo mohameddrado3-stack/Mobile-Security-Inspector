@@ -8,6 +8,7 @@ import com.msi.inspector.domain.analyzer.AuditSummary
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
+import com.msi.inspector.domain.model.VpnObservationStorage
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventType
 import org.json.JSONArray
@@ -84,7 +85,7 @@ class ScanHistoryDatabase(context: Context) :
             put("active_special_access", summary.activeSpecialAccess)
             put("requested_special_access", summary.requestedSpecialAccess)
             put("sensitive_permissions", summary.applicationsWithSensitivePermissions)
-            put("vpn_active", snapshot.vpnActive?.let { if (it) 1 else 0 } ?: -1)
+            put("vpn_active", VpnObservationStorage.encode(snapshot.vpnActive))
             put("applications_json", encodeApplications(snapshot.applications))
         }
         val database = writableDatabase
@@ -179,7 +180,7 @@ class ScanHistoryDatabase(context: Context) :
                     id = cursor.getLong(0), scannedAt = cursor.getLong(1),
                     totalApplications = cursor.getInt(2), activeSpecialAccess = cursor.getInt(3),
                     requestedSpecialAccess = cursor.getInt(4), sensitivePermissions = cursor.getInt(5),
-                    vpnActive = when (cursor.getInt(6)) { 1 -> true; 0 -> false; else -> null },
+                    vpnActive = VpnObservationStorage.decode(cursor.getInt(6)),
                     applicationsJson = cursor.getString(7) ?: "[]"
                 )
             }
