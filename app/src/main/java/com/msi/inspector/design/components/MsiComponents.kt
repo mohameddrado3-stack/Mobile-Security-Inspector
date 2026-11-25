@@ -118,6 +118,12 @@ fun MsiBrandHeader() {
                 fontSize = 11.sp
             )
         }
-        Text("⬡", color = MsiColors.Accent, fontSize = 34.sp, fontWeight = FontWeight.Light)
+        Text(
+            "⬡",
+            modifier = Modifier.semantics { contentDescription = "شعار Mobile Security Inspector" },
+            color = MsiColors.Accent,
+            fontSize = 34.sp,
+            fontWeight = FontWeight.Light
+        )
     }
 }
