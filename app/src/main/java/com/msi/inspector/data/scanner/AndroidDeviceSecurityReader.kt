@@ -25,17 +25,7 @@ class AndroidDeviceSecurityReader(context: Context) {
                 ?: throw IllegalStateException("Keyguard service unavailable")
             if (keyguard.isDeviceSecure) "enabled" else "disabled"
         },
-        storageEncryption = capture {
-            val policy = appContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
-                ?: throw IllegalStateException("Device policy service unavailable")
-            when (policy.storageEncryptionStatus) {
-                DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE -> "active"
-                DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE -> "inactive"
-                DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING -> "activating"
-                DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED -> returnCaptureUnsupported()
-                else -> null
-            }
-        },
+        storageEncryption = readStorageEncryption(),
         adbEnabled = readGlobalBoolean(Settings.Global.ADB_ENABLED),
         developerOptionsEnabled = readGlobalBoolean(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED),
         collectedAt = System.currentTimeMillis()
@@ -66,5 +56,25 @@ class AndroidDeviceSecurityReader(context: Context) {
         }
     }
 
-    private fun returnCaptureUnsupported(): String? = null
+    private fun readStorageEncryption(): DeviceSecurityEvidence {
+        return try {
+            val policy = appContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
+                ?: throw IllegalStateException("Device policy service unavailable")
+            when (policy.storageEncryptionStatus) {
+                DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE ->
+                    DeviceSecurityEvidence("active", EvidenceAvailability.AVAILABLE)
+                DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE ->
+                    DeviceSecurityEvidence("inactive", EvidenceAvailability.AVAILABLE)
+                DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING ->
+                    DeviceSecurityEvidence("activating", EvidenceAvailability.AVAILABLE)
+                DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED ->
+                    DeviceSecurityEvidence(null, EvidenceAvailability.UNSUPPORTED)
+                else -> DeviceSecurityEvidence(null, EvidenceAvailability.UNAVAILABLE)
+            }
+        } catch (_: SecurityException) {
+            DeviceSecurityEvidence(null, EvidenceAvailability.ACCESS_DENIED)
+        } catch (_: Exception) {
+            DeviceSecurityEvidence(null, EvidenceAvailability.ERROR)
+        }
+    }
 }

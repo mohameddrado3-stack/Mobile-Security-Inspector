@@ -311,6 +311,7 @@ private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
             "active" -> "مشفّر ونشط"
             "inactive" -> "غير نشط"
             "activating" -> "جارٍ التفعيل"
+            "unsupported" -> "غير مدعوم"
             else -> evidence.value ?: "غير متاح"
         }
     }
