@@ -30,7 +30,10 @@ class AppAuditJsonCodecTest {
             signingCertificateSha256 = "ABCD",
             categoryLabel = "Productivity",
             lastUsedAt = 300L,
-            packageMetadataAvailable = true
+            packageMetadataAvailable = true,
+            packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
+            unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
+            specialAccessStateAvailable = false
         )
 
         val restored = AppAuditJsonCodec.decode(AppAuditJsonCodec.encode(listOf(application))).single()
@@ -51,6 +54,9 @@ class AppAuditJsonCodecTest {
         assertEquals(application.categoryLabel, restored.categoryLabel)
         assertEquals(application.lastUsedAt, restored.lastUsedAt)
         assertEquals(application.packageMetadataAvailable, restored.packageMetadataAvailable)
+        assertEquals(application.packageMetadataState, restored.packageMetadataState)
+        assertEquals(application.unclassifiedPermissions, restored.unclassifiedPermissions)
+        assertEquals(application.specialAccessStateAvailable, restored.specialAccessStateAvailable)
         assertEquals(emptyList<String>(), restored.signals)
     }
 }
