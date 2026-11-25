@@ -1,6 +1,7 @@
 package com.msi.inspector.ui.settings
 
 import android.app.admin.DevicePolicyManager
+import android.app.TimePickerDialog
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
@@ -44,6 +45,9 @@ fun ToolsScreen(
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
     periodicScanEnabled: Boolean = false,
     onPeriodicScanChanged: (Boolean) -> Unit = {},
+    scheduledHour: Int = 9,
+    scheduledMinute: Int = 0,
+    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
     onUsageAccessChanged: (Boolean) -> Unit = {}
@@ -112,7 +116,7 @@ fun ToolsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("فحص محلي كل 24 ساعة", fontSize = 13.sp)
+                    Text("فحص محلي يوميًا في الوقت الذي تحدده", fontSize = 13.sp)
                     Text(
                         "لا يحتاج اتصال شبكة. يرسل إشعارًا فقط إذا تغيّرت مؤشرات محددة.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -122,7 +126,25 @@ fun ToolsScreen(
                 Switch(checked = periodicScanEnabled, onCheckedChange = onPeriodicScanChanged)
             }
             Text(
-                "سيطلب Android إذن الإشعارات عند تفعيل هذا الخيار فقط. إيقافه يلغي المهام المجدولة.",
+                "الموعد الحالي: %02d:%02d".format(scheduledHour, scheduledMinute),
+                color = MaterialTheme.colorScheme.primary,
+                fontSize = 12.sp
+            )
+            OutlinedButton(
+                onClick = {
+                    TimePickerDialog(
+                        context,
+                        { _, hour, minute -> onScheduledTimeChanged(hour, minute) },
+                        scheduledHour,
+                        scheduledMinute,
+                        true
+                    ).show()
+                },
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !periodicScanEnabled
+            ) { Text("تحديد موعد الفحص") }
+            Text(
+                "يطلب Android إذن الإشعارات عند التفعيل فقط. قد يؤخر Android التنفيذ بسبب البطارية أو قيود النظام؛ الموعد ليس ضمانًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp
             )
