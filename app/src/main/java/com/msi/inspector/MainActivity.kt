@@ -32,6 +32,8 @@ class MainActivity : FragmentActivity() {
     private var themeMode by mutableStateOf(MsiThemeMode.DARK)
     private var useDynamicColor by mutableStateOf(false)
     private var periodicScanEnabled by mutableStateOf(false)
+    private var scheduledHour by mutableStateOf(9)
+    private var scheduledMinute by mutableStateOf(0)
     private var pendingPeriodicEnable = false
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -71,7 +73,10 @@ class MainActivity : FragmentActivity() {
                         useDynamicColor = useDynamicColor,
                         onThemeChanged = ::saveThemePreferences,
                         periodicScanEnabled = periodicScanEnabled,
-                        onPeriodicScanChanged = ::configurePeriodicScan
+                        onPeriodicScanChanged = ::configurePeriodicScan,
+                        scheduledHour = scheduledHour,
+                        scheduledMinute = scheduledMinute,
+                        onScheduledTimeChanged = ::saveScanSchedule
                     )
                 }
             }
@@ -88,13 +93,16 @@ class MainActivity : FragmentActivity() {
 
     private fun loadPeriodicScanPreference() {
         val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+        val savedTime = PeriodicScanScheduler.scheduledTime(this)
+        scheduledHour = savedTime.first
+        scheduledMinute = savedTime.second
         if (!preferences.getBoolean(KEY_PERIODIC_SCAN, false)) return
         val permissionGranted = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (permissionGranted) {
             periodicScanEnabled = true
-            PeriodicScanScheduler.enable(this)
+            PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
         } else {
             preferences.edit().putBoolean(KEY_PERIODIC_SCAN, false).apply()
             PeriodicScanScheduler.disable(this)
@@ -122,7 +130,17 @@ class MainActivity : FragmentActivity() {
         getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
             .putBoolean(KEY_PERIODIC_SCAN, enabled)
             .apply()
-        if (enabled) PeriodicScanScheduler.enable(this) else PeriodicScanScheduler.disable(this)
+        if (enabled) PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+        else PeriodicScanScheduler.disable(this)
+    }
+
+    private fun saveScanSchedule(hour: Int, minute: Int) {
+        scheduledHour = hour.coerceIn(0, 23)
+        scheduledMinute = minute.coerceIn(0, 59)
+        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
+            .putInt(PeriodicScanScheduler.KEY_SCAN_HOUR, scheduledHour)
+            .putInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, scheduledMinute)
+            .apply()
     }
 
     private fun saveThemePreferences(mode: MsiThemeMode, dynamic: Boolean) {
