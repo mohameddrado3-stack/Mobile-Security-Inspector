@@ -63,6 +63,47 @@ class TimelineEventDetectorTest {
         assertTrue(event.details.contains("لا يثبت"))
     }
 
+    @Test fun detectsKnownVpnActiveToInactiveTransition() {
+        val events = TimelineEventDetector.detect(
+            ScanSnapshot(emptyList(), true, 1_000L),
+            ScanSnapshot(emptyList(), false, 2_000L)
+        )
+        assertTrue(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
+        assertTrue(events.single { it.type == TimelineEventType.VPN_STATE_CHANGED }.details.contains("لم يُرصد"))
+    }
+
+    @Test fun detectsKnownVpnInactiveToActiveTransition() {
+        val events = TimelineEventDetector.detect(
+            ScanSnapshot(emptyList(), false, 1_000L),
+            ScanSnapshot(emptyList(), true, 2_000L)
+        )
+        assertTrue(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
+    }
+
+    @Test fun unknownVpnBaselineDoesNotCreateVpnChangeEvent() {
+        val events = TimelineEventDetector.detect(
+            null,
+            ScanSnapshot(emptyList(), null, 1_000L)
+        )
+        assertFalse(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
+    }
+
+    @Test fun unknownPreviousVpnStateDoesNotCreateFalseTransition() {
+        val events = TimelineEventDetector.detect(
+            ScanSnapshot(emptyList(), null, 1_000L),
+            ScanSnapshot(emptyList(), true, 2_000L)
+        )
+        assertFalse(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
+    }
+
+    @Test fun unknownCurrentVpnStateDoesNotCreateFalseTransition() {
+        val events = TimelineEventDetector.detect(
+            ScanSnapshot(emptyList(), true, 1_000L),
+            ScanSnapshot(emptyList(), null, 2_000L)
+        )
+        assertFalse(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
+    }
+
     @Test fun detectsRemovedSensitivePermissionAndVpnTransition() {
         val events = TimelineEventDetector.detect(
             snapshot(listOf(app(granted = listOf("android.permission.CAMERA"))), 1_000L),
