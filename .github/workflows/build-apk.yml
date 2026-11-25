@@ -25,6 +25,16 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+      - name: Check runtime dependencies for networking or tracking SDKs
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle app:dependencies --configuration releaseRuntimeClasspath > /tmp/msi-release-deps.txt
+          if grep -Eiq 'okhttp3|retrofit2|firebase-analytics|firebase-crashlytics|sentry|amplitude|mixpanel|appsflyer|adjust-android|onesignal|segment-analytics' /tmp/msi-release-deps.txt; then
+            echo "Unexpected network or analytics SDK detected in release runtime dependencies" >&2
+            grep -Ei 'okhttp3|retrofit2|firebase-analytics|firebase-crashlytics|sentry|amplitude|mixpanel|appsflyer|adjust-android|onesignal|segment-analytics' /tmp/msi-release-deps.txt >&2
+            exit 1
+          fi
       - name: Run unit tests
         run: gradle testDebugUnitTest --stacktrace
       - name: Build debug and minified release APKs
