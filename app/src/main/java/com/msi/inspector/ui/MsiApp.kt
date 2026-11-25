@@ -72,6 +72,7 @@ import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.ui.applications.ApplicationsScreen
 import com.msi.inspector.ui.dashboard.DashboardScreen
 import com.msi.inspector.ui.history.HistoryScreen
+import com.msi.inspector.ui.timeline.TimelineScreen
 import com.msi.inspector.ui.navigation.MsiDestination
 import com.msi.inspector.ui.permissions.PermissionsScreen
 import com.msi.inspector.ui.reports.ReportFormatter
@@ -270,6 +271,7 @@ fun MsiApp(
                         history = state.history,
                         onClearHistory = viewModel::clearHistory
                     )
+                    MsiDestination.TIMELINE -> TimelineScreen(events = state.timelineEvents)
                     MsiDestination.TOOLS -> ToolsScreen(
                         appLockEnabled = state.appLockEnabled,
                         onToggleAppLock = { enabled ->
