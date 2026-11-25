@@ -63,8 +63,8 @@ class MainActivity : FragmentActivity() {
         loadThemePreferences()
         loadPeriodicScanPreference()
         acceptShortcutIntent(intent)
-        window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
-        window.navigationBarColor = android.graphics.Color.rgb(8, 13, 24)
+        window.statusBarColor = android.graphics.Color.rgb(7, 11, 22)
+        window.navigationBarColor = android.graphics.Color.rgb(7, 11, 22)
         setContent {
             MsiTheme(mode = themeMode, useDynamicColor = useDynamicColor) {
                 if (appLocked) {
