@@ -4,14 +4,14 @@ import android.content.Context
 import android.content.pm.ApplicationInfo
 import android.content.pm.PackageInfo
 import com.msi.inspector.domain.analyzer.AppCategoryCoherenceAnalyzer
-import com.msi.inspector.domain.analyzer.SpecialPermissionCatalog
 import com.msi.inspector.domain.analyzer.PermissionAnalyzer
-import com.msi.inspector.security.usage.UsageAccessReader
+import com.msi.inspector.domain.analyzer.SpecialPermissionCatalog
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanSnapshot
+import com.msi.inspector.security.usage.UsageAccessReader
+import java.util.Locale
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
-import java.util.Locale
 
 class AndroidAppScanner(context: Context) : AppScanner {
     companion object {
@@ -120,6 +120,4 @@ class AndroidAppScanner(context: Context) : AppScanner {
             completedAt = System.currentTimeMillis()
         )
     }
-
-
 }

@@ -1,7 +1,7 @@
 package com.msi.inspector.domain.analyzer
 
 object SpecialPermissionCatalog {
-fun requestLabel(permission: String): String? {
+    fun requestLabel(permission: String): String? {
         return when (permission) {
             "android.permission.SYSTEM_ALERT_WINDOW" ->
                 "طلب صلاحية الظهور فوق التطبيقات — حالة التفعيل غير مؤكدة."

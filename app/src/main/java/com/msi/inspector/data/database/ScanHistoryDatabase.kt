@@ -4,10 +4,10 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import com.msi.inspector.data.serialization.AppAuditJsonCodec
 import com.msi.inspector.domain.analyzer.AuditSummary
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
-import com.msi.inspector.data.serialization.AppAuditJsonCodec
 import com.msi.inspector.domain.model.VpnObservationStorage
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventType
