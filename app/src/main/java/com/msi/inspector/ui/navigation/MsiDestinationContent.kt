@@ -1,5 +1,6 @@
 package com.msi.inspector.ui.navigation
 
+import android.animation.ValueAnimator
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -62,8 +63,8 @@ fun MsiDestinationContent(
             }
         },
         label = "msi-screen-transition"
-    ) { destination ->
-    when (destination) {
+    ) { targetDestination ->
+        when (targetDestination) {
         MsiDestination.HOME -> DashboardScreen(
             state = state,
             onScan = viewModel::startScan,
@@ -166,6 +167,6 @@ fun MsiDestinationContent(
                 }
             }
         )
+        }
     }
-            }
 }
