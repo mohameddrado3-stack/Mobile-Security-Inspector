@@ -70,6 +70,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     current.copy(
                         history = entries,
                         timelineEvents = loaded.second,
+                        vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
                         lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
                     )
                 }
