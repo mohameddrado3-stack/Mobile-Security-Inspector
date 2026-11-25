@@ -1,8 +1,6 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
-import org.json.JSONArray
-import org.json.JSONObject
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -75,34 +73,62 @@ object ReportFormatter {
     }
 
     fun formatJson(applications: List<AppAudit>, scannedAt: Long?): String {
-        val apps = JSONArray()
-        applications.forEach { app ->
-            apps.put(
-                JSONObject().apply {
-                    put("label", app.label)
-                    put("packageName", app.packageName)
-                    put("version", app.version)
-                    put("installer", app.installer)
-                    put("isSystem", app.isSystem)
-                    put("targetSdk", app.targetSdk ?: JSONObject.NULL)
-                    put("category", app.categoryLabel ?: JSONObject.NULL)
-                    put("signatureSha256", app.signingCertificateSha256 ?: JSONObject.NULL)
-                    put("firstInstallTime", app.firstInstallTime ?: JSONObject.NULL)
-                    put("lastUpdateTime", app.lastUpdateTime ?: JSONObject.NULL)
-                    put("activeSpecialAccess", JSONArray(app.specialAccessReasons))
-                    put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
-                    put("grantedSensitive", JSONArray(app.grantedSensitive))
-                    put("requestedSensitive", JSONArray(app.requestedSensitive))
-                }
-            )
+        val rows = applications.joinToString(",\n") { app ->
+            """
+            {
+              "label": ${jsonString(app.label)},
+              "packageName": ${jsonString(app.packageName)},
+              "version": ${jsonString(app.version)},
+              "installer": ${jsonString(app.installer)},
+              "isSystem": ${app.isSystem},
+              "targetSdk": ${app.targetSdk?.toString() ?: "null"},
+              "category": ${app.categoryLabel?.let(::jsonString) ?: "null"},
+              "signatureSha256": ${app.signingCertificateSha256?.let(::jsonString) ?: "null"},
+              "firstInstallTime": ${app.firstInstallTime?.toString() ?: "null"},
+              "lastUpdateTime": ${app.lastUpdateTime?.toString() ?: "null"},
+              "activeSpecialAccess": ${jsonArray(app.specialAccessReasons)},
+              "requestedSpecialAccess": ${jsonArray(app.requestedSpecialAccess)},
+              "grantedSensitive": ${jsonArray(app.grantedSensitive)},
+              "requestedSensitive": ${jsonArray(app.requestedSensitive)}
+            }
+            """.trimIndent()
         }
-        return JSONObject()
-            .put("product", "MSI")
-            .put("scanTime", scannedAt ?: JSONObject.NULL)
-            .put("applicationCount", applications.size)
-            .put("applications", apps)
-            .put("disclaimer", "Indicators only; not a malware verdict.")
-            .toString(2)
+        return """
+        {
+          "product": "MSI",
+          "scanTime": ${scannedAt?.toString() ?: "null"},
+          "applicationCount": ${applications.size},
+          "applications": [
+        ${rows.prependIndent("    ")}
+          ],
+          "disclaimer": "Indicators only; not a malware verdict."
+        }
+        """.trimIndent()
+    }
+
+    private fun jsonArray(values: List<String>): String =
+        values.joinToString(prefix = "[", postfix = "]", separator = ", ") { jsonString(it) }
+
+    private fun jsonString(value: String): String = buildString {
+        append('"')
+        value.forEach { character ->
+            when (character) {
+                '\\' -> append("\\\\")
+                '"' -> append("\\\"")
+                '\b' -> append("\\b")
+                '\u000C' -> append("\\f")
+                '\n' -> append("\\n")
+                '\r' -> append("\\r")
+                '\t' -> append("\\t")
+                else -> if (character.code < 0x20) {
+                    append("\\u")
+                    append(character.code.toString(16).padStart(4, '0'))
+                } else {
+                    append(character)
+                }
+            }
+        }
+        append('"')
     }
 
     private fun appendList(output: StringBuilder, label: String, values: List<String>) {

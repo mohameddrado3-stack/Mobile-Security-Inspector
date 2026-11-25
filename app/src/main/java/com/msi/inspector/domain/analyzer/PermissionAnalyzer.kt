@@ -79,12 +79,17 @@ object PermissionAnalyzer {
             val requestedApps = applications.filter { app ->
                 app.requestedSensitive.any { categoryFor(it) == title }
             }
-            val matchingApps = (grantedApps + requestedApps).distinctBy { it.packageName }
+            val matchingApps = if (includeEmpty) {
+                (grantedApps + requestedApps).distinctBy { it.packageName }
+            } else {
+                grantedApps
+            }
             if (!includeEmpty && matchingApps.isEmpty()) return@mapNotNull null
-            val permissions = (grantedApps.flatMap { it.grantedSensitive } +
-                requestedApps.flatMap { it.requestedSensitive })
-                .filter { categoryFor(it) == title }
-                .distinct()
+            val permissions = if (includeEmpty) {
+                (grantedApps.flatMap { it.grantedSensitive } + requestedApps.flatMap { it.requestedSensitive })
+            } else {
+                grantedApps.flatMap { it.grantedSensitive }
+            }.filter { categoryFor(it) == title }.distinct()
             PermissionCategory(
                 id = id,
                 title = title,
