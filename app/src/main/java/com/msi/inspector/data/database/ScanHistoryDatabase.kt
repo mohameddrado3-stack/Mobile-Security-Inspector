@@ -167,7 +167,7 @@ class ScanHistoryDatabase(context: Context) :
             "scan_history",
             arrayOf("id", "scanned_at", "total_applications", "active_special_access",
                 "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json"),
-            null, null, null, null, "scanned_at DESC", limit.coerceIn(1, 50).toString()
+            null, null, null, null, "scanned_at DESC, id DESC", limit.coerceIn(1, 50).toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 entries += ScanHistoryEntry(
