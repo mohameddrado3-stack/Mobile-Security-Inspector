@@ -20,7 +20,6 @@ import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.msi.inspector.design.theme.MsiThemeMode
-import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.filterApplications
 import com.msi.inspector.ui.MsiViewModel
 import com.msi.inspector.ui.dashboard.DashboardScreen
@@ -52,7 +51,7 @@ fun MsiDestinationContent(
     modifier: Modifier = Modifier
 ) {
     AnimatedContent(
-        targetState = state.destination,
+        targetState = destination,
         modifier = modifier,
         transitionSpec = {
             if (ValueAnimator.areAnimatorsEnabled()) {
