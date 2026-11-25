@@ -81,11 +81,26 @@ fun DashboardScreen(
         MsiBrandHeader()
         MsiCard {
             Text("مؤشر الانتباه", style = MaterialTheme.typography.titleLarge)
-            Text(
-                indicatorTitle,
-                color = indicatorAccent,
-                style = MaterialTheme.typography.headlineSmall
-            )
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = androidx.compose.ui.Alignment.CenterVertically
+            ) {
+                Text(
+                    when (indicatorTitle) {
+                        "يحتاج انتباه" -> "◆"
+                        "يحتاج مراجعة" -> "◈"
+                        "هادئ" -> "✓"
+                        else -> "○"
+                    },
+                    color = indicatorAccent,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+                Text(
+                    indicatorTitle,
+                    color = indicatorAccent,
+                    style = MaterialTheme.typography.headlineSmall
+                )
+            }
             Text(
                 "مؤشر إرشادي مبني على عدد إعدادات الوصول الخاصة النشطة والطلبات المعلنة، وليس تقييمًا لسلامة التطبيق أو حكمًا بالضرر.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
