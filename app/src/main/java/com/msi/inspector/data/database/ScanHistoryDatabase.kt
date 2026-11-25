@@ -28,6 +28,11 @@ class ScanHistoryDatabase(context: Context) :
             )
         }
         if (oldVersion < 3) createTimelineTable(database)
+        if (oldVersion < 4) {
+            // Previous versions stored false when Android returned no network/capabilities.
+            // Those rows are ambiguous, so preserve only confirmed active observations.
+            database.execSQL("UPDATE scan_history SET vpn_active = -1 WHERE vpn_active = 0")
+        }
     }
 
     private fun createScanHistoryTable(database: SQLiteDatabase) {
@@ -79,7 +84,7 @@ class ScanHistoryDatabase(context: Context) :
             put("active_special_access", summary.activeSpecialAccess)
             put("requested_special_access", summary.requestedSpecialAccess)
             put("sensitive_permissions", summary.applicationsWithSensitivePermissions)
-            put("vpn_active", if (snapshot.vpnActive) 1 else 0)
+            put("vpn_active", snapshot.vpnActive?.let { if (it) 1 else 0 } ?: -1)
             put("applications_json", encodeApplications(snapshot.applications))
         }
         val database = writableDatabase
@@ -174,7 +179,8 @@ class ScanHistoryDatabase(context: Context) :
                     id = cursor.getLong(0), scannedAt = cursor.getLong(1),
                     totalApplications = cursor.getInt(2), activeSpecialAccess = cursor.getInt(3),
                     requestedSpecialAccess = cursor.getInt(4), sensitivePermissions = cursor.getInt(5),
-                    vpnActive = cursor.getInt(6) == 1, applicationsJson = cursor.getString(7) ?: "[]"
+                    vpnActive = when (cursor.getInt(6)) { 1 -> true; 0 -> false; else -> null },
+                    applicationsJson = cursor.getString(7) ?: "[]"
                 )
             }
         }
@@ -219,6 +225,6 @@ class ScanHistoryDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "msi_security_history.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
     }
 }
