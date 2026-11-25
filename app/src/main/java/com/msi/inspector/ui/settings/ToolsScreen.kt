@@ -141,7 +141,7 @@ fun ToolsScreen(
                     ).show()
                 },
                 modifier = Modifier.fillMaxWidth(),
-                enabled = !periodicScanEnabled
+                enabled = true
             ) { Text("تحديد موعد الفحص") }
             Text(
                 "يطلب Android إذن الإشعارات عند التفعيل فقط. قد يؤخر Android التنفيذ بسبب البطارية أو قيود النظام؛ الموعد ليس ضمانًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
