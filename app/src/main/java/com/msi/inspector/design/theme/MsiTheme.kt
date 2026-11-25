@@ -2,12 +2,15 @@ package com.msi.inspector.design.theme
 
 import android.os.Build
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 
 object MsiColors {
@@ -21,6 +24,12 @@ object MsiColors {
     val TextPrimary = Color(0xFFF2F6FC)
     val TextSecondary = Color(0xFFAAB9CA)
 }
+
+private val msiShapes = Shapes(
+    small = RoundedCornerShape(12.dp),
+    medium = RoundedCornerShape(20.dp),
+    large = RoundedCornerShape(28.dp)
+)
 
 enum class MsiThemeMode {
     DARK, LIGHT, AMOLED
@@ -77,5 +86,5 @@ fun MsiTheme(
         mode == MsiThemeMode.AMOLED -> msiAmoledScheme
         else -> msiDarkScheme
     }
-    MaterialTheme(colorScheme = colors, content = content)
+    MaterialTheme(colorScheme = colors, shapes = msiShapes, content = content)
 }

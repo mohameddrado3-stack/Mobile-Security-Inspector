@@ -13,6 +13,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.tooling.preview.Preview
+import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiBrandHeader
 
 @Composable
@@ -35,4 +37,10 @@ fun AppLockScreen(onUnlock: () -> Unit) {
             Text("التحقق وفتح التطبيق")
         }
     }
+}
+
+@Preview(showBackground = true)
+@Composable
+private fun AppLockScreenPreview() {
+    MsiTheme { AppLockScreen(onUnlock = {}) }
 }
