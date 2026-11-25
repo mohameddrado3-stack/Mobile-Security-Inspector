@@ -10,7 +10,7 @@ import android.provider.Settings
 class AndroidSystemAccessReader(context: Context) {
     private val appContext = context.applicationContext
 
-fun enabledAccessibilityPackages(): Set<String> {
+    fun enabledAccessibilityPackages(): Set<String> {
         val raw = Settings.Secure.getString(
             appContext.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
