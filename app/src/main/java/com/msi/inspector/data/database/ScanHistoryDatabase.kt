@@ -5,14 +5,12 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.msi.inspector.domain.analyzer.AuditSummary
-import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
+import com.msi.inspector.data.serialization.AppAuditJsonCodec
 import com.msi.inspector.domain.model.VpnObservationStorage
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventType
-import org.json.JSONArray
-import org.json.JSONObject
 
 class ScanHistoryDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -80,7 +78,7 @@ class ScanHistoryDatabase(context: Context) :
             put("requested_special_access", summary.requestedSpecialAccess)
             put("sensitive_permissions", summary.applicationsWithSensitivePermissions)
             put("vpn_active", VpnObservationStorage.encode(snapshot.vpnActive))
-            put("applications_json", encodeApplications(snapshot.applications))
+            put("applications_json", AppAuditJsonCodec.encode(snapshot.applications))
         }
         val database = writableDatabase
         database.beginTransaction()
@@ -191,31 +189,6 @@ class ScanHistoryDatabase(context: Context) :
         } finally {
             writableDatabase.endTransaction()
         }
-    }
-
-    private fun encodeApplications(applications: List<AppAudit>): String {
-        val result = JSONArray()
-        applications.forEach { app ->
-            result.put(JSONObject().apply {
-                put("label", app.label)
-                put("packageName", app.packageName)
-                put("version", app.version)
-                put("installer", app.installer)
-                put("isSystem", app.isSystem)
-                put("targetSdk", app.targetSdk ?: JSONObject.NULL)
-                put("firstInstallTime", app.firstInstallTime ?: JSONObject.NULL)
-                put("lastUpdateTime", app.lastUpdateTime ?: JSONObject.NULL)
-                put("signatureSha256", app.signingCertificateSha256 ?: JSONObject.NULL)
-                put("category", app.categoryLabel ?: JSONObject.NULL)
-                put("lastUsedAt", app.lastUsedAt ?: JSONObject.NULL)
-                put("packageMetadataAvailable", app.packageMetadataAvailable)
-                put("grantedSensitive", JSONArray(app.grantedSensitive))
-                put("requestedSensitive", JSONArray(app.requestedSensitive))
-                put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
-                put("activeSpecialAccess", JSONArray(app.specialAccessReasons))
-            })
-        }
-        return result.toString()
     }
 
     companion object {
