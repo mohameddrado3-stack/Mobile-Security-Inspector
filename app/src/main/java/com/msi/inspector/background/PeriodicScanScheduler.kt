@@ -44,7 +44,7 @@ object PeriodicScanScheduler {
             .setBackoffCriteria(BackoffPolicy.EXPONENTIAL, 30, TimeUnit.MINUTES)
             .build()
         WorkManager.getInstance(context.applicationContext).enqueueUniquePeriodicWork(
-            UNIQUE_WORK_NAME, ExistingPeriodicWorkPolicy.UPDATE, request
+            UNIQUE_WORK_NAME, ExistingPeriodicWorkPolicy.CANCEL_AND_REENQUEUE, request
         )
     }
 
