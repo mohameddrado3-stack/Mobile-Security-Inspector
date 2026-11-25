@@ -69,7 +69,8 @@ class AppAuditRepository(context: Context) {
                         lastUpdateTime = item.nullableLong("lastUpdateTime"),
                         signingCertificateSha256 = item.nullableString("signatureSha256"),
                         categoryLabel = item.nullableString("category"),
-                        lastUsedAt = item.nullableLong("lastUsedAt")
+                        lastUsedAt = item.nullableLong("lastUsedAt"),
+                        packageMetadataAvailable = item.optBoolean("packageMetadataAvailable", true)
                     )
                 )
             }
