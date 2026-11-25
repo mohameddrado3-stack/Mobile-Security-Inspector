@@ -59,7 +59,9 @@ fun ApplicationsScreen(
     filter: AppFilter,
     onQueryChange: (String) -> Unit,
     onFilterChange: (AppFilter) -> Unit,
-    onSelect: (AppAudit) -> Unit
+    onSelect: (AppAudit) -> Unit,
+    trustedPackages: Set<String> = emptySet(),
+    ignoredPackages: Set<String> = emptySet()
 ) {
     val filters = AppFilter.values().toList()
     var sort by remember { mutableStateOf(AppSort.INDICATORS) }
@@ -152,6 +154,10 @@ fun ApplicationsScreen(
                             ApplicationCard(
                                 app = app,
                                 selectedForComparison = app.packageName in selectedForComparison,
+                            isTrusted = app.packageName in trustedPackages,
+                            isIgnored = app.packageName in ignoredPackages,
+                                isTrusted = app.packageName in trustedPackages,
+                                isIgnored = app.packageName in ignoredPackages,
                                 onCompareChange = { checked ->
                                     if (checked) {
                                         if (selectedForComparison.size == 2) selectedForComparison.removeAt(0)
@@ -227,6 +233,8 @@ private fun EmptyApplications() {
 private fun ApplicationCard(
     app: AppAudit,
     selectedForComparison: Boolean,
+    isTrusted: Boolean,
+    isIgnored: Boolean,
     onCompareChange: (Boolean) -> Unit,
     onClick: () -> Unit
 ) {
@@ -291,6 +299,13 @@ private fun ApplicationCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     fontSize = 10.sp
                 )
+                if (isTrusted || isIgnored) {
+                    Text(
+                        if (isTrusted) "✓ موثوق لدي — تسمية محلية" else "↘ متجاهل — تسمية محلية",
+                        color = MaterialTheme.colorScheme.primary,
+                        fontSize = 10.sp
+                    )
+                }
             }
             Checkbox(
                 checked = selectedForComparison,

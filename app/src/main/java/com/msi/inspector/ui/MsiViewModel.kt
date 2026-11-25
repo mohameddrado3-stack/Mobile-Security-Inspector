@@ -4,6 +4,7 @@ import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.msi.inspector.data.repository.AppAuditRepository
+import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
@@ -26,6 +27,8 @@ data class MsiUiState(
     val query: String = "",
     val filter: AppFilter = AppFilter.ALL,
     val packageScope: Set<String>? = null,
+    val trustedPackages: Set<String> = emptySet(),
+    val ignoredPackages: Set<String> = emptySet(),
     val isScanning: Boolean = false,
     val scanProgress: Int = 0,
     val scanTotal: Int = 0,
@@ -37,6 +40,7 @@ data class MsiUiState(
 
 class MsiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppAuditRepository(application)
+    private val localLists = AppLocalLists(application)
     private val appLockSettings = AppLockSettings(application)
     private val mutableState = MutableStateFlow(
         MsiUiState(appLockEnabled = appLockSettings.isEnabled())
@@ -44,6 +48,12 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
     val state = mutableState.asStateFlow()
 
     init {
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
+            )
+        }
         viewModelScope.launch {
             try {
                 val entries = withContext(Dispatchers.IO) { repository.loadHistory() }
@@ -85,6 +95,36 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 filter = AppFilter.ALL,
                 query = "",
                 destination = MsiDestination.APPLICATIONS
+            )
+        }
+    }
+
+    fun markApplicationTrusted(packageName: String) {
+        localLists.markTrusted(packageName)
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
+            )
+        }
+    }
+
+    fun markApplicationIgnored(packageName: String) {
+        localLists.markIgnored(packageName)
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
+            )
+        }
+    }
+
+    fun clearApplicationLabel(packageName: String) {
+        localLists.clear(packageName)
+        mutableState.update {
+            it.copy(
+                trustedPackages = localLists.trustedPackages(),
+                ignoredPackages = localLists.ignoredPackages()
             )
         }
     }

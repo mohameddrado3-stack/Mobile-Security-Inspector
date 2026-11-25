@@ -9,13 +9,17 @@ enum class AppFilter(val title: String) {
     SYSTEM("تطبيقات النظام"),
     ACTIVE_SPECIAL("وصول خاص نشط"),
     REQUESTED_SPECIAL("طلبات وصول خاص"),
-    SENSITIVE("صلاحيات حساسة")
+    SENSITIVE("صلاحيات حساسة"),
+    TRUSTED("موثوق لدي"),
+    IGNORED("متجاهل")
 }
 
 fun filterApplications(
     applications: List<AppAudit>,
     query: String,
-    filter: AppFilter
+    filter: AppFilter,
+    trustedPackages: Set<String> = emptySet(),
+    ignoredPackages: Set<String> = emptySet()
 ): List<AppAudit> {
     val normalizedQuery = query.trim().lowercase(Locale.ROOT)
     return applications.filter { app ->
@@ -26,6 +30,8 @@ fun filterApplications(
             AppFilter.ACTIVE_SPECIAL -> app.specialAccessReasons.isNotEmpty()
             AppFilter.REQUESTED_SPECIAL -> app.requestedSpecialAccess.isNotEmpty()
             AppFilter.SENSITIVE -> app.grantedSensitive.isNotEmpty()
+            AppFilter.TRUSTED -> app.packageName in trustedPackages
+            AppFilter.IGNORED -> app.packageName in ignoredPackages
         }
         val matchesQuery = normalizedQuery.isEmpty() ||
             app.label.lowercase(Locale.ROOT).contains(normalizedQuery) ||

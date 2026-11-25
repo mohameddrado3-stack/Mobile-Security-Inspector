@@ -154,15 +154,22 @@ fun MsiApp(
                     )
                     MsiDestination.APPLICATIONS -> {
                         val packageScope = state.packageScope
-                        val filtered = filterApplications(state.applications, state.query, state.filter)
-                            .filter { packageScope == null || it.packageName in packageScope }
+                        val filtered = filterApplications(
+                            state.applications,
+                            state.query,
+                            state.filter,
+                            state.trustedPackages,
+                            state.ignoredPackages
+                        ).filter { packageScope == null || it.packageName in packageScope }
                         ApplicationsScreen(
                             applications = filtered,
                             query = state.query,
                             filter = state.filter,
                             onQueryChange = viewModel::updateQuery,
                             onFilterChange = viewModel::updateFilter,
-                            onSelect = viewModel::selectApplication
+                            onSelect = viewModel::selectApplication,
+                            trustedPackages = state.trustedPackages,
+                            ignoredPackages = state.ignoredPackages
                         )
                     }
                     MsiDestination.PERMISSIONS -> PermissionsScreen(
@@ -218,6 +225,11 @@ fun MsiApp(
             ApplicationDetailsDialog(
                 application = application,
                 onDismiss = { viewModel.selectApplication(null) },
+                isTrusted = application.packageName in state.trustedPackages,
+                isIgnored = application.packageName in state.ignoredPackages,
+                onMarkTrusted = { viewModel.markApplicationTrusted(application.packageName) },
+                onMarkIgnored = { viewModel.markApplicationIgnored(application.packageName) },
+                onClearLabel = { viewModel.clearApplicationLabel(application.packageName) },
                 onCopyPackage = {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                     clipboard.setPrimaryClip(
@@ -350,6 +362,11 @@ fun MsiApp(
 private fun ApplicationDetailsDialog(
     application: AppAudit,
     onDismiss: () -> Unit,
+    isTrusted: Boolean,
+    isIgnored: Boolean,
+    onMarkTrusted: () -> Unit,
+    onMarkIgnored: () -> Unit,
+    onClearLabel: () -> Unit,
     onCopyPackage: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenNotifications: () -> Unit,
@@ -377,6 +394,32 @@ private fun ApplicationDetailsDialog(
                     application.signingCertificateSha256 ?: "غير متاح من Android لهذا التطبيق",
                     fontSize = 10.sp
                 )
+                Text("التصنيف المحلي", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    when {
+                        isTrusted -> "أنت وضعت هذا التطبيق في قائمة موثوق لدي. هذا لا يثبت سلامته."
+                        isIgnored -> "أنت وضعت هذا التطبيق في قائمة متجاهل لتقليل الضوضاء. بياناته لا تُحذف."
+                        else -> "يمكنك وضع تسمية محلية لتسهيل مراجعة القوائم."
+                    },
+                    fontSize = 11.sp
+                )
+                Text("ماذا أفعل؟", color = MaterialTheme.colorScheme.primary)
+                application.specialAccessReasons.forEach { reason ->
+                    Text(reason, fontSize = 11.sp)
+                    Text(
+                        com.msi.inspector.domain.analyzer.AppPermissionGuidance.explainSpecialAccess(reason),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                (application.grantedSensitive + application.requestedSensitive).distinct().forEach { permission ->
+                    Text(permission.substringAfterLast('.'), fontSize = 10.sp)
+                    Text(
+                        com.msi.inspector.domain.analyzer.AppPermissionGuidance.explain(permission),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
                 Text("ملاحظات الفحص", color = MaterialTheme.colorScheme.primary)
                 application.signals.forEach { signal -> Text("• $signal", fontSize = 11.sp) }
                 Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
@@ -418,6 +461,9 @@ private fun ApplicationDetailsDialog(
         dismissButton = {
             Column {
                 TextButton(onClick = onCopyPackage) { Text("نسخ اسم الحزمة") }
+                if (!isTrusted) TextButton(onClick = onMarkTrusted) { Text("أضف إلى موثوق لدي") }
+                if (!isIgnored) TextButton(onClick = onMarkIgnored) { Text("تجاهل هذا التطبيق") }
+                if (isTrusted || isIgnored) TextButton(onClick = onClearLabel) { Text("إلغاء التسمية المحلية") }
                 TextButton(onClick = onOpenNotifications) { Text("الإشعارات") }
                 TextButton(onClick = onLaunch) { Text("فتح التطبيق") }
                 if (application.installer == "Google Play") {
