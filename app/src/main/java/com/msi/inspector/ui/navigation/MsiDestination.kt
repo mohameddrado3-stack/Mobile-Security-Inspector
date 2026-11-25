@@ -5,5 +5,6 @@ enum class MsiDestination(val title: String, val symbol: String) {
     APPLICATIONS("التطبيقات", "▦"),
     PERMISSIONS("الصلاحيات", "◈"),
     HISTORY("السجل", "◷"),
+    TIMELINE("Timeline", "⌁"),
     TOOLS("الأدوات", "⚙")
 }
