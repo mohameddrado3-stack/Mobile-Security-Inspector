@@ -9,6 +9,7 @@ import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.security.applock.AppLockSettings
+import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.ui.navigation.MsiDestination
 import com.msi.inspector.widget.MsiWidgetStateUpdater
 import kotlinx.coroutines.CancellationException
@@ -35,12 +36,15 @@ data class MsiUiState(
     val vpnActive: Boolean = false,
     val lastScanAt: Long? = null,
     val appLockEnabled: Boolean = false,
+    val usageAccessOptIn: Boolean = false,
+    val usageAccessGranted: Boolean = false,
     val error: String? = null
 )
 
 class MsiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppAuditRepository(application)
     private val localLists = AppLocalLists(application)
+    private val usageAccessReader = UsageAccessReader(application)
     private val appLockSettings = AppLockSettings(application)
     private val mutableState = MutableStateFlow(
         MsiUiState(appLockEnabled = appLockSettings.isEnabled())
@@ -51,7 +55,9 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         mutableState.update {
             it.copy(
                 trustedPackages = localLists.trustedPackages(),
-                ignoredPackages = localLists.ignoredPackages()
+                ignoredPackages = localLists.ignoredPackages(),
+                usageAccessOptIn = usageAccessReader.isOptedIn(),
+                usageAccessGranted = usageAccessReader.isAccessGranted()
             )
         }
         viewModelScope.launch {
@@ -131,6 +137,22 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun selectApplication(application: AppAudit?) {
         mutableState.update { it.copy(selectedApplication = application) }
+    }
+
+    fun setUsageAccessOptIn(enabled: Boolean) {
+        usageAccessReader.setOptedIn(enabled)
+        mutableState.update {
+            it.copy(
+                usageAccessOptIn = enabled,
+                usageAccessGranted = usageAccessReader.isAccessGranted()
+            )
+        }
+    }
+
+    fun refreshUsageAccessState() {
+        mutableState.update {
+            it.copy(usageAccessGranted = usageAccessReader.isAccessGranted())
+        }
     }
 
     fun setAppLockEnabled(enabled: Boolean) {

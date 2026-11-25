@@ -40,7 +40,10 @@ fun ToolsScreen(
     useDynamicColor: Boolean,
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
     periodicScanEnabled: Boolean = false,
-    onPeriodicScanChanged: (Boolean) -> Unit = {}
+    onPeriodicScanChanged: (Boolean) -> Unit = {},
+    usageAccessOptIn: Boolean = false,
+    usageAccessGranted: Boolean = false,
+    onUsageAccessChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val health = rememberDeviceHealth(context)
@@ -117,6 +120,30 @@ fun ToolsScreen(
             }
             Text(
                 "سيطلب Android إذن الإشعارات عند تفعيل هذا الخيار فقط. إيقافه يلغي المهام المجدولة.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
+            )
+        }
+        MsiCard {
+            Text("استخدام بيانات الاستخدام (اختياري)", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("مراجعة التطبيقات غير المستخدمة", fontSize = 13.sp)
+                    Text(
+                        if (usageAccessGranted && usageAccessOptIn) "الوصول الخاص مفعّل بإذن المستخدم."
+                        else "مغلق افتراضيًا. يفتح إعدادات Usage Access فقط بعد تفعيل الخيار.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                Switch(checked = usageAccessOptIn, onCheckedChange = onUsageAccessChanged)
+            }
+            Text(
+                "عند تفعيله، يقرأ MSI آخر وقت استخدام معروف محليًا ليشير إلى تطبيقات لديها صلاحيات حساسة ولم تُستخدم منذ 30 يومًا. قد تكون البيانات غير مكتملة، ولا يُسحب أي إذن تلقائيًا.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 10.sp
             )

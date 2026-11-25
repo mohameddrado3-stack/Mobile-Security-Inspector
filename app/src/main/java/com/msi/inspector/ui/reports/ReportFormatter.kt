@@ -29,6 +29,7 @@ object ReportFormatter {
             report.append("SHA-256 للشهادة: ").append(app.signingCertificateSha256 ?: "غير متاح").append("\n")
             report.append("تاريخ التثبيت: ").append(formatDate(app.firstInstallTime)).append("\n")
             report.append("آخر تحديث: ").append(formatDate(app.lastUpdateTime)).append("\n")
+            report.append("آخر استخدام معروف: ").append(formatDate(app.lastUsedAt)).append("\n")
             appendList(report, "إعدادات وصول خاصة نشطة", app.specialAccessReasons)
             appendList(report, "إعدادات خاصة مطلوبة (غير مؤكدة التفعيل)", app.requestedSpecialAccess)
             appendList(report, "صلاحيات حساسة ممنوحة", app.grantedSensitive)
@@ -45,7 +46,7 @@ object ReportFormatter {
             listOf(
                 "scan_time", "app_name", "package_name", "version", "installer",
                 "is_system", "target_sdk", "category", "signature_sha256",
-                "first_install", "last_update", "active_special_access",
+                "first_install", "last_update", "last_used", "active_special_access",
                 "requested_special_access", "granted_sensitive", "requested_sensitive"
             ).joinToString(",") { csv(it) }
         ).append("\n")
@@ -62,6 +63,7 @@ object ReportFormatter {
                 app.signingCertificateSha256.orEmpty(),
                 formatDate(app.firstInstallTime),
                 formatDate(app.lastUpdateTime),
+                formatDate(app.lastUsedAt),
                 app.specialAccessReasons.joinToString(" | "),
                 app.requestedSpecialAccess.joinToString(" | "),
                 app.grantedSensitive.joinToString(" | "),
@@ -86,6 +88,7 @@ object ReportFormatter {
               "signatureSha256": ${app.signingCertificateSha256?.let(::jsonString) ?: "null"},
               "firstInstallTime": ${app.firstInstallTime?.toString() ?: "null"},
               "lastUpdateTime": ${app.lastUpdateTime?.toString() ?: "null"},
+              "lastUsedAt": ${app.lastUsedAt?.toString() ?: "null"},
               "activeSpecialAccess": ${jsonArray(app.specialAccessReasons)},
               "requestedSpecialAccess": ${jsonArray(app.requestedSpecialAccess)},
               "grantedSensitive": ${jsonArray(app.grantedSensitive)},

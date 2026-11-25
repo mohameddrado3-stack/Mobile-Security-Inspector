@@ -39,6 +39,10 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.DisposableEffect
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -87,6 +91,14 @@ fun MsiApp(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) viewModel.refreshUsageAccessState()
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val configuration = LocalConfiguration.current
     val haptic = LocalHapticFeedback.current
     val expandedWidth = configuration.screenWidthDp >= 600
@@ -264,7 +276,15 @@ fun MsiApp(
                         useDynamicColor = useDynamicColor,
                         onThemeChanged = onThemeChanged,
                         periodicScanEnabled = periodicScanEnabled,
-                        onPeriodicScanChanged = onPeriodicScanChanged
+                        onPeriodicScanChanged = onPeriodicScanChanged,
+                        usageAccessOptIn = state.usageAccessOptIn,
+                        usageAccessGranted = state.usageAccessGranted,
+                        onUsageAccessChanged = { enabled ->
+                            viewModel.setUsageAccessOptIn(enabled)
+                            if (enabled) {
+                                openSystemPage(context, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                            }
+                        }
                     )
                 }
             }
@@ -438,6 +458,7 @@ private fun ApplicationDetailsDialog(
                 Text("Target SDK: ${application.targetSdk ?: "غير متاح"}", fontSize = 12.sp)
                 Text("تاريخ التثبيت: ${formatLocalDate(application.firstInstallTime)}", fontSize = 12.sp)
                 Text("آخر تحديث: ${formatLocalDate(application.lastUpdateTime)}", fontSize = 12.sp)
+                Text("آخر استخدام معروف: ${formatLocalDate(application.lastUsedAt)}", fontSize = 12.sp)
                 Text("SHA-256 لشهادة التوقيع:", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 Text(
                     application.signingCertificateSha256 ?: "غير متاح من Android لهذا التطبيق",

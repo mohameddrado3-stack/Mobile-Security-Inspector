@@ -123,6 +123,7 @@ class ScanHistoryDatabase(context: Context) :
                     put("lastUpdateTime", app.lastUpdateTime ?: JSONObject.NULL)
                     put("signatureSha256", app.signingCertificateSha256 ?: JSONObject.NULL)
                     put("category", app.categoryLabel ?: JSONObject.NULL)
+                    put("lastUsedAt", app.lastUsedAt ?: JSONObject.NULL)
                     put("grantedSensitive", JSONArray(app.grantedSensitive))
                     put("requestedSensitive", JSONArray(app.requestedSensitive))
                     put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))

@@ -12,6 +12,7 @@ import android.net.NetworkCapabilities
 import android.os.Build
 import android.provider.Settings
 import com.msi.inspector.domain.analyzer.PermissionAnalyzer
+import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanSnapshot
 import kotlinx.coroutines.currentCoroutineContext
@@ -20,14 +21,20 @@ import java.security.MessageDigest
 import java.util.Locale
 
 class AndroidAppScanner(context: Context) : AppScanner {
+    companion object {
+        private const val THIRTY_DAYS_MILLIS = 30L * 24L * 60L * 60L * 1000L
+    }
+
     private val appContext = context.applicationContext
     private val packageManager = appContext.packageManager
     private val dangerousPermissionCache = HashMap<String, Boolean>()
+    private val usageAccessReader = UsageAccessReader(appContext)
 
     override suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit): ScanSnapshot {
         val accessibilityPackages = enabledAccessibilityPackages()
         val adminPackages = activeAdminPackages()
         val vpnActive = isVpnActive()
+        val lastUsedByPackage = usageAccessReader.lastUsedByPackage()
         val installedApplications = getInstalledApplications()
         val results = ArrayList<AppAudit>(installedApplications.size)
         onProgress(0, installedApplications.size)
@@ -50,6 +57,9 @@ class AndroidAppScanner(context: Context) : AppScanner {
             val categories = grantedSensitive.mapNotNull(PermissionAnalyzer::categoryFor).distinct()
             val activeAccessibility = accessibilityPackages.contains(packageName)
             val activeAdmin = adminPackages.contains(packageName)
+            val lastUsedAt = lastUsedByPackage[packageName]
+            val unusedForAtLeastThirtyDays = lastUsedAt != null &&
+                System.currentTimeMillis() - lastUsedAt >= THIRTY_DAYS_MILLIS
             val specialReasons = buildList {
                 if (activeAccessibility) add("خدمة إمكانية الوصول مفعّلة لهذا التطبيق.")
                 if (activeAdmin) add("هذا التطبيق مفعّل كمسؤول جهاز.")
@@ -68,6 +78,9 @@ class AndroidAppScanner(context: Context) : AppScanner {
                 }
                 if (requestedSensitive.size > grantedSensitive.size && requestedSensitive.isNotEmpty()) {
                     add("هناك صلاحيات حساسة مطلوبة لكنها غير ممنوحة حاليًا.")
+                }
+                if (unusedForAtLeastThirtyDays && grantedSensitive.isNotEmpty()) {
+                    add("لدى التطبيق صلاحيات حساسة ممنوحة، ولم يُرصد استخدام له خلال 30 يومًا على الأقل (حسب Usage Access المفعّل اختياريًا).")
                 }
                 if (isEmpty()) add("لم تظهر المؤشرات المحددة في هذا الفحص.")
             }
@@ -92,7 +105,8 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     firstInstallTime = packageInfo?.firstInstallTime,
                     lastUpdateTime = packageInfo?.lastUpdateTime,
                     signingCertificateSha256 = packageInfo?.let(::signingFingerprint),
-                    categoryLabel = categoryLabel(appInfo.category)
+                    categoryLabel = categoryLabel(appInfo.category),
+                    lastUsedAt = lastUsedAt
                 )
             )
             onProgress(index + 1, installedApplications.size)
