@@ -21,15 +21,15 @@ import androidx.compose.ui.platform.LocalView
 import androidx.core.view.WindowCompat
 
 object MsiColors {
-    val Background = Color(0xFF080D18)
-    val Surface = Color(0xFF10243A)
-    val SurfaceElevated = Color(0xFF162D45)
-    val Accent = Color(0xFF70E7D1)
+    val Background = Color(0xFF070B16)
+    val Surface = Color(0xFF111B2B)
+    val SurfaceElevated = Color(0xFF18283B)
+    val Accent = Color(0xFF42C8FF)
     val Calm = Color(0xFF70E7D1)
-    val Review = Color(0xFFFFC857)
-    val Attention = Color(0xFFFF7A6B)
-    val TextPrimary = Color(0xFFF2F6FC)
-    val TextSecondary = Color(0xFFAAB9CA)
+    val Review = Color(0xFFFF9B45)
+    val Attention = Color(0xFFFF604D)
+    val TextPrimary = Color(0xFFF1F5FA)
+    val TextSecondary = Color(0xFF9AA9BA)
 }
 
 private val msiShapes = Shapes(
