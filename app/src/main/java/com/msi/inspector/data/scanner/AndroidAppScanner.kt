@@ -2,6 +2,7 @@ package com.msi.inspector.data.scanner
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
+import android.content.pm.PackageInfo
 import com.msi.inspector.domain.analyzer.PermissionAnalyzer
 import com.msi.inspector.security.usage.UsageAccessReader
 import com.msi.inspector.domain.model.AppAudit
@@ -42,8 +43,8 @@ class AndroidAppScanner(context: Context) : AppScanner {
                     (flags[permissionIndex] and PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0
             }
             val grantedSensitive = granted.filter(packageReader::isDangerousPermission)
-            val requestedSensitive = requested.filter(::isDangerousPermission)
-            val requestedSpecial = requested.mapNotNull(::specialPermissionRequestLabel).distinct()
+            val requestedSensitive = requested.filter(packageReader::isDangerousPermission)
+            val requestedSpecial = requested.mapNotNull(packageReader::specialPermissionRequestLabel).distinct()
             val categories = grantedSensitive.mapNotNull(PermissionAnalyzer::categoryFor).distinct()
             val activeAccessibility = accessibilityPackages.contains(packageName)
             val activeAdmin = adminPackages.contains(packageName)
