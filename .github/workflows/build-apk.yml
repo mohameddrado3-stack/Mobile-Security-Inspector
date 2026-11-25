@@ -1,4 +1,4 @@
-name: Build Android APK
+name: Verify Android builds
 
 on:
   workflow_dispatch:
@@ -24,26 +24,47 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
         with:
-          gradle-version: "8.9"
+          gradle-version: "8.11.1"
       - name: Run unit tests
         run: gradle testDebugUnitTest --stacktrace
-      - name: Build debug APK
-        run: gradle clean assembleDebug --stacktrace
-      - name: Generate APK checksum
+      - name: Build debug and minified release APKs
+        run: gradle clean assembleDebug assembleRelease --stacktrace
+      - name: Verify release manifest and minification outputs
+        shell: bash
         run: |
-          cd app/build/outputs/apk/debug
-          sha256sum app-debug.apk > SHA256SUMS.txt
-      - name: Verify APK and checksum
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          test -s "$APK"
+          test -s "app/build/outputs/mapping/release/mapping.txt"
+          AAPT="$(find "$ANDROID_HOME/build-tools" -type f -name aapt | sort -V | tail -n 1)"
+          test -n "$AAPT"
+          MANIFEST="$($AAPT dump xmltree "$APK" AndroidManifest.xml)"
+          echo "$MANIFEST" | grep -q 'targetSdkVersion.*36'
+          if echo "$MANIFEST" | grep -q 'debuggable'; then
+            echo "Release manifest contains debuggable attribute" >&2
+            exit 1
+          fi
+          if echo "$MANIFEST" | grep -q 'android.permission.INTERNET'; then
+            echo "Unexpected INTERNET permission in release APK" >&2
+            exit 1
+          fi
+          if echo "$MANIFEST" | grep -q 'PreviewActivity'; then
+            echo "Unexpected PreviewActivity in release APK" >&2
+            exit 1
+          fi
+      - name: Generate and verify checksums
         run: |
-          cd app/build/outputs/apk/debug
-          test -s app-debug.apk
+          cd app/build/outputs/apk
+          sha256sum debug/app-debug.apk release/app-release-unsigned.apk > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
-      - name: Upload installable debug APK and checksum
+      - name: Upload debug and unsigned release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-security-inspector-v0.5.0
+          name: mobile-security-inspector-v0.6.0-verification
           path: |
             app/build/outputs/apk/debug/app-debug.apk
-            app/build/outputs/apk/debug/SHA256SUMS.txt
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/SHA256SUMS.txt
+            app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
           retention-days: 30

@@ -7,7 +7,6 @@ import com.msi.inspector.data.repository.AppAuditRepository
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
-import com.msi.inspector.domain.model.ScanSnapshot
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.navigation.MsiDestination
 import kotlinx.coroutines.CancellationException
@@ -26,6 +25,8 @@ data class MsiUiState(
     val query: String = "",
     val filter: AppFilter = AppFilter.ALL,
     val isScanning: Boolean = false,
+    val scanProgress: Int = 0,
+    val scanTotal: Int = 0,
     val vpnActive: Boolean = false,
     val lastScanAt: Long? = null,
     val appLockEnabled: Boolean = false,
@@ -70,7 +71,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateFilter(filter: AppFilter) {
-        mutableState.update { it.copy(filter = filter) }
+        mutableState.update { it.copy(filter = filter, destination = MsiDestination.APPLICATIONS) }
     }
 
     fun selectApplication(application: AppAudit?) {
@@ -84,10 +85,24 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startScan() {
         if (mutableState.value.isScanning) return
-        mutableState.update { it.copy(isScanning = true, error = null, destination = MsiDestination.HOME) }
+        mutableState.update {
+            it.copy(
+                isScanning = true,
+                scanProgress = 0,
+                scanTotal = 0,
+                error = null,
+                destination = MsiDestination.HOME
+            )
+        }
         viewModelScope.launch {
             val snapshot = try {
-                withContext(Dispatchers.IO) { repository.scan() }
+                withContext(Dispatchers.IO) {
+                    repository.scan { completed, total ->
+                        mutableState.update {
+                            it.copy(scanProgress = completed, scanTotal = total)
+                        }
+                    }
+                }
             } catch (cancelled: CancellationException) {
                 mutableState.update { it.copy(isScanning = false) }
                 throw cancelled
@@ -114,6 +129,8 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         vpnActive = snapshot.vpnActive,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
+                        scanProgress = snapshot.applications.size,
+                        scanTotal = snapshot.applications.size,
                         error = null
                     )
                 }

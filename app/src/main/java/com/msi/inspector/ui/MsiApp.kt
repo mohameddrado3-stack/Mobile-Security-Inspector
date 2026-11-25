@@ -32,6 +32,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -45,6 +46,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.msi.inspector.design.theme.MsiThemeMode
+import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.filterApplications
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.ui.applications.ApplicationsScreen
@@ -54,16 +57,33 @@ import com.msi.inspector.ui.navigation.MsiDestination
 import com.msi.inspector.ui.permissions.PermissionsScreen
 import com.msi.inspector.ui.reports.ReportFormatter
 import com.msi.inspector.ui.settings.ToolsScreen
+import java.text.DateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 @OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 fun MsiApp(
     onAppLockChanged: (Boolean) -> Unit,
+    shortcutRequest: Pair<Int, String>? = null,
+    themeMode: MsiThemeMode = MsiThemeMode.DARK,
+    useDynamicColor: Boolean = false,
+    onThemeChanged: (MsiThemeMode, Boolean) -> Unit = { _, _ -> },
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
     var showShareConfirmation by remember { mutableStateOf(false) }
+
+    LaunchedEffect(shortcutRequest) {
+        when (shortcutRequest?.second) {
+            "scan" -> viewModel.startScan()
+            "permissions" -> viewModel.navigate(MsiDestination.PERMISSIONS)
+            "history" -> viewModel.navigate(MsiDestination.HISTORY)
+        }
+    }
+
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Scaffold(
             modifier = Modifier.fillMaxSize(),
@@ -120,7 +140,8 @@ fun MsiApp(
                             } else {
                                 showShareConfirmation = true
                             }
-                        }
+                        },
+                        onOpenFilter = viewModel::updateFilter
                     )
                     MsiDestination.APPLICATIONS -> {
                         val filtered = filterApplications(state.applications, state.query, state.filter)
@@ -169,7 +190,10 @@ fun MsiApp(
                         },
                         onGeneralSettings = {
                             openSystemPage(context, Intent(Settings.ACTION_SETTINGS))
-                        }
+                        },
+                        themeMode = themeMode,
+                        useDynamicColor = useDynamicColor,
+                        onThemeChanged = onThemeChanged
                     )
                 }
             }
@@ -241,7 +265,7 @@ fun MsiApp(
                 title = { Text("مشاركة تقرير الفحص") },
                 text = {
                     Text(
-                        "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات. لن يُرسل تلقائيًا؛ ستختار بنفسك التطبيق أو الجهة التي تشاركه معها."
+                        "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات وبصمات شهادات التوقيع المتاحة. لن يُرسل تلقائيًا؛ ستختار بنفسك التطبيق أو الجهة التي تشاركه معها."
                     )
                 },
                 confirmButton = {
@@ -250,14 +274,10 @@ fun MsiApp(
                             showShareConfirmation = false
                             shareReport(context, state.applications, state.lastScanAt)
                         }
-                    ) {
-                        Text("متابعة")
-                    }
+                    ) { Text("متابعة") }
                 },
                 dismissButton = {
-                    TextButton(onClick = { showShareConfirmation = false }) {
-                        Text("إلغاء")
-                    }
+                    TextButton(onClick = { showShareConfirmation = false }) { Text("إلغاء") }
                 }
             )
         }
@@ -284,15 +304,19 @@ private fun ApplicationDetailsDialog(
             ) {
                 Text("اسم الحزمة: ${application.packageName}", fontSize = 11.sp)
                 Text("الإصدار: ${application.version}", fontSize = 12.sp)
-                Text(
-                    "النوع: ${if (application.isSystem) "تطبيق نظام" else "تطبيق مثبت"}",
-                    fontSize = 12.sp
-                )
+                Text("النوع: ${if (application.isSystem) "تطبيق نظام" else "تطبيق مثبت"}", fontSize = 12.sp)
                 Text("مصدر التثبيت: ${application.installer}", fontSize = 12.sp)
+                Text("تصنيف Android: ${application.categoryLabel ?: "غير محدد من التطبيق"}", fontSize = 12.sp)
+                Text("Target SDK: ${application.targetSdk ?: "غير متاح"}", fontSize = 12.sp)
+                Text("تاريخ التثبيت: ${formatLocalDate(application.firstInstallTime)}", fontSize = 12.sp)
+                Text("آخر تحديث: ${formatLocalDate(application.lastUpdateTime)}", fontSize = 12.sp)
+                Text("SHA-256 لشهادة التوقيع:", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                Text(
+                    application.signingCertificateSha256 ?: "غير متاح من Android لهذا التطبيق",
+                    fontSize = 10.sp
+                )
                 Text("ملاحظات الفحص", color = MaterialTheme.colorScheme.primary)
-                application.signals.forEach { signal ->
-                    Text("• $signal", fontSize = 11.sp)
-                }
+                application.signals.forEach { signal -> Text("• $signal", fontSize = 11.sp) }
                 Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.specialAccessReasons.ifEmpty {
@@ -327,29 +351,17 @@ private fun ApplicationDetailsDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onOpenSettings) {
-                Text("إعدادات التطبيق")
-            }
+            TextButton(onClick = onOpenSettings) { Text("إعدادات التطبيق") }
         },
         dismissButton = {
             Column {
-                TextButton(onClick = onCopyPackage) {
-                    Text("نسخ اسم الحزمة")
-                }
-                TextButton(onClick = onOpenNotifications) {
-                    Text("الإشعارات")
-                }
-                TextButton(onClick = onLaunch) {
-                    Text("فتح التطبيق")
-                }
+                TextButton(onClick = onCopyPackage) { Text("نسخ اسم الحزمة") }
+                TextButton(onClick = onOpenNotifications) { Text("الإشعارات") }
+                TextButton(onClick = onLaunch) { Text("فتح التطبيق") }
                 if (application.installer == "Google Play") {
-                    TextButton(onClick = onOpenStore) {
-                        Text("Google Play")
-                    }
+                    TextButton(onClick = onOpenStore) { Text("Google Play") }
                 }
-                TextButton(onClick = onDismiss) {
-                    Text("إغلاق")
-                }
+                TextButton(onClick = onDismiss) { Text("إغلاق") }
             }
         }
     )
@@ -366,7 +378,7 @@ private fun allowedAuthenticators(): Int =
 private fun shareReport(context: Context, applications: List<AppAudit>, scannedAt: Long?) {
     val sendIntent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "Mobile Security Inspector — تقرير الفحص")
+        putExtra(Intent.EXTRA_SUBJECT, "MSI — تقرير الفحص المحلي")
         putExtra(Intent.EXTRA_TEXT, ReportFormatter.format(applications, scannedAt))
     }
     try {
@@ -375,6 +387,13 @@ private fun shareReport(context: Context, applications: List<AppAudit>, scannedA
         Toast.makeText(context, "تعذر فتح قائمة المشاركة.", Toast.LENGTH_SHORT).show()
     }
 }
+
+private fun formatLocalDate(value: Long?): String =
+    value?.let {
+        DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault())
+            .apply { timeZone = TimeZone.getDefault() }
+            .format(Date(it))
+    } ?: "غير متاح"
 
 private fun openSystemPage(context: Context, intent: Intent) {
     try {

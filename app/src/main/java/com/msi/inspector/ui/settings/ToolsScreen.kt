@@ -1,5 +1,10 @@
 package com.msi.inspector.ui.settings
 
+import android.app.admin.DevicePolicyManager
+import android.app.KeyguardManager
+import android.content.Context
+import android.os.Build
+import android.provider.Settings
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -14,10 +19,12 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiSectionHeading
+import com.msi.inspector.design.theme.MsiThemeMode
 
 @Composable
 fun ToolsScreen(
@@ -26,8 +33,13 @@ fun ToolsScreen(
     onManageApps: () -> Unit,
     onAccessibilitySettings: () -> Unit,
     onSecuritySettings: () -> Unit,
-    onGeneralSettings: () -> Unit
+    onGeneralSettings: () -> Unit,
+    themeMode: MsiThemeMode,
+    useDynamicColor: Boolean,
+    onThemeChanged: (MsiThemeMode, Boolean) -> Unit
 ) {
+    val context = LocalContext.current
+    val health = rememberDeviceHealth(context)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -35,6 +47,53 @@ fun ToolsScreen(
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
+        MsiCard {
+            Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
+            HealthRow("مستوى تصحيح الأمان", health.securityPatch)
+            HealthRow("قفل شاشة آمن", health.secureLock)
+            HealthRow("تشفير التخزين", health.encryption)
+            HealthRow("تصحيح USB (ADB)", health.adb)
+            HealthRow("خيارات المطوّر", health.developerOptions)
+            Text(
+                "قراءة فقط. لا يغيّر MSI أي إعداد في الجهاز.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 11.sp
+            )
+            OutlinedButton(onClick = onSecuritySettings, modifier = Modifier.fillMaxWidth()) {
+                Text("فتح إعدادات الأمان")
+            }
+            OutlinedButton(onClick = onGeneralSettings, modifier = Modifier.fillMaxWidth()) {
+                Text("فتح إعدادات المطوّر")
+            }
+        }
+        MsiCard {
+            Text("مظهر التطبيق", style = MaterialTheme.typography.titleMedium)
+            Text("اختيار الثيم", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                ThemeButton("داكن", MsiThemeMode.DARK, themeMode, useDynamicColor, onThemeChanged)
+                ThemeButton("فاتح", MsiThemeMode.LIGHT, themeMode, useDynamicColor, onThemeChanged)
+                ThemeButton("AMOLED", MsiThemeMode.AMOLED, themeMode, useDynamicColor, onThemeChanged)
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("ألوان النظام الديناميكية", fontSize = 13.sp)
+                    Text(
+                        "متاحة على Android 12 وما بعده.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                Switch(
+                    checked = useDynamicColor,
+                    onCheckedChange = { onThemeChanged(themeMode, it) },
+                    enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
+                )
+            }
+        }
         MsiCard {
             Text("التحكم في صلاحيات التطبيقات", style = MaterialTheme.typography.titleMedium)
             Text(
@@ -95,4 +154,66 @@ fun ToolsScreen(
             )
         }
     }
+}
+
+@Composable
+private fun ThemeButton(
+    label: String,
+    selectedMode: MsiThemeMode,
+    currentMode: MsiThemeMode,
+    dynamic: Boolean,
+    onThemeChanged: (MsiThemeMode, Boolean) -> Unit
+) {
+    if (selectedMode == currentMode) {
+        Button(onClick = { onThemeChanged(selectedMode, dynamic) }) { Text(label) }
+    } else {
+        OutlinedButton(onClick = { onThemeChanged(selectedMode, dynamic) }) { Text(label) }
+    }
+}
+
+@Composable
+private fun HealthRow(label: String, value: String) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(label, fontSize = 12.sp, modifier = Modifier.weight(1f))
+        Text(value, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+private data class DeviceHealth(
+    val securityPatch: String,
+    val secureLock: String,
+    val encryption: String,
+    val adb: String,
+    val developerOptions: String
+)
+
+private fun rememberDeviceHealth(context: Context): DeviceHealth {
+    val keyguard = context.getSystemService(Context.KEYGUARD_SERVICE) as KeyguardManager
+    val policy = context.getSystemService(Context.DEVICE_POLICY_SERVICE) as DevicePolicyManager
+    val encrypted = runCatching { policy.storageEncryptionStatus }.getOrDefault(DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED)
+    val encryptionText = when (encrypted) {
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE -> "مشفّر ونشط"
+        DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE -> "غير نشط"
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING -> "جارٍ التفعيل"
+        DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE_PER_USER -> "غير نشط لهذا المستخدم"
+        DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED -> "غير مدعوم أو غير متاح"
+        else -> "غير معروف"
+    }
+    val adbEnabled = Settings.Global.getInt(context.contentResolver, Settings.Global.ADB_ENABLED, 0) == 1
+    val developerEnabled = Settings.Global.getInt(
+        context.contentResolver,
+        Settings.Global.DEVELOPMENT_SETTINGS_ENABLED,
+        0
+    ) == 1
+    return DeviceHealth(
+        securityPatch = Build.VERSION.SECURITY_PATCH.ifBlank { "غير متاح" },
+        secureLock = if (keyguard.isDeviceSecure) "مفعّل" else "غير مفعّل",
+        encryption = encryptionText,
+        adb = if (adbEnabled) "مفعّل" else "غير مفعّل",
+        developerOptions = if (developerEnabled) "مفعّلة" else "غير مفعّلة"
+    )
 }

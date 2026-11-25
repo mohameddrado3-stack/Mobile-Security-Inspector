@@ -10,7 +10,8 @@ class AppAuditRepository(context: Context) {
     private val scanner = AndroidAppScanner(context)
     private val history = ScanHistoryDatabase(context)
 
-    suspend fun scan(): ScanSnapshot = scanner.scan()
+    suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }): ScanSnapshot =
+        scanner.scan(onProgress)
 
     fun saveHistory(snapshot: ScanSnapshot) = history.save(snapshot)
 
