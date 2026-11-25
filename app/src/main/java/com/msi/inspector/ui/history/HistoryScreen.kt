@@ -128,7 +128,7 @@ fun HistoryScreen(
                                 val delta = entry.totalApplications - olderEntry.totalApplications
                                 Text(
                                     "مقارنة بالفحص الأقدم: ${signed(delta)} تطبيقًا",
-                                    color = chartColor,
+                                    color = MaterialTheme.colorScheme.primary,
                                     fontSize = 11.sp
                                 )
                             }
