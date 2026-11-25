@@ -42,6 +42,17 @@ class TimelineEventDetectorTest {
         assertTrue(events.any { it.type == TimelineEventType.SIGNATURE_CHANGED })
     }
 
+    @Test fun unavailablePackageMetadataDoesNotLookLikePermissionRevocation() {
+        val old = app(granted = listOf("android.permission.CAMERA"))
+        val unavailable = app(granted = emptyList()).copy(packageMetadataAvailable = false)
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(old)),
+            snapshot(listOf(unavailable), 2_000L)
+        )
+        assertFalse(events.any { it.type == TimelineEventType.SENSITIVE_PERMISSION_REMOVED })
+        assertFalse(events.any { it.type == TimelineEventType.APP_VERSION_CHANGED })
+    }
+
     @Test fun missingAppIsReportedAsNoLongerVisibleNotAsUninstalled() {
         val events = TimelineEventDetector.detect(
             snapshot(listOf(app())),
