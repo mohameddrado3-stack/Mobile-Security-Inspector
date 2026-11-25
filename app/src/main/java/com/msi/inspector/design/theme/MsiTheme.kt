@@ -87,10 +87,10 @@ fun MsiTheme(
     val context = LocalContext.current
     val dynamicAllowed = useDynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
     val colors = when {
+        mode == MsiThemeMode.AMOLED -> msiAmoledScheme
         dynamicAllowed && mode == MsiThemeMode.LIGHT -> dynamicLightColorScheme(context)
         dynamicAllowed -> dynamicDarkColorScheme(context)
         mode == MsiThemeMode.LIGHT -> msiLightScheme
-        mode == MsiThemeMode.AMOLED -> msiAmoledScheme
         else -> msiDarkScheme
     }
     val view = LocalView.current
