@@ -30,9 +30,10 @@ jobs:
         run: |
           set -euo pipefail
           gradle app:dependencies --configuration releaseRuntimeClasspath > /tmp/msi-release-deps.txt
-          if grep -Eiq 'okhttp3|retrofit2|firebase-analytics|firebase-crashlytics|sentry|amplitude|mixpanel|appsflyer|adjust-android|onesignal|segment-analytics' /tmp/msi-release-deps.txt; then
-            echo "Unexpected network or analytics SDK detected in release runtime dependencies" >&2
-            grep -Ei 'okhttp3|retrofit2|firebase-analytics|firebase-crashlytics|sentry|amplitude|mixpanel|appsflyer|adjust-android|onesignal|segment-analytics' /tmp/msi-release-deps.txt >&2
+          BLOCKED='okhttp3|retrofit2|ktor-client|volley|fuel|apollo-runtime|grpc-okhttp|firebase-analytics|firebase-crashlytics|firebase-messaging|play-services-measurement|sentry|amplitude|mixpanel|appsflyer|adjust-android|onesignal|segment-analytics|posthog|bugsnag|datadog'
+          if grep -Eiq "$BLOCKED" /tmp/msi-release-deps.txt; then
+            echo "Unexpected network, analytics, or tracking SDK detected in release runtime dependencies" >&2
+            grep -Ei "$BLOCKED" /tmp/msi-release-deps.txt >&2
             exit 1
           fi
       - name: Run unit tests
@@ -50,22 +51,48 @@ jobs:
           test -n "$ANALYZER"
           TARGET_SDK="$("$ANALYZER" manifest target-sdk "$APK")"
           DEBUGGABLE="$("$ANALYZER" manifest debuggable "$APK")"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          DEBUG_FLAG="$("$ANALYZER" manifest debuggable "$DEBUG_APK")"
           PERMISSIONS="$("$ANALYZER" manifest permissions "$APK")"
-          MANIFEST="$("$ANALYZER" manifest print "$APK")"
+          DEBUG_PERMISSIONS="$("$ANALYZER" manifest permissions "$DEBUG_APK")"
+          MANIFEST_FILE="/tmp/msi-release-manifest.xml"
+          "$ANALYZER" manifest print "$APK" > "$MANIFEST_FILE"
           test "$TARGET_SDK" -ge 36
+          test "$DEBUG_FLAG" = "true"
           if [ "$DEBUGGABLE" != "false" ]; then
             echo "Release APK must not be debuggable (actual: $DEBUGGABLE)" >&2
             exit 1
           fi
-          if echo "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
-            echo "Unexpected INTERNET permission in release APK" >&2
+          if printf '%s\n%s\n' "$PERMISSIONS" "$DEBUG_PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+            echo "Unexpected INTERNET permission in APK" >&2
             exit 1
           fi
-          if echo "$MANIFEST" | grep -q 'PreviewActivity'; then
+          if grep -q 'PreviewActivity' "$MANIFEST_FILE"; then
             echo "Unexpected PreviewActivity in release APK" >&2
             exit 1
           fi
-          echo "Release manifest verified: targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; no INTERNET or PreviewActivity."
+          python - "$MANIFEST_FILE" <<'PY'
+          import sys
+          import xml.etree.ElementTree as ET
+          manifest = ET.parse(sys.argv[1]).getroot()
+          ns = "{http://schemas.android.com/apk/res/android}"
+          allowed_exported = {"com.msi.inspector.MainActivity"}
+          for tag in ("activity", "activity-alias", "service", "receiver", "provider"):
+              for component in manifest.findall(f"./application/{tag}"):
+                  exported = component.get(ns + "exported", "false").lower() == "true"
+                  if exported:
+                      name = component.get(ns + "name", "")
+                      if name not in allowed_exported:
+                          raise SystemExit(f"Unexpected exported component: {tag} {name}")
+          PY
+          if unzip -p "$APK" 'classes*.dex' | strings | grep -q 'kotlinx.coroutines.debug.DebugProbes'; then
+            echo "DebugProbes must not be packaged in Release" >&2
+            exit 1
+          fi
+          echo "Release manifest verified: targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; no INTERNET, PreviewActivity, unexpected exported components, or DebugProbes."
+          echo "Debug manifest verified: debuggable=$DEBUG_FLAG."
+          stat -c 'Debug APK bytes: %s' "$DEBUG_APK"
+          stat -c 'Release APK bytes: %s' "$APK"
       - name: Generate and verify checksums
         run: |
           cd app/build/outputs/apk
