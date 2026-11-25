@@ -24,6 +24,7 @@ class MsiPreferencesTest {
         assertEquals(MsiThemeMode.DARK to false, preferences.loadTheme())
         assertEquals(9 to 0, preferences.loadScanSchedule())
         assertFalse(preferences.isPeriodicScanEnabled())
+        assertFalse(preferences.isOnboardingComplete())
     }
 
     @Test
@@ -35,11 +36,13 @@ class MsiPreferencesTest {
         preferences.saveTheme(MsiThemeMode.LIGHT, true)
         preferences.saveScanSchedule(14, 45)
         preferences.setPeriodicScanEnabled(true)
+        preferences.setOnboardingComplete()
 
         val restored = MsiPreferences(context)
 
         assertEquals(MsiThemeMode.LIGHT to true, restored.loadTheme())
         assertEquals(14 to 45, restored.loadScanSchedule())
         assertTrue(restored.isPeriodicScanEnabled())
+        assertTrue(restored.isOnboardingComplete())
     }
 }
