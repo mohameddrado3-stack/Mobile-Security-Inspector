@@ -121,6 +121,46 @@ class ScanHistoryDatabaseTest {
         helper.close()
     }
 
+    @Test
+    fun clearHistoryRemovesSnapshotsAndTimelineEventsTogether() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        helper.saveWithTimeline(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = 900L
+            ),
+            listOf(
+                TimelineEvent(
+                    occurredAt = 900L,
+                    type = TimelineEventType.BASELINE_CREATED,
+                    packageName = null,
+                    appLabel = null,
+                    title = "Baseline",
+                    details = "Created"
+                )
+            )
+        )
+
+        helper.clearHistory()
+
+        val database = helper.readableDatabase
+        val scanCount = database.rawQuery(
+            "SELECT COUNT(*) FROM scan_history",
+            null
+        ).use { cursor -> cursor.moveToFirst(); cursor.getLong(0) }
+        val eventCount = database.rawQuery(
+            "SELECT COUNT(*) FROM timeline_events",
+            null
+        ).use { cursor -> cursor.moveToFirst(); cursor.getLong(0) }
+
+        assertEquals(0L, scanCount)
+        assertEquals(0L, eventCount)
+        helper.close()
+    }
+
     private companion object {
         const val DATABASE_NAME = "msi_security_history.db"
     }
