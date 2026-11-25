@@ -1,5 +1,12 @@
 package com.msi.inspector.domain.model
 
+enum class PackageMetadataState {
+    AVAILABLE,
+    NOT_FOUND_OR_NOT_VISIBLE,
+    ACCESS_DENIED,
+    ERROR
+}
+
 data class AppAudit(
     val label: String,
     val packageName: String,
@@ -17,7 +24,14 @@ data class AppAudit(
     val signingCertificateSha256: String? = null,
     val categoryLabel: String? = null,
     val lastUsedAt: Long? = null,
-    val packageMetadataAvailable: Boolean = true
+    val packageMetadataAvailable: Boolean = true,
+    val packageMetadataState: PackageMetadataState = if (packageMetadataAvailable) {
+        PackageMetadataState.AVAILABLE
+    } else {
+        PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE
+    },
+    val unclassifiedPermissions: List<String> = emptyList(),
+    val specialAccessStateAvailable: Boolean = true
 ) {
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
