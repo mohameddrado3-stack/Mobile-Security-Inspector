@@ -1,0 +1,34 @@
+package com.msi.inspector.ui.reports
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+
+@Composable
+fun ReportShareConfirmationDialog(
+    onDismiss: () -> Unit,
+    onExport: (ReportFileFormat) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("مشاركة تقرير الفحص") },
+        text = {
+            Text(
+                "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات وبصمات شهادات التوقيع المتاحة. لن يُرسل تلقائيًا؛ ستختار بنفسك التطبيق أو الجهة التي تشاركه معها."
+            )
+        },
+        confirmButton = {
+            Column {
+                TextButton(onClick = { onExport(ReportFileFormat.TXT) }) { Text("تصدير TXT") }
+                TextButton(onClick = { onExport(ReportFileFormat.CSV) }) { Text("تصدير CSV") }
+                TextButton(onClick = { onExport(ReportFileFormat.JSON) }) { Text("تصدير JSON") }
+                TextButton(onClick = { onExport(ReportFileFormat.PDF) }) { Text("تصدير PDF") }
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) { Text("إلغاء") }
+        }
+    )
+}

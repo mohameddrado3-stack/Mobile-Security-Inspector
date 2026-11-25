@@ -10,16 +10,12 @@ import android.os.Build
 import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -52,11 +48,12 @@ import com.msi.inspector.ui.navigation.MsiDestinationContent
 import com.msi.inspector.ui.dialogs.ApplicationDetailsDialog
 import com.msi.inspector.ui.platform.findActivity
 import com.msi.inspector.ui.platform.openSystemPage
+import com.msi.inspector.ui.reports.ReportShareConfirmationDialog
+import com.msi.inspector.ui.onboarding.MsiOnboardingDialog
 import com.msi.inspector.ui.reports.shareReport
 import com.msi.inspector.ui.navigation.MsiBottomNavigation
 import com.msi.inspector.ui.navigation.MsiNavigationRail
 import com.msi.inspector.ui.navigation.MsiDestination
-import com.msi.inspector.ui.reports.ReportFileFormat
 
 @OptIn(
     androidx.compose.material3.ExperimentalMaterial3Api::class,
@@ -237,70 +234,22 @@ fun MsiApp(
             )
         }
         if (showShareConfirmation) {
-            AlertDialog(
-                onDismissRequest = { showShareConfirmation = false },
-                title = { Text("مشاركة تقرير الفحص") },
-                text = {
-                    Text(
-                        "سيحتوي التقرير على أسماء التطبيقات وأسماء الحزم والإصدارات ومؤشرات الصلاحيات وبصمات شهادات التوقيع المتاحة. لن يُرسل تلقائيًا؛ ستختار بنفسك التطبيق أو الجهة التي تشاركه معها."
-                    )
-                },
-                confirmButton = {
-                    Column {
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.TXT)
-                        }) { Text("تصدير TXT") }
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.CSV)
-                        }) { Text("تصدير CSV") }
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.JSON)
-                        }) { Text("تصدير JSON") }
-                        TextButton(onClick = {
-                            showShareConfirmation = false
-                            shareReport(context, state.applications, state.lastScanAt, ReportFileFormat.PDF)
-                        }) { Text("تصدير PDF") }
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showShareConfirmation = false }) { Text("إلغاء") }
+            ReportShareConfirmationDialog(
+                onDismiss = { showShareConfirmation = false },
+                onExport = { format ->
+                    showShareConfirmation = false
+                    shareReport(context, state.applications, state.lastScanAt, format)
                 }
             )
         }
         if (showOnboarding) {
-            val pages = listOf(
-                "MSI يقرأ مؤشرات التطبيقات المثبتة والصلاحيات المتاحة من Android، ويعرض التفاصيل بصورة مفهومة.",
-                "MSI لا يتصل بخادم ولا يرفع بيانات الفحص، ولا يمنح أو يسحب صلاحيات تطبيق آخر. أي تغيير يتم من إعدادات Android وبقرارك.",
-                "قد يقرأ MSI قائمة التطبيقات المسموح للنظام بعرضها، وبيانات الحزم والصلاحيات وبعض مؤشرات الجهاز. النتائج مؤشرات وليست أحكامًا على سلامة التطبيق."
-            )
-            AlertDialog(
-                onDismissRequest = {
+            MsiOnboardingDialog(
+                page = onboardingPage,
+                onPageChange = { onboardingPage = it },
+                onComplete = {
                     showOnboarding = false
                     context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
                         .edit().putBoolean("onboarding_complete", true).apply()
-                },
-                title = { Text("مرحبًا بك في MSI — ${onboardingPage + 1}/3") },
-                text = { Text(pages[onboardingPage]) },
-                confirmButton = {
-                    TextButton(onClick = {
-                        if (onboardingPage < 2) {
-                            onboardingPage += 1
-                        } else {
-                            showOnboarding = false
-                            context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-                                .edit().putBoolean("onboarding_complete", true).apply()
-                        }
-                    }) { Text(if (onboardingPage < 2) "التالي" else "ابدأ") }
-                },
-                dismissButton = {
-                    TextButton(onClick = {
-                        showOnboarding = false
-                        context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-                            .edit().putBoolean("onboarding_complete", true).apply()
-                    }) { Text("تخطي") }
                 }
             )
         }
