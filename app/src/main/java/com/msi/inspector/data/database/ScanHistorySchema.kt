@@ -20,6 +20,7 @@ internal object ScanHistorySchema {
         if (oldVersion < 4) {
             database.execSQL("UPDATE scan_history SET vpn_active = -1 WHERE vpn_active = 0")
         }
+        database.execSQL("CREATE INDEX IF NOT EXISTS scan_history_scanned_at_idx ON scan_history(scanned_at DESC)")
     }
 
     private fun createScanHistoryTable(database: SQLiteDatabase) {
