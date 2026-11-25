@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
@@ -36,6 +38,7 @@ fun ToolsScreen(
     onAccessibilitySettings: () -> Unit,
     onSecuritySettings: () -> Unit,
     onGeneralSettings: () -> Unit,
+    onDeveloperSettings: () -> Unit = onGeneralSettings,
     themeMode: MsiThemeMode,
     useDynamicColor: Boolean,
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
@@ -56,11 +59,11 @@ fun ToolsScreen(
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
-            HealthRow("مستوى تصحيح الأمان", health.securityPatch)
-            HealthRow("قفل شاشة آمن", health.secureLock)
-            HealthRow("تشفير التخزين", health.encryption)
-            HealthRow("تصحيح USB (ADB)", health.adb)
-            HealthRow("خيارات المطوّر", health.developerOptions)
+            HealthRow("مستوى تصحيح الأمان", health.securityPatch, onSecuritySettings)
+            HealthRow("قفل شاشة آمن", health.secureLock, onSecuritySettings)
+            HealthRow("تشفير التخزين", health.encryption, onSecuritySettings)
+            HealthRow("تصحيح USB (ADB)", health.adb, onDeveloperSettings)
+            HealthRow("خيارات المطوّر", health.developerOptions, onDeveloperSettings)
             Text(
                 "قراءة فقط. لا يغيّر MSI أي إعداد في الجهاز.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -226,14 +229,22 @@ private fun ThemeButton(
 }
 
 @Composable
-private fun HealthRow(label: String, value: String) {
+private fun HealthRow(label: String, value: String, onClick: () -> Unit) {
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, fontSize = 12.sp, modifier = Modifier.weight(1f))
-        Text(value, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(
+            "$value  ›",
+            fontSize = 12.sp,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
     }
 }
 
