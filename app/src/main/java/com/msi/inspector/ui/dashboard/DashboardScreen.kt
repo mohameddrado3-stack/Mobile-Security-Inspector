@@ -14,6 +14,8 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -41,6 +43,7 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DashboardScreen(
     state: MsiUiState,
@@ -63,6 +66,11 @@ fun DashboardScreen(
         else -> MsiColors.Calm
     }
     val previous = state.history.getOrNull(1)
+    PullToRefreshBox(
+        isRefreshing = state.isScanning,
+        onRefresh = onScan,
+        modifier = Modifier.fillMaxSize()
+    ) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -253,6 +261,7 @@ fun DashboardScreen(
             fontSize = 11.sp,
             modifier = Modifier.padding(bottom = 10.dp)
         )
+    }
     }
 
     if (showIndicatorInfo) {
