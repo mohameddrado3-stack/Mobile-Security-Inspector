@@ -16,7 +16,8 @@ data class AppAudit(
     val lastUpdateTime: Long? = null,
     val signingCertificateSha256: String? = null,
     val categoryLabel: String? = null,
-    val lastUsedAt: Long? = null
+    val lastUsedAt: Long? = null,
+    val packageMetadataAvailable: Boolean = true
 ) {
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
