@@ -18,7 +18,7 @@ class AppAuditRepository(context: Context) {
     suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }): ScanSnapshot =
         scanner.scan(onProgress)
 
-    fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> {
+    fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
         val previousEntry = history.recent(1).firstOrNull()
         val previous = previousEntry?.takeIf { it.applicationsJson != "[]" }?.let { entry ->
             runCatching {
@@ -30,9 +30,8 @@ class AppAuditRepository(context: Context) {
             }.getOrNull()
         }
         val events = TimelineEventDetector.detect(previous, snapshot)
-        history.save(snapshot)
-        history.saveTimelineEvents(events)
-        return events
+        history.saveWithTimeline(snapshot, events)
+        events
     }
 
     fun loadHistory(): List<ScanHistoryEntry> = history.recent()
@@ -42,6 +41,11 @@ class AppAuditRepository(context: Context) {
     fun clearHistory() = history.clearHistory()
 
     fun close() = history.close()
+
+    private companion object {
+        // Foreground scans and WorkManager share this process-wide read/compare/write boundary.
+        val SCAN_HISTORY_LOCK = Any()
+    }
 
     private fun decodeApplications(json: String): List<AppAudit> {
         val array = JSONArray(json)
