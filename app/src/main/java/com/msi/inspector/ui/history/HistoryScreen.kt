@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.design.theme.MsiTheme
+import com.msi.inspector.design.theme.MsiColors
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import org.json.JSONArray
 import java.text.DateFormat
@@ -174,16 +175,31 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
                 val y = size.height - (entry.activeSpecialAccess.toFloat() / maximum) * size.height
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 drawCircle(
-                    color = chartColor,
-                    radius = 3.dp.toPx(),
+                    color = if (entry.vpnActive) MsiColors.Attention else chartColor,
+                    radius = if (entry.vpnActive) 4.dp.toPx() else 3.dp.toPx(),
                     center = Offset(x, y)
                 )
             }
             drawPath(path, chartColor, style = Stroke(width = 2.dp.toPx()))
         }
     }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            "● فحص مع VPN نشط",
+            color = MsiColors.Attention,
+            fontSize = 10.sp
+        )
+        Text(
+            "● فحص دون VPN نشط",
+            color = chartColor,
+            fontSize = 10.sp
+        )
+    }
     Text(
-        "الخط يوضح عدد التطبيقات التي لديها وصول خاص نشط في كل فحص، وليس مستوى خطورة.",
+        "الخط يوضح عدد التطبيقات التي لديها وصول خاص نشط في كل فحص، وليس مستوى خطورة. تختلف علامة النقطة حسب حالة VPN المسجلة وقت الفحص.",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontSize = 10.sp
     )
