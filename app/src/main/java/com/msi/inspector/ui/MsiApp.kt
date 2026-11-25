@@ -272,6 +272,9 @@ fun MsiApp(
                         onGeneralSettings = {
                             openSystemPage(context, Intent(Settings.ACTION_SETTINGS))
                         },
+                        onDeveloperSettings = {
+                            openSystemPage(context, Intent(Settings.ACTION_APPLICATION_DEVELOPMENT_SETTINGS))
+                        },
                         themeMode = themeMode,
                         useDynamicColor = useDynamicColor,
                         onThemeChanged = onThemeChanged,
@@ -452,6 +455,11 @@ private fun ApplicationDetailsDialog(
             ) {
                 Text("اسم الحزمة: ${application.packageName}", fontSize = 11.sp)
                 Text("الإصدار: ${application.version}", fontSize = 12.sp)
+                Text(
+                    "الصلاحيات الحساسة: ${application.grantedSensitive.size} ممنوحة / ${application.requestedSensitive.size} مطلوبة",
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
                 Text("النوع: ${if (application.isSystem) "تطبيق نظام" else "تطبيق مثبت"}", fontSize = 12.sp)
                 Text("مصدر التثبيت: ${application.installer}", fontSize = 12.sp)
                 Text("تصنيف Android: ${application.categoryLabel ?: "غير محدد من التطبيق"}", fontSize = 12.sp)
