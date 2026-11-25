@@ -97,6 +97,9 @@ fun MsiApp(
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit = { _, _ -> },
     periodicScanEnabled: Boolean = false,
     onPeriodicScanChanged: (Boolean) -> Unit = {},
+    scheduledHour: Int = 9,
+    scheduledMinute: Int = 0,
+    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -312,6 +315,9 @@ fun MsiApp(
                         onThemeChanged = onThemeChanged,
                         periodicScanEnabled = periodicScanEnabled,
                         onPeriodicScanChanged = onPeriodicScanChanged,
+                        scheduledHour = scheduledHour,
+                        scheduledMinute = scheduledMinute,
+                        onScheduledTimeChanged = onScheduledTimeChanged,
                         usageAccessOptIn = state.usageAccessOptIn,
                         usageAccessGranted = state.usageAccessGranted,
                         onUsageAccessChanged = { enabled ->
