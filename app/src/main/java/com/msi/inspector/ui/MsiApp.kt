@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.msi.inspector.design.theme.MsiThemeMode
+import com.msi.inspector.data.preferences.MsiPreferences
 import com.msi.inspector.ui.navigation.MsiDestinationContent
 import com.msi.inspector.ui.dialogs.ApplicationDetailsDialog
 import com.msi.inspector.ui.platform.findActivity
@@ -75,6 +76,7 @@ fun MsiApp(
 ) {
     val state by viewModel.state.collectAsState()
     val context = LocalContext.current
+    val preferences = remember(context) { MsiPreferences(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer = LifecycleEventObserver { _, event ->
@@ -103,8 +105,7 @@ fun MsiApp(
     var showShareConfirmation by remember { mutableStateOf(false) }
     var onboardingPage by remember { mutableStateOf(0) }
     var showOnboarding by remember {
-        mutableStateOf(!context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-            .getBoolean("onboarding_complete", false))
+        mutableStateOf(!preferences.isOnboardingComplete())
     }
 
     LaunchedEffect(shortcutRequest) {
@@ -248,8 +249,7 @@ fun MsiApp(
                 onPageChange = { onboardingPage = it },
                 onComplete = {
                     showOnboarding = false
-                    context.getSharedPreferences("msi_preferences", Context.MODE_PRIVATE)
-                        .edit().putBoolean("onboarding_complete", true).apply()
+                    preferences.setOnboardingComplete()
                 }
             )
         }
