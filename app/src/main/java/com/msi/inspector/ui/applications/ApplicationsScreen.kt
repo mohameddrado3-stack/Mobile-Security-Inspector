@@ -175,6 +175,8 @@ fun ApplicationsScreen(
                         ApplicationCard(
                             app = app,
                             selectedForComparison = app.packageName in selectedForComparison,
+                            isTrusted = app.packageName in trustedPackages,
+                            isIgnored = app.packageName in ignoredPackages,
                             onCompareChange = { checked ->
                                 if (checked) {
                                     if (selectedForComparison.size == 2) selectedForComparison.removeAt(0)
