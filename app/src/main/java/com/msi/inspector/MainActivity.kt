@@ -141,6 +141,9 @@ class MainActivity : FragmentActivity() {
             .putInt(PeriodicScanScheduler.KEY_SCAN_HOUR, scheduledHour)
             .putInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, scheduledMinute)
             .apply()
+        if (periodicScanEnabled) {
+            PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+        }
     }
 
     private fun saveThemePreferences(mode: MsiThemeMode, dynamic: Boolean) {
