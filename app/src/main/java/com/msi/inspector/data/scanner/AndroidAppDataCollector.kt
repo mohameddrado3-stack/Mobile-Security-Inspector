@@ -60,8 +60,9 @@ class AndroidAppDataCollector(context: Context) {
         val packageName = applicationInfo.packageName
         val read = packageReader.readPackageInfo(packageName)
         val packageInfo = read.packageInfo
-        val permissions = packageInfo?.requestedPermissions.orEmpty().mapIndexed { index, permission ->
-            val permissionFlags = packageInfo.requestedPermissionsFlags
+        val requestedPermissions = packageInfo?.requestedPermissions.orEmpty()
+        val permissionFlags = packageInfo?.requestedPermissionsFlags
+        val permissions = requestedPermissions.mapIndexed { index, permission ->
             val granted = permissionFlags != null &&
                 index < permissionFlags.size &&
                 (permissionFlags[index] and PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0

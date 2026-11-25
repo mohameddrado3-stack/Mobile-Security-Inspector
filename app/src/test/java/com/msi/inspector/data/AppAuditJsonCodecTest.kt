@@ -12,6 +12,21 @@ import org.robolectric.annotation.Config
 @Config(sdk = [35])
 class AppAuditJsonCodecTest {
     @Test
+    fun decodingOlderHistoryWithoutEvidenceFieldsUsesCompatibleDefaults() {
+        val restored = AppAuditJsonCodec.decode(
+            """[{"label":"Old app","packageName":"com.example.old","version":"1.0"}]"""
+        ).single()
+
+        assertEquals(true, restored.packageMetadataAvailable)
+        assertEquals(
+            com.msi.inspector.domain.model.PackageMetadataState.AVAILABLE,
+            restored.packageMetadataState
+        )
+        assertEquals(emptyList<String>(), restored.unclassifiedPermissions)
+        assertEquals(true, restored.specialAccessStateAvailable)
+    }
+
+    @Test
     fun roundTripPreservesPersistedApplicationEvidence() {
         val application = AppAudit(
             label = "Example",

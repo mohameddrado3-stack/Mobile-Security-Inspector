@@ -161,6 +161,53 @@ class ScanHistoryDatabaseTest {
         helper.close()
     }
 
+
+    @Test
+    fun keepsOnlyTenRecentSessionsWithinTheRetentionWindow() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+
+        repeat(12) { index ->
+            helper.save(
+                ScanSnapshot(
+                    applications = emptyList(),
+                    vpnActive = null,
+                    completedAt = now - index * day
+                )
+            )
+        }
+
+        val retained = helper.recent(50)
+        assertEquals(10, retained.size)
+        assertEquals(now, retained.first().scannedAt)
+        assertTrue(retained.last().scannedAt >= now - 9L * day)
+        helper.close()
+    }
+
+    @Test
+    fun keepsTheLatestScanAsBaselineEvenWhenItIsOlderThanThirtyDays() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val oldBaselineAt = System.currentTimeMillis() - 45L * 24L * 60L * 60L * 1000L
+
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = oldBaselineAt
+            )
+        )
+
+        val retained = helper.recent()
+        assertEquals(1, retained.size)
+        assertEquals(oldBaselineAt, retained.single().scannedAt)
+        helper.close()
+    }
+
     private companion object {
         const val DATABASE_NAME = "msi_security_history.db"
     }
