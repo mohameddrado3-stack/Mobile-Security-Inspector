@@ -57,7 +57,7 @@ class AndroidPackageReader(context: Context) {
         }
     }
 
-fun categoryLabel(category: Int): String? = when (category) {
+    fun categoryLabel(category: Int): String? = when (category) {
         ApplicationInfo.CATEGORY_GAME -> "ألعاب"
         ApplicationInfo.CATEGORY_AUDIO -> "صوت"
         ApplicationInfo.CATEGORY_VIDEO -> "فيديو"
@@ -69,7 +69,7 @@ fun categoryLabel(category: Int): String? = when (category) {
         else -> null
     }
 
-@Suppress("DEPRECATION")
+    @Suppress("DEPRECATION")
     fun isDangerousPermission(permission: String): Boolean {
         return dangerousPermissionCache.getOrPut(permission) {
             try {
@@ -81,7 +81,7 @@ fun categoryLabel(category: Int): String? = when (category) {
         }
     }
 
-    private fun specialPermissionRequestLabel(permission: String): String? {
+    fun specialPermissionRequestLabel(permission: String): String? {
         return when (permission) {
             "android.permission.SYSTEM_ALERT_WINDOW" ->
                 "طلب صلاحية الظهور فوق التطبيقات — حالة التفعيل غير مؤكدة."
@@ -101,7 +101,7 @@ fun categoryLabel(category: Int): String? = when (category) {
         }
     }
 
-fun installerLabel(packageName: String): String {
+    fun installerLabel(packageName: String): String {
         return try {
             val installer = if (Build.VERSION.SDK_INT >= 30) {
                 val source = packageManager.getInstallSourceInfo(packageName)
