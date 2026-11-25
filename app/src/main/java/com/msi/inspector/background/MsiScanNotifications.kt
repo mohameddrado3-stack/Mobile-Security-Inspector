@@ -40,7 +40,7 @@ object MsiScanNotifications {
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info)
             .setContentTitle("تغيّر في مؤشرات MSI")
-            .setContentText("اكتمل الفحص الدوري المحلي. تطبيقات ذات وصول خاص نشط: $activeSpecialAccessCount")
+            .setContentText("اكتمل الفحص الدوري المحلي. أحداث تغيّر مرصودة: $eventCount")
             .setStyle(
                 NotificationCompat.BigTextStyle().bigText(
                     "اكتمل الفحص الدوري المحلي. تم تسجيل $eventCount حدث تغيّر بين الفحوصات. افتح MSI لمراجعة التفاصيل؛ هذه الأحداث ليست حكمًا على سلامة التطبيقات."
