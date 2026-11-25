@@ -37,29 +37,33 @@ object TimelineEventDetector {
         (oldApps.keys intersect newApps.keys).sorted().forEach { key ->
             val old = oldApps.getValue(key)
             val new = newApps.getValue(key)
-            if (old.version != new.version) {
-                events += event(current, TimelineEventType.APP_VERSION_CHANGED, new,
-                    "تغيّر إصدار التطبيق",
-                    "السابق: ${old.version.ifBlank { "غير متاح" }}؛ الحالي: ${new.version.ifBlank { "غير متاح" }}.")
-            }
-            val oldSignature = old.signingCertificateSha256
-            val newSignature = new.signingCertificateSha256
-            if (oldSignature != null && newSignature != null && oldSignature != newSignature) {
-                events += event(current, TimelineEventType.SIGNATURE_CHANGED, new,
-                    "تغيّرت بصمة شهادة التوقيع",
-                    "اختلفت بصمة SHA-256 المتاحة بين الفحصين. راجع مصدر التطبيق وتفاصيله يدويًا.")
-            }
-            val addedGranted = (new.grantedSensitive.toSet() - old.grantedSensitive.toSet()).sorted()
-            val removedGranted = (old.grantedSensitive.toSet() - new.grantedSensitive.toSet()).sorted()
-            if (addedGranted.isNotEmpty()) {
-                events += event(current, TimelineEventType.SENSITIVE_PERMISSION_ADDED, new,
-                    "ظهرت صلاحيات حساسة ممنوحة",
-                    "الصلاحيات التي ظهرت كممنوحة: ${addedGranted.joinToString()}.")
-            }
-            if (removedGranted.isNotEmpty()) {
-                events += event(current, TimelineEventType.SENSITIVE_PERMISSION_REMOVED, new,
-                    "اختفت صلاحيات حساسة ممنوحة",
-                    "الصلاحيات التي لم تعد تظهر كممنوحة: ${removedGranted.joinToString()}.")
+            // PackageManager may fail to return metadata for a package that changed
+            // during scanning. Unknown data must never be interpreted as revoked access.
+            if (old.packageMetadataAvailable && new.packageMetadataAvailable) {
+                if (old.version != new.version) {
+                    events += event(current, TimelineEventType.APP_VERSION_CHANGED, new,
+                        "تغيّر إصدار التطبيق",
+                        "السابق: ${old.version.ifBlank { "غير متاح" }}؛ الحالي: ${new.version.ifBlank { "غير متاح" }}.")
+                }
+                val oldSignature = old.signingCertificateSha256
+                val newSignature = new.signingCertificateSha256
+                if (oldSignature != null && newSignature != null && oldSignature != newSignature) {
+                    events += event(current, TimelineEventType.SIGNATURE_CHANGED, new,
+                        "تغيّرت بصمة شهادة التوقيع",
+                        "اختلفت بصمة SHA-256 المتاحة بين الفحصين. راجع مصدر التطبيق وتفاصيله يدويًا.")
+                }
+                val addedGranted = (new.grantedSensitive.toSet() - old.grantedSensitive.toSet()).sorted()
+                val removedGranted = (old.grantedSensitive.toSet() - new.grantedSensitive.toSet()).sorted()
+                if (addedGranted.isNotEmpty()) {
+                    events += event(current, TimelineEventType.SENSITIVE_PERMISSION_ADDED, new,
+                        "ظهرت صلاحيات حساسة ممنوحة",
+                        "الصلاحيات التي ظهرت كممنوحة: ${addedGranted.joinToString()}.")
+                }
+                if (removedGranted.isNotEmpty()) {
+                    events += event(current, TimelineEventType.SENSITIVE_PERMISSION_REMOVED, new,
+                        "اختفت صلاحيات حساسة ممنوحة",
+                        "الصلاحيات التي لم تعد تظهر كممنوحة: ${removedGranted.joinToString()}.")
+                }
             }
             val oldSpecial = old.specialAccessReasons.toSet()
             val newSpecial = new.specialAccessReasons.toSet()
