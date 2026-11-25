@@ -22,6 +22,7 @@ import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.MsiApp
 import com.msi.inspector.ui.security.AppLockScreen
+import com.msi.inspector.ui.security.allowedAuthenticators
 
 class MainActivity : FragmentActivity() {
     private lateinit var appLockSettings: AppLockSettings
@@ -220,13 +221,6 @@ class MainActivity : FragmentActivity() {
         }
     }
 
-    private fun allowedAuthenticators(): Int =
-        if (Build.VERSION.SDK_INT >= 30) {
-            BiometricManager.Authenticators.BIOMETRIC_STRONG or
-                BiometricManager.Authenticators.DEVICE_CREDENTIAL
-        } else {
-            BiometricManager.Authenticators.BIOMETRIC_STRONG
-        }
 
     override fun onStop() {
         if (
