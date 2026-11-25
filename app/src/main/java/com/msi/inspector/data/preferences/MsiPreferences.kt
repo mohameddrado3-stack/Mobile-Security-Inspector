@@ -30,6 +30,13 @@ class MsiPreferences(context: Context) {
         preferences.getInt(PeriodicScanScheduler.KEY_SCAN_HOUR, 9) to
             preferences.getInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, 0)
 
+    fun isOnboardingComplete(): Boolean =
+        preferences.getBoolean(KEY_ONBOARDING_COMPLETE, false)
+
+    fun setOnboardingComplete() {
+        preferences.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+    }
+
     fun isPeriodicScanEnabled(): Boolean =
         preferences.getBoolean(KEY_PERIODIC_SCAN, false)
 
@@ -49,5 +56,6 @@ class MsiPreferences(context: Context) {
         const val KEY_THEME_MODE = "theme_mode"
         const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val KEY_PERIODIC_SCAN = "periodic_scan_enabled"
+        const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
     }
 }
