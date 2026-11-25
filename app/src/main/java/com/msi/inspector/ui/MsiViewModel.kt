@@ -24,6 +24,7 @@ data class MsiUiState(
     val selectedApplication: AppAudit? = null,
     val query: String = "",
     val filter: AppFilter = AppFilter.ALL,
+    val packageScope: Set<String>? = null,
     val isScanning: Boolean = false,
     val scanProgress: Int = 0,
     val scanTotal: Int = 0,
@@ -71,7 +72,20 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun updateFilter(filter: AppFilter) {
-        mutableState.update { it.copy(filter = filter, destination = MsiDestination.APPLICATIONS) }
+        mutableState.update {
+            it.copy(filter = filter, packageScope = null, destination = MsiDestination.APPLICATIONS)
+        }
+    }
+
+    fun showPackageScope(packageNames: Set<String>) {
+        mutableState.update {
+            it.copy(
+                packageScope = packageNames,
+                filter = AppFilter.ALL,
+                query = "",
+                destination = MsiDestination.APPLICATIONS
+            )
+        }
     }
 
     fun selectApplication(application: AppAudit?) {

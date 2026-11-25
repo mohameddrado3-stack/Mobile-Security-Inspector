@@ -145,6 +145,7 @@ fun MsiApp(
                     )
                     MsiDestination.APPLICATIONS -> {
                         val filtered = filterApplications(state.applications, state.query, state.filter)
+                            .filter { state.packageScope == null || it.packageName in state.packageScope }
                         ApplicationsScreen(
                             applications = filtered,
                             query = state.query,
@@ -154,7 +155,10 @@ fun MsiApp(
                             onSelect = viewModel::selectApplication
                         )
                     }
-                    MsiDestination.PERMISSIONS -> PermissionsScreen(state.applications)
+                    MsiDestination.PERMISSIONS -> PermissionsScreen(
+                        applications = state.applications,
+                        onCategorySelected = viewModel::showPackageScope
+                    )
                     MsiDestination.HISTORY -> HistoryScreen(
                         history = state.history,
                         onClearHistory = viewModel::clearHistory
