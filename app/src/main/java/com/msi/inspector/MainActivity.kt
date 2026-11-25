@@ -37,7 +37,7 @@ class MainActivity : FragmentActivity() {
         ActivityResultContracts.RequestPermission()
     ) { granted ->
         if (pendingPeriodicEnable && granted) {
-            setPeriodicScanEnabled(true)
+            persistPeriodicScanEnabled(true)
         } else if (pendingPeriodicEnable) {
             periodicScanEnabled = false
             Toast.makeText(
@@ -103,21 +103,21 @@ class MainActivity : FragmentActivity() {
 
     private fun configurePeriodicScan(enabled: Boolean) {
         if (!enabled) {
-            setPeriodicScanEnabled(false)
+            persistPeriodicScanEnabled(false)
             return
         }
         val permissionGranted = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (permissionGranted) {
-            setPeriodicScanEnabled(true)
+            persistPeriodicScanEnabled(true)
         } else {
             pendingPeriodicEnable = true
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }
 
-    private fun setPeriodicScanEnabled(enabled: Boolean) {
+    private fun persistPeriodicScanEnabled(enabled: Boolean) {
         periodicScanEnabled = enabled
         getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
             .putBoolean(KEY_PERIODIC_SCAN, enabled)
