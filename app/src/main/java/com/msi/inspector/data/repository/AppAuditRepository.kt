@@ -70,7 +70,10 @@ class AppAuditRepository(context: Context) {
                         signingCertificateSha256 = item.nullableString("signatureSha256"),
                         categoryLabel = item.nullableString("category"),
                         lastUsedAt = item.nullableLong("lastUsedAt"),
-                        packageMetadataAvailable = item.optBoolean("packageMetadataAvailable", true)
+                        packageMetadataAvailable = item.optBoolean(
+                            "packageMetadataAvailable",
+                            item.optString("version", "غير متاح") != "غير متاح"
+                        )
                     )
                 )
             }
