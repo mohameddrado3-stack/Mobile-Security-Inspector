@@ -8,6 +8,8 @@ import com.msi.inspector.domain.analyzer.AuditSummary
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
+import com.msi.inspector.domain.timeline.TimelineEvent
+import com.msi.inspector.domain.timeline.TimelineEventType
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -15,6 +17,20 @@ class ScanHistoryDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
 
     override fun onCreate(database: SQLiteDatabase) {
+        createScanHistoryTable(database)
+        createTimelineTable(database)
+    }
+
+    override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) {
+            database.execSQL(
+                "ALTER TABLE scan_history ADD COLUMN applications_json TEXT NOT NULL DEFAULT '[]'"
+            )
+        }
+        if (oldVersion < 3) createTimelineTable(database)
+    }
+
+    private fun createScanHistoryTable(database: SQLiteDatabase) {
         database.execSQL(
             """
             CREATE TABLE scan_history (
@@ -29,17 +45,24 @@ class ScanHistoryDatabase(context: Context) :
             )
             """.trimIndent()
         )
-        database.execSQL(
-            "CREATE INDEX scan_history_scanned_at_idx ON scan_history(scanned_at DESC)"
-        )
+        database.execSQL("CREATE INDEX scan_history_scanned_at_idx ON scan_history(scanned_at DESC)")
     }
 
-    override fun onUpgrade(database: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        if (oldVersion < 2) {
-            database.execSQL(
-                "ALTER TABLE scan_history ADD COLUMN applications_json TEXT NOT NULL DEFAULT '[]'"
+    private fun createTimelineTable(database: SQLiteDatabase) {
+        database.execSQL(
+            """
+            CREATE TABLE timeline_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                occurred_at INTEGER NOT NULL,
+                event_type TEXT NOT NULL,
+                package_name TEXT,
+                app_label TEXT,
+                title TEXT NOT NULL,
+                details TEXT NOT NULL
             )
-        }
+            """.trimIndent()
+        )
+        database.execSQL("CREATE INDEX timeline_events_occurred_at_idx ON timeline_events(occurred_at DESC)")
     }
 
     fun save(snapshot: ScanSnapshot) {
@@ -65,39 +88,70 @@ class ScanHistoryDatabase(context: Context) :
         }
     }
 
+    fun saveTimelineEvents(events: List<TimelineEvent>) {
+        if (events.isEmpty()) return
+        val database = writableDatabase
+        database.beginTransaction()
+        try {
+            events.forEach { event ->
+                val values = ContentValues().apply {
+                    put("occurred_at", event.occurredAt)
+                    put("event_type", event.type.name)
+                    put("package_name", event.packageName)
+                    put("app_label", event.appLabel)
+                    put("title", event.title)
+                    put("details", event.details)
+                }
+                database.insertOrThrow("timeline_events", null, values)
+            }
+            database.execSQL(
+                "DELETE FROM timeline_events WHERE id NOT IN (SELECT id FROM timeline_events ORDER BY occurred_at DESC, id DESC LIMIT 500)"
+            )
+            database.setTransactionSuccessful()
+        } finally {
+            database.endTransaction()
+        }
+    }
+
+    fun recentTimelineEvents(limit: Int = 500): List<TimelineEvent> {
+        val events = ArrayList<TimelineEvent>()
+        readableDatabase.query(
+            "timeline_events",
+            arrayOf("id", "occurred_at", "event_type", "package_name", "app_label", "title", "details"),
+            null, null, null, null, "occurred_at DESC, id DESC",
+            limit.coerceIn(1, 500).toString()
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val type = runCatching { TimelineEventType.valueOf(cursor.getString(2)) }
+                    .getOrDefault(TimelineEventType.BASELINE_CREATED)
+                events += TimelineEvent(
+                    id = cursor.getLong(0),
+                    occurredAt = cursor.getLong(1),
+                    type = type,
+                    packageName = cursor.getString(3),
+                    appLabel = cursor.getString(4),
+                    title = cursor.getString(5),
+                    details = cursor.getString(6)
+                )
+            }
+        }
+        return events
+    }
+
     fun recent(limit: Int = 50): List<ScanHistoryEntry> {
         val entries = ArrayList<ScanHistoryEntry>()
         readableDatabase.query(
             "scan_history",
-            arrayOf(
-                "id",
-                "scanned_at",
-                "total_applications",
-                "active_special_access",
-                "requested_special_access",
-                "sensitive_permissions",
-                "vpn_active",
-                "applications_json"
-            ),
-            null,
-            null,
-            null,
-            null,
-            "scanned_at DESC",
-            limit.coerceIn(1, 50).toString()
+            arrayOf("id", "scanned_at", "total_applications", "active_special_access",
+                "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json"),
+            null, null, null, null, "scanned_at DESC", limit.coerceIn(1, 50).toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
-                entries.add(
-                    ScanHistoryEntry(
-                        id = cursor.getLong(0),
-                        scannedAt = cursor.getLong(1),
-                        totalApplications = cursor.getInt(2),
-                        activeSpecialAccess = cursor.getInt(3),
-                        requestedSpecialAccess = cursor.getInt(4),
-                        sensitivePermissions = cursor.getInt(5),
-                        vpnActive = cursor.getInt(6) == 1,
-                        applicationsJson = cursor.getString(7) ?: "[]"
-                    )
+                entries += ScanHistoryEntry(
+                    id = cursor.getLong(0), scannedAt = cursor.getLong(1),
+                    totalApplications = cursor.getInt(2), activeSpecialAccess = cursor.getInt(3),
+                    requestedSpecialAccess = cursor.getInt(4), sensitivePermissions = cursor.getInt(5),
+                    vpnActive = cursor.getInt(6) == 1, applicationsJson = cursor.getString(7) ?: "[]"
                 )
             }
         }
@@ -105,37 +159,42 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     fun clearHistory() {
-        writableDatabase.delete("scan_history", null, null)
+        writableDatabase.beginTransaction()
+        try {
+            writableDatabase.delete("scan_history", null, null)
+            writableDatabase.delete("timeline_events", null, null)
+            writableDatabase.setTransactionSuccessful()
+        } finally {
+            writableDatabase.endTransaction()
+        }
     }
 
     private fun encodeApplications(applications: List<AppAudit>): String {
         val result = JSONArray()
         applications.forEach { app ->
-            result.put(
-                JSONObject().apply {
-                    put("label", app.label)
-                    put("packageName", app.packageName)
-                    put("version", app.version)
-                    put("installer", app.installer)
-                    put("isSystem", app.isSystem)
-                    put("targetSdk", app.targetSdk ?: JSONObject.NULL)
-                    put("firstInstallTime", app.firstInstallTime ?: JSONObject.NULL)
-                    put("lastUpdateTime", app.lastUpdateTime ?: JSONObject.NULL)
-                    put("signatureSha256", app.signingCertificateSha256 ?: JSONObject.NULL)
-                    put("category", app.categoryLabel ?: JSONObject.NULL)
-                    put("lastUsedAt", app.lastUsedAt ?: JSONObject.NULL)
-                    put("grantedSensitive", JSONArray(app.grantedSensitive))
-                    put("requestedSensitive", JSONArray(app.requestedSensitive))
-                    put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
-                    put("activeSpecialAccess", JSONArray(app.specialAccessReasons))
-                }
-            )
+            result.put(JSONObject().apply {
+                put("label", app.label)
+                put("packageName", app.packageName)
+                put("version", app.version)
+                put("installer", app.installer)
+                put("isSystem", app.isSystem)
+                put("targetSdk", app.targetSdk ?: JSONObject.NULL)
+                put("firstInstallTime", app.firstInstallTime ?: JSONObject.NULL)
+                put("lastUpdateTime", app.lastUpdateTime ?: JSONObject.NULL)
+                put("signatureSha256", app.signingCertificateSha256 ?: JSONObject.NULL)
+                put("category", app.categoryLabel ?: JSONObject.NULL)
+                put("lastUsedAt", app.lastUsedAt ?: JSONObject.NULL)
+                put("grantedSensitive", JSONArray(app.grantedSensitive))
+                put("requestedSensitive", JSONArray(app.requestedSensitive))
+                put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
+                put("activeSpecialAccess", JSONArray(app.specialAccessReasons))
+            })
         }
         return result.toString()
     }
 
     companion object {
         private const val DATABASE_NAME = "msi_security_history.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
     }
 }
