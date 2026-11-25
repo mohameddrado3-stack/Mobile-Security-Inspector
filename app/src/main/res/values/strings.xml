@@ -7,4 +7,5 @@
     <string name="shortcut_permissions_long">راجع الصلاحيات الحساسة للتطبيقات</string>
     <string name="shortcut_history_short">آخر تقرير</string>
     <string name="shortcut_history_long">افتح سجل الفحوصات وآخر تقرير</string>
+    <string name="widget_description">Local MSI scan summary and quick scan button</string>
 </resources>

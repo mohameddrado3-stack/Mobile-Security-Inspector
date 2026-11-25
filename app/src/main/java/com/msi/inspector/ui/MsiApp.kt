@@ -72,6 +72,8 @@ fun MsiApp(
     themeMode: MsiThemeMode = MsiThemeMode.DARK,
     useDynamicColor: Boolean = false,
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit = { _, _ -> },
+    periodicScanEnabled: Boolean = false,
+    onPeriodicScanChanged: (Boolean) -> Unit = {},
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -205,7 +207,9 @@ fun MsiApp(
                         },
                         themeMode = themeMode,
                         useDynamicColor = useDynamicColor,
-                        onThemeChanged = onThemeChanged
+                        onThemeChanged = onThemeChanged,
+                        periodicScanEnabled = periodicScanEnabled,
+                        onPeriodicScanChanged = onPeriodicScanChanged
                     )
                 }
             }

@@ -9,6 +9,7 @@ import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.navigation.MsiDestination
+import com.msi.inspector.widget.MsiWidgetStateUpdater
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -134,6 +135,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val history = withContext(Dispatchers.IO) {
                     repository.saveHistory(snapshot)
+                    runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
                     repository.loadHistory()
                 }
                 mutableState.update {

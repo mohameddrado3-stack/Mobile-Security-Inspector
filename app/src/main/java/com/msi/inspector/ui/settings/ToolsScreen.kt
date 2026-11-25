@@ -38,7 +38,9 @@ fun ToolsScreen(
     onGeneralSettings: () -> Unit,
     themeMode: MsiThemeMode,
     useDynamicColor: Boolean,
-    onThemeChanged: (MsiThemeMode, Boolean) -> Unit
+    onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
+    periodicScanEnabled: Boolean = false,
+    onPeriodicScanChanged: (Boolean) -> Unit = {}
 ) {
     val context = LocalContext.current
     val health = rememberDeviceHealth(context)
@@ -95,6 +97,29 @@ fun ToolsScreen(
                     enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S
                 )
             }
+        }
+        MsiCard {
+            Text("الفحص الدوري الاختياري", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("فحص محلي كل 24 ساعة", fontSize = 13.sp)
+                    Text(
+                        "لا يحتاج اتصال شبكة. يرسل إشعارًا فقط إذا تغيّرت مؤشرات محددة.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 10.sp
+                    )
+                }
+                Switch(checked = periodicScanEnabled, onCheckedChange = onPeriodicScanChanged)
+            }
+            Text(
+                "سيطلب Android إذن الإشعارات عند تفعيل هذا الخيار فقط. إيقافه يلغي المهام المجدولة.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 10.sp
+            )
         }
         MsiCard {
             Text("التحكم في صلاحيات التطبيقات", style = MaterialTheme.typography.titleMedium)

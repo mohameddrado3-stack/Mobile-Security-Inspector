@@ -3,6 +3,8 @@
     <uses-permission android:name="android.permission.QUERY_ALL_PACKAGES" />
     <!-- Used only to read the device-wide VPN transport state. No INTERNET permission is declared. -->
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
+    <!-- Declared for optional periodic scan notifications; requested only after user opt-in. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
 
     <application
         android:allowBackup="false"
@@ -26,6 +28,17 @@
                 android:name="android.app.shortcuts"
                 android:resource="@xml/shortcuts" />
         </activity>
+
+        <receiver
+            android:name=".widget.MsiStatusWidgetReceiver"
+            android:exported="false">
+            <intent-filter>
+                <action android:name="android.appwidget.action.APPWIDGET_UPDATE" />
+            </intent-filter>
+            <meta-data
+                android:name="android.appwidget.provider"
+                android:resource="@xml/msi_widget_info" />
+        </receiver>
 
         <provider
             android:name="androidx.core.content.FileProvider"

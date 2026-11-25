@@ -1,9 +1,12 @@
 package com.msi.inspector
 
+import android.Manifest
+import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.compose.setContent
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
@@ -12,6 +15,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.msi.inspector.background.PeriodicScanScheduler
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.security.applock.AppLockSettings
@@ -27,6 +31,23 @@ class MainActivity : FragmentActivity() {
     private var shortcutRequest by mutableStateOf<Pair<Int, String>?>(null)
     private var themeMode by mutableStateOf(MsiThemeMode.DARK)
     private var useDynamicColor by mutableStateOf(false)
+    private var periodicScanEnabled by mutableStateOf(false)
+    private var pendingPeriodicEnable = false
+    private val notificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (pendingPeriodicEnable && granted) {
+            setPeriodicScanEnabled(true)
+        } else if (pendingPeriodicEnable) {
+            periodicScanEnabled = false
+            Toast.makeText(
+                this,
+                "لم يتم تفعيل الفحص الدوري لأن إذن الإشعارات لم يُمنح.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        pendingPeriodicEnable = false
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
@@ -34,6 +55,7 @@ class MainActivity : FragmentActivity() {
         appLockSettings = AppLockSettings(this)
         appLocked = appLockSettings.isEnabled()
         loadThemePreferences()
+        loadPeriodicScanPreference()
         acceptShortcutIntent(intent)
         window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
         window.navigationBarColor = android.graphics.Color.rgb(8, 13, 24)
@@ -47,7 +69,9 @@ class MainActivity : FragmentActivity() {
                         shortcutRequest = shortcutRequest,
                         themeMode = themeMode,
                         useDynamicColor = useDynamicColor,
-                        onThemeChanged = ::saveThemePreferences
+                        onThemeChanged = ::saveThemePreferences,
+                        periodicScanEnabled = periodicScanEnabled,
+                        onPeriodicScanChanged = ::configurePeriodicScan
                     )
                 }
             }
@@ -60,6 +84,45 @@ class MainActivity : FragmentActivity() {
             MsiThemeMode.valueOf(preferences.getString(KEY_THEME_MODE, MsiThemeMode.DARK.name)!!)
         }.getOrDefault(MsiThemeMode.DARK)
         useDynamicColor = preferences.getBoolean(KEY_DYNAMIC_COLOR, false)
+    }
+
+    private fun loadPeriodicScanPreference() {
+        val preferences = getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE)
+        if (!preferences.getBoolean(KEY_PERIODIC_SCAN, false)) return
+        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (permissionGranted) {
+            periodicScanEnabled = true
+            PeriodicScanScheduler.enable(this)
+        } else {
+            preferences.edit().putBoolean(KEY_PERIODIC_SCAN, false).apply()
+            PeriodicScanScheduler.disable(this)
+        }
+    }
+
+    private fun configurePeriodicScan(enabled: Boolean) {
+        if (!enabled) {
+            setPeriodicScanEnabled(false)
+            return
+        }
+        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (permissionGranted) {
+            setPeriodicScanEnabled(true)
+        } else {
+            pendingPeriodicEnable = true
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun setPeriodicScanEnabled(enabled: Boolean) {
+        periodicScanEnabled = enabled
+        getSharedPreferences(PREFERENCES_NAME, MODE_PRIVATE).edit()
+            .putBoolean(KEY_PERIODIC_SCAN, enabled)
+            .apply()
+        if (enabled) PeriodicScanScheduler.enable(this) else PeriodicScanScheduler.disable(this)
     }
 
     private fun saveThemePreferences(mode: MsiThemeMode, dynamic: Boolean) {
@@ -169,6 +232,7 @@ class MainActivity : FragmentActivity() {
         private const val PREFERENCES_NAME = "msi_preferences"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_DYNAMIC_COLOR = "dynamic_color"
+        private const val KEY_PERIODIC_SCAN = "periodic_scan_enabled"
         const val EXTRA_SHORTCUT = "com.msi.inspector.shortcut"
         const val ACTION_SHORTCUT_SCAN = "com.msi.inspector.action.SCAN"
         const val ACTION_SHORTCUT_PERMISSIONS = "com.msi.inspector.action.PERMISSIONS"
