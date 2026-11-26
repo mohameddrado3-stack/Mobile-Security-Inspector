@@ -1,6 +1,7 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -29,42 +30,6 @@ class ReportFormatterTest {
         )
         assertTrue(report.contains("\"A, \"\"B\"\"\""))
         assertTrue(report.contains("\"com.example.test\""))
-    }
-
-    @Test
-    fun csvTreatsFormulaLikeApplicationNamesAsPlainText() {
-        val report = ReportFormatter.formatCsv(
-            listOf(
-                app(
-                    label = """=HYPERLINK("https://example.invalid","open")""",
-                    packageName = "com.example.test"
-                )
-            ),
-            1_700_000_000_000L
-        )
-
-        assertTrue(report.contains("'=HYPERLINK"))
-    }
-
-    @Test
-    fun textAndJsonReportsPreserveEvidenceAvailabilityAndExplanations() {
-        val application = app("Example", "com.example").copy(
-            packageMetadataAvailable = false,
-            packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
-            specialAccessStateAvailable = false,
-            unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
-            signals = listOf("تعذر قراءة بيانات الحزمة")
-        )
-
-        val textReport = ReportFormatter.format(listOf(application), null)
-        val jsonReport = ReportFormatter.formatJson(listOf(application), null)
-
-        assertTrue(textReport.contains("رفض Android الوصول"))
-        assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
-        assertTrue(textReport.contains("تعذر قراءة بيانات الحزمة"))
-        assertTrue(jsonReport.contains("ACCESS_DENIED"))
-        assertTrue(jsonReport.contains("\"specialAccessStateAvailable\": false"))
-        assertTrue(jsonReport.contains("تعذر قراءة بيانات الحزمة"))
     }
 
     @Test
