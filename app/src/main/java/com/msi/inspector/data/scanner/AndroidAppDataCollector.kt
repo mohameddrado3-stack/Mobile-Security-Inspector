@@ -63,9 +63,9 @@ class AndroidAppDataCollector(context: Context) {
         val requestedPermissions = packageInfo?.requestedPermissions.orEmpty()
         val permissionFlags = packageInfo?.requestedPermissionsFlags
         val permissions = requestedPermissions.mapIndexed { index, permission ->
-            val granted = permissionFlags != null &&
-                index < permissionFlags.size &&
-                (permissionFlags[index] and PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0
+            val grantStateKnown = permissionFlags != null && index < permissionFlags.size
+            val granted = grantStateKnown &&
+                (permissionFlags!![index] and PackageInfo.REQUESTED_PERMISSION_GRANTED) != 0
             val protection = when (packageReader.isDangerousPermission(permission)) {
                 true -> PermissionProtection.DANGEROUS
                 false -> PermissionProtection.NON_DANGEROUS
@@ -74,7 +74,8 @@ class AndroidAppDataCollector(context: Context) {
             CollectedPermissionEvidence(
                 name = permission,
                 granted = granted,
-                protection = protection
+                protection = protection,
+                grantStateKnown = grantStateKnown
             )
         }
 
