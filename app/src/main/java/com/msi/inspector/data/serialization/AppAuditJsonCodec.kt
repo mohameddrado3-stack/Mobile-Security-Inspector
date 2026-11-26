@@ -25,6 +25,7 @@ object AppAuditJsonCodec {
                 put("packageMetadataState", app.packageMetadataState.name)
                 put("unclassifiedPermissions", JSONArray(app.unclassifiedPermissions))
                 put("specialAccessStateAvailable", app.specialAccessStateAvailable)
+                put("signals", JSONArray(app.signals))
                 put("grantedSensitive", JSONArray(app.grantedSensitive))
                 put("requestedSensitive", JSONArray(app.requestedSensitive))
                 put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
@@ -59,7 +60,7 @@ object AppAuditJsonCodec {
                         grantedSensitive = item.stringList("grantedSensitive"),
                         requestedSensitive = item.stringList("requestedSensitive"),
                         requestedSpecialAccess = item.stringList("requestedSpecialAccess"),
-                        signals = emptyList(),
+                        signals = item.stringList("signals"),
                         specialAccessReasons = item.stringList("activeSpecialAccess"),
                         targetSdk = item.nullableInt("targetSdk"),
                         firstInstallTime = item.nullableLong("firstInstallTime"),
