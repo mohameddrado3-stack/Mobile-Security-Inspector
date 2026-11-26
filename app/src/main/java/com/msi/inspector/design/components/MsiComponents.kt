@@ -1,5 +1,6 @@
 package com.msi.inspector.design.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -8,6 +9,8 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -16,13 +19,17 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.msi.inspector.R
 import com.msi.inspector.design.theme.MsiColors
 
 @Composable
@@ -118,12 +125,11 @@ fun MsiBrandHeader() {
                 fontSize = 11.sp
             )
         }
-        Text(
-            "⬡",
-            modifier = Modifier.semantics { contentDescription = "شعار Mobile Security Inspector" },
-            color = MsiColors.Accent,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Light
+        Image(
+            painter = painterResource(R.drawable.msi_brand_icon),
+            contentDescription = "شعار Mobile Security Inspector",
+            modifier = Modifier.size(54.dp).clip(CircleShape),
+            contentScale = ContentScale.Fit
         )
     }
 }
