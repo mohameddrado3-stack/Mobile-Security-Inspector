@@ -58,7 +58,7 @@ fun DashboardScreen(
         state.applications.isEmpty() && state.lastScanAt == null -> "لم يُفحص بعد"
         state.applications.isEmpty() && state.lastScanAt != null -> "بيانات الفحص غير محمّلة"
         summary.activeSpecialAccess > 0 -> "يحتاج انتباه"
-        summary.specialAccessEvidenceUnavailable -> "بيانات غير مكتملة"
+        summary.applicationsWithIncompleteEvidence > 0 -> "بيانات غير مكتملة"
         summary.requestedSpecialAccess > 0 -> "يحتاج مراجعة"
         else -> "هادئ"
     }
@@ -69,7 +69,7 @@ fun DashboardScreen(
     }
     val indicatorDescription = when (indicatorTitle) {
         "بيانات غير مكتملة" ->
-            "تعذّر التحقق من بعض حالات الوصول الخاص. لا يمكن اعتبار غياب المؤشر دليلًا على عدم التفعيل."
+            "توجد تطبيقات لم يتمكن Android من إتاحة كل بياناتها أو تعذّر تصنيف بعض صلاحياتها. افتح الفلتر لمراجعتها؛ نقص البيانات ليس دليلًا على الضرر ولا على السلامة."
         "بيانات الفحص غير محمّلة" ->
             "يوجد سجل سابق، لكن قائمة التطبيقات الحالية لم تُحمّل بعد. أعد الفحص لعرض بياناتها."
         "هادئ" ->
@@ -229,6 +229,15 @@ fun DashboardScreen(
                 modifier = Modifier.weight(1f)
             )
         }
+        MsiMetricCard(
+            title = "بيانات فحص غير مكتملة",
+            value = summary.applicationsWithIncompleteEvidence.toString(),
+            detail = "تطبيقات تحتاج مراجعة حدود القراءة",
+            accent = MsiColors.Review,
+            statusSymbol = "⚠",
+            onClick = { onOpenFilter(AppFilter.INCOMPLETE) },
+            modifier = Modifier.fillMaxWidth()
+        )
         MsiCard {
             MsiSectionHeading("تغيّر منذ آخر فحص")
             if (previous == null) {
