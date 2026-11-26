@@ -9,7 +9,8 @@ enum class PermissionProtection {
 data class CollectedPermissionEvidence(
     val name: String,
     val granted: Boolean,
-    val protection: PermissionProtection
+    val protection: PermissionProtection,
+    val grantStateKnown: Boolean = true
 )
 
 data class CollectedAppEvidence(
