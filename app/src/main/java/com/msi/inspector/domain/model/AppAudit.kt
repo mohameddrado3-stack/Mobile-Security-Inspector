@@ -31,7 +31,8 @@ data class AppAudit(
         PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE
     },
     val unclassifiedPermissions: List<String> = emptyList(),
-    val specialAccessStateAvailable: Boolean = true
+    val specialAccessStateAvailable: Boolean = true,
+    val permissionsWithUnknownGrantState: List<String> = emptyList()
 ) {
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
@@ -40,6 +41,7 @@ data class AppAudit(
         get() = !packageMetadataAvailable ||
             packageMetadataState != PackageMetadataState.AVAILABLE ||
             unclassifiedPermissions.isNotEmpty() ||
+            permissionsWithUnknownGrantState.isNotEmpty() ||
             !specialAccessStateAvailable
 
     val status: AuditStatus
