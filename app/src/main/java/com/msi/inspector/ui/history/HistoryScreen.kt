@@ -54,7 +54,7 @@ fun HistoryScreen(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        MsiSectionHeading("سجل الفحوصات", "يحتفظ بآخر 10 جلسات خلال 30 يومًا، مع إبقاء أحدث فحص كخط أساس.")
+        MsiSectionHeading("سجل الفحوصات", "يحفظ آخر 50 فحصًا محليًا على الجهاز.")
         if (history.size >= 2) {
             MsiSectionHeading("اتجاه المؤشرات")
             HistoryTrend(history = history)
