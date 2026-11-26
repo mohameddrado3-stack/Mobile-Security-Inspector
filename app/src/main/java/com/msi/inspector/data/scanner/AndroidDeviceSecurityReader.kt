@@ -60,17 +60,7 @@ class AndroidDeviceSecurityReader(context: Context) {
         return try {
             val policy = appContext.getSystemService(Context.DEVICE_POLICY_SERVICE) as? DevicePolicyManager
                 ?: throw IllegalStateException("Device policy service unavailable")
-            when (policy.storageEncryptionStatus) {
-                DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE ->
-                    DeviceSecurityEvidence("active", EvidenceAvailability.AVAILABLE)
-                DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE ->
-                    DeviceSecurityEvidence("inactive", EvidenceAvailability.AVAILABLE)
-                DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING ->
-                    DeviceSecurityEvidence("activating", EvidenceAvailability.AVAILABLE)
-                DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED ->
-                    DeviceSecurityEvidence(null, EvidenceAvailability.UNSUPPORTED)
-                else -> DeviceSecurityEvidence(null, EvidenceAvailability.UNAVAILABLE)
-            }
+            mapStorageEncryptionStatus(policy.storageEncryptionStatus)
         } catch (_: SecurityException) {
             DeviceSecurityEvidence(null, EvidenceAvailability.ACCESS_DENIED)
         } catch (_: Exception) {
@@ -78,3 +68,21 @@ class AndroidDeviceSecurityReader(context: Context) {
         }
     }
 }
+
+internal fun mapStorageEncryptionStatus(status: Int): DeviceSecurityEvidence =
+    when (status) {
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE ->
+            DeviceSecurityEvidence("active", EvidenceAvailability.AVAILABLE)
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE_PER_USER ->
+            DeviceSecurityEvidence("active_per_user", EvidenceAvailability.AVAILABLE)
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE_DEFAULT_KEY ->
+            DeviceSecurityEvidence("active_default_key", EvidenceAvailability.AVAILABLE)
+        DevicePolicyManager.ENCRYPTION_STATUS_INACTIVE ->
+            DeviceSecurityEvidence("inactive", EvidenceAvailability.AVAILABLE)
+        DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED ->
+            DeviceSecurityEvidence(null, EvidenceAvailability.UNSUPPORTED)
+        @Suppress("DEPRECATION")
+        DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING ->
+            DeviceSecurityEvidence("activating", EvidenceAvailability.AVAILABLE)
+        else -> DeviceSecurityEvidence(null, EvidenceAvailability.UNAVAILABLE)
+    }
