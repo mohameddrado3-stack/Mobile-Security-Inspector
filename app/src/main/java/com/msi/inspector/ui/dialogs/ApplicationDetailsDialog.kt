@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msi.inspector.domain.analyzer.AppPermissionGuidance
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.PackageMetadataState
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -45,6 +46,18 @@ fun ApplicationDetailsDialog(
             ) {
                 Text("اسم الحزمة: ${application.packageName}", fontSize = 11.sp)
                 Text("الإصدار: ${application.version}", fontSize = 12.sp)
+                Text("حالة قراءة بيانات الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                Text(
+                    when (application.packageMetadataState) {
+                        PackageMetadataState.AVAILABLE -> "متاحة من Android"
+                        PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE -> "غير موجودة أو غير ظاهرة لهذا التطبيق"
+                        PackageMetadataState.ACCESS_DENIED -> "رفض Android الوصول إليها"
+                        PackageMetadataState.ERROR -> "حدث خطأ أثناء قراءتها"
+                    },
+                    fontSize = 11.sp,
+                    color = if (application.packageMetadataAvailable) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
+                )
                 Text(
                     "الصلاحيات الحساسة: ${application.grantedSensitive.size} ممنوحة / ${application.requestedSensitive.size} مطلوبة",
                     fontSize = 11.sp,
@@ -92,10 +105,21 @@ fun ApplicationDetailsDialog(
                 application.signals.forEach { signal -> Text("• $signal", fontSize = 11.sp) }
                 Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
                 Text(
-                    application.specialAccessReasons.ifEmpty {
-                        listOf("لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق.")
-                    }.joinToString("\n"),
-                    fontSize = 11.sp
+                    when {
+                        application.specialAccessReasons.isNotEmpty() &&
+                            !application.specialAccessStateAvailable ->
+                            application.specialAccessReasons.joinToString("\n") +
+                                "\nتعذر التحقق من بعض مصادر الوصول الخاص الأخرى."
+                        application.specialAccessReasons.isNotEmpty() ->
+                            application.specialAccessReasons.joinToString("\n")
+                        !application.specialAccessStateAvailable ->
+                            "تعذر التحقق من بعض مصادر الوصول الخاص. لا يمكن اعتبار غياب النتيجة دليلًا على عدم التفعيل."
+                        else ->
+                            "لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق."
+                    },
+                    fontSize = 11.sp,
+                    color = if (application.specialAccessStateAvailable) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
                 )
                 Text("إعدادات خاصة مطلوبة", color = MaterialTheme.colorScheme.primary)
                 Text(
@@ -103,6 +127,24 @@ fun ApplicationDetailsDialog(
                         listOf("لم تُرصد طلبات الإعدادات الخاصة المعروفة.")
                     }.joinToString("\n"),
                     fontSize = 11.sp
+                )
+                Text("صلاحيات تعذر تحديد مستوى حمايتها", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    application.unclassifiedPermissions.ifEmpty {
+                        listOf("لا توجد صلاحيات غير مصنفة ضمن البيانات المتاحة.")
+                    }.joinToString("\n"),
+                    fontSize = 10.sp,
+                    color = if (application.unclassifiedPermissions.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
+                )
+                Text("صلاحيات تعذّر التحقق من حالة منحها", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    application.permissionsWithUnknownGrantState.ifEmpty {
+                        listOf("تم التحقق من حالة المنح لكل الصلاحيات المدرجة.")
+                    }.joinToString("\n"),
+                    fontSize = 10.sp,
+                    color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
                 )
                 Text("الصلاحيات الحساسة الممنوحة", color = MaterialTheme.colorScheme.primary)
                 Text(
