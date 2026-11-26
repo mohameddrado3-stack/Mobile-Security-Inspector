@@ -69,6 +69,7 @@ class AndroidDeviceSecurityReader(context: Context) {
     }
 }
 
+@Suppress("DEPRECATION")
 internal fun mapStorageEncryptionStatus(status: Int): DeviceSecurityEvidence =
     when (status) {
         DevicePolicyManager.ENCRYPTION_STATUS_ACTIVE ->
@@ -81,7 +82,6 @@ internal fun mapStorageEncryptionStatus(status: Int): DeviceSecurityEvidence =
             DeviceSecurityEvidence("inactive", EvidenceAvailability.AVAILABLE)
         DevicePolicyManager.ENCRYPTION_STATUS_UNSUPPORTED ->
             DeviceSecurityEvidence(null, EvidenceAvailability.UNSUPPORTED)
-        @Suppress("DEPRECATION")
         DevicePolicyManager.ENCRYPTION_STATUS_ACTIVATING ->
             DeviceSecurityEvidence("activating", EvidenceAvailability.AVAILABLE)
         else -> DeviceSecurityEvidence(null, EvidenceAvailability.UNAVAILABLE)
