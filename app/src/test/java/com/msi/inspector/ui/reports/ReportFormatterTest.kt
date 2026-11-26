@@ -33,6 +33,38 @@ class ReportFormatterTest {
     }
 
     @Test
+    fun csvTreatsFormulaLikeApplicationNamesAsPlainText() {
+        val report = ReportFormatter.formatCsv(
+            listOf(app(label = "=HYPERLINK(\\"https://example.invalid\\",\\"open\\")", packageName = "com.example.test")),
+            1_700_000_000_000L
+        )
+
+        assertTrue(report.contains("\\\"'=HYPERLINK"))
+    }
+
+    @Test
+    fun textAndJsonReportsPreserveEvidenceAvailabilityAndExplanations() {
+        val application = app("Example", "com.example")
+            .copy(
+                packageMetadataAvailable = false,
+                packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
+                specialAccessStateAvailable = false,
+                unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
+                signals = listOf("تعذر قراءة بيانات الحزمة")
+            )
+
+        val textReport = ReportFormatter.format(listOf(application), null)
+        val jsonReport = ReportFormatter.formatJson(listOf(application), null)
+
+        assertTrue(textReport.contains("رفض Android الوصول"))
+        assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
+        assertTrue(textReport.contains("تعذر قراءة بيانات الحزمة"))
+        assertTrue(jsonReport.contains("\\"packageMetadataState\\": \\"ACCESS_DENIED\\""))
+        assertTrue(jsonReport.contains("\\"specialAccessStateAvailable\\": false"))
+        assertTrue(jsonReport.contains("\\"signals\\": [\\"تعذر قراءة بيانات الحزمة\\"]"))
+    }
+
+    @Test
     fun jsonReportContainsNullForUnavailableMetadata() {
         val report = ReportFormatter.formatJson(
             listOf(app(label = "Example", packageName = "com.example")),
