@@ -41,6 +41,7 @@ object ReportFormatter {
             appendList(report, "صلاحيات حساسة ممنوحة", app.grantedSensitive)
             appendList(report, "صلاحيات حساسة مطلوبة", app.requestedSensitive)
             appendList(report, "صلاحيات غير مصنفة", app.unclassifiedPermissions)
+            appendList(report, "صلاحيات تعذّر التحقق من حالة منحها", app.permissionsWithUnknownGrantState)
             appendList(report, "ملاحظات وحدود الفحص", app.signals)
             report.append("\n")
         }
@@ -54,7 +55,8 @@ object ReportFormatter {
             listOf(
                 "scan_time", "app_name", "package_name", "version", "installer",
                 "is_system", "package_metadata_state", "special_access_evidence_available",
-                "unclassified_permissions", "signals", "target_sdk", "category", "signature_sha256",
+                "unclassified_permissions", "permissions_with_unknown_grant_state", "signals",
+                "target_sdk", "category", "signature_sha256",
                 "first_install", "last_update", "last_used", "active_special_access",
                 "requested_special_access", "granted_sensitive", "requested_sensitive"
             ).joinToString(",") { csv(it) }
@@ -70,6 +72,7 @@ object ReportFormatter {
                 app.packageMetadataState.name,
                 app.specialAccessStateAvailable.toString(),
                 app.unclassifiedPermissions.joinToString(" | "),
+                app.permissionsWithUnknownGrantState.joinToString(" | "),
                 app.signals.joinToString(" | "),
                 app.targetSdk?.toString().orEmpty(),
                 app.categoryLabel.orEmpty(),
@@ -100,6 +103,7 @@ object ReportFormatter {
               "packageMetadataState": ${jsonString(app.packageMetadataState.name)},
               "specialAccessStateAvailable": ${app.specialAccessStateAvailable},
               "unclassifiedPermissions": ${jsonArray(app.unclassifiedPermissions)},
+              "permissionsWithUnknownGrantState": ${jsonArray(app.permissionsWithUnknownGrantState)},
               "signals": ${jsonArray(app.signals)},
               "targetSdk": ${app.targetSdk?.toString() ?: "null"},
               "category": ${app.categoryLabel?.let(::jsonString) ?: "null"},
