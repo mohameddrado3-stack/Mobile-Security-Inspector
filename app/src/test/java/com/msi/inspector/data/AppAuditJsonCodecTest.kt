@@ -72,6 +72,6 @@ class AppAuditJsonCodecTest {
         assertEquals(application.packageMetadataState, restored.packageMetadataState)
         assertEquals(application.unclassifiedPermissions, restored.unclassifiedPermissions)
         assertEquals(application.specialAccessStateAvailable, restored.specialAccessStateAvailable)
-        assertEquals(emptyList<String>(), restored.signals)
+        assertEquals(application.signals, restored.signals)
     }
 }
