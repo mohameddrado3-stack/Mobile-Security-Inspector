@@ -79,7 +79,7 @@ fun ToolsScreen(
                 DeviceSecurityRow("مستوى تصحيح الأمان", security.securityPatch)
                 DeviceSecurityRow("قفل شاشة آمن", security.secureScreenLock, onSecuritySettings)
                 DeviceSecurityRow("تشفير التخزين", security.storageEncryption, onSecuritySettings)
-                DeviceSecurityRow("تصحيح USB (ADB)", security.adbEnabled, onDeveloperSettings)
+                DeviceSecurityRow("حالة ADB", security.adbEnabled, onDeveloperSettings)
                 DeviceSecurityRow("خيارات المطوّر", security.developerOptionsEnabled, onDeveloperSettings)
                 Text(
                     "آخر قراءة: " + java.text.DateFormat.getDateTimeInstance(
