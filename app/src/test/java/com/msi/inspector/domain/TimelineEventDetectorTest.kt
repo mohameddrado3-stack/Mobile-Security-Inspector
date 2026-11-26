@@ -144,7 +144,7 @@ class TimelineEventDetectorTest {
         val event = events.single { it.type == TimelineEventType.DEVICE_SECURITY_CHANGED }
         assertTrue(event.details.contains("قفل الشاشة الآمن"))
         assertTrue(event.details.contains("مستوى تصحيح الأمان"))
-        assertTrue(event.details.contains("تصحيح USB (ADB)"))
+        assertTrue(event.details.contains("حالة ADB"))
     }
 
     @Test fun unavailableSystemSecurityEvidenceDoesNotCreateFalseChange() {
