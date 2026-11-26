@@ -309,8 +309,6 @@ private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
             "enabled" -> "مفعّل"
             "disabled" -> "غير مفعّل"
             "active" -> "مشفّر ونشط"
-            "active_per_user" -> "مشفّر ومفتاحه مرتبط بالمستخدم"
-            "active_default_key" -> "مشفّر لكن المفتاح غير محمي ببيانات اعتماد المستخدم"
             "inactive" -> "غير نشط"
             "activating" -> "جارٍ التفعيل"
             "unsupported" -> "غير مدعوم"
@@ -322,21 +320,20 @@ private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
 private fun DeviceSecurityRow(
     label: String,
     evidence: DeviceSecurityEvidence,
-    onClick: (() -> Unit)? = null
+    onClick: () -> Unit = {}
 ) {
-    val rowModifier = if (onClick == null) {
-        Modifier.fillMaxWidth().heightIn(min = 48.dp)
-    } else {
-        Modifier.fillMaxWidth().heightIn(min = 48.dp).clickable(onClick = onClick)
-    }
     Row(
-        modifier = rowModifier.padding(horizontal = 2.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clickable(onClick = onClick)
+            .padding(horizontal = 2.dp),
         horizontalArrangement = Arrangement.SpaceBetween,
         verticalAlignment = Alignment.CenterVertically
     ) {
         Text(label, fontSize = 12.sp, modifier = Modifier.weight(1f))
         Text(
-            deviceEvidenceLabel(evidence) + if (onClick == null) "" else "  ›",
+            "${deviceEvidenceLabel(evidence)}  ›",
             fontSize = 12.sp,
             color = when (evidence.availability) {
                 EvidenceAvailability.AVAILABLE -> MaterialTheme.colorScheme.onSurfaceVariant
