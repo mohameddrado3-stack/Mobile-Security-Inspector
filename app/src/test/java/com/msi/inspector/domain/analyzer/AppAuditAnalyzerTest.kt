@@ -4,6 +4,7 @@ import com.msi.inspector.domain.model.CollectedAppEvidence
 import com.msi.inspector.domain.model.CollectedDeviceEvidence
 import com.msi.inspector.domain.model.CollectedPermissionEvidence
 import com.msi.inspector.domain.model.PackageMetadataState
+import com.msi.inspector.domain.model.AuditStatus
 import com.msi.inspector.domain.model.PermissionProtection
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -100,5 +101,41 @@ class AppAuditAnalyzerTest {
         assertFalse(result.packageMetadataAvailable)
         assertEquals(PackageMetadataState.ACCESS_DENIED, result.packageMetadataState)
         assertTrue(result.signals.any { it.contains("رفض Android الوصول") })
+        assertEquals(AuditStatus.INCOMPLETE, result.status)
+    }
+
+    @Test
+    fun unknownPermissionClassificationDoesNotBecomeInformationalStatus() {
+        val app = CollectedAppEvidence(
+            label = "Partially classified",
+            packageName = "com.example.partial",
+            version = "1.0",
+            installer = "غير معروف",
+            isSystem = false,
+            permissions = listOf(
+                CollectedPermissionEvidence(
+                    "vendor.permission.UNKNOWN",
+                    granted = true,
+                    protection = PermissionProtection.UNKNOWN
+                )
+            ),
+            requestedSpecialAccess = emptyList(),
+            accessibilityEnabled = false,
+            deviceAdminEnabled = false,
+            lastUsedAt = null,
+            categoryLabel = null,
+            targetSdk = 35,
+            firstInstallTime = null,
+            lastUpdateTime = null,
+            signingCertificateSha256 = null,
+            packageMetadataState = PackageMetadataState.AVAILABLE
+        )
+
+        val result = AppAuditAnalyzer.analyze(
+            CollectedDeviceEvidence(listOf(app), vpnActive = null, completedAt = 100L)
+        ).applications.single()
+
+        assertEquals(AuditStatus.INCOMPLETE, result.status)
+        assertTrue(result.signals.any { it.contains("تعذر تحديد مستوى حساسية") })
     }
 }
