@@ -2,6 +2,7 @@ package com.msi.inspector.data
 
 import com.msi.inspector.data.serialization.AppAuditJsonCodec
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.AuditStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -24,6 +25,7 @@ class AppAuditJsonCodecTest {
         )
         assertEquals(emptyList<String>(), restored.unclassifiedPermissions)
         assertEquals(false, restored.specialAccessStateAvailable)
+        assertEquals(AuditStatus.INCOMPLETE, restored.status)
     }
 
     @Test
@@ -45,7 +47,7 @@ class AppAuditJsonCodecTest {
             signingCertificateSha256 = "ABCD",
             categoryLabel = "Productivity",
             lastUsedAt = 300L,
-            packageMetadataAvailable = true,
+            packageMetadataAvailable = false,
             packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
             unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
             specialAccessStateAvailable = false
