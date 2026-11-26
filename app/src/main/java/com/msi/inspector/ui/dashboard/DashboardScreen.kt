@@ -36,6 +36,8 @@ import com.msi.inspector.design.theme.MsiColors
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.AuditSummary
+import com.msi.inspector.domain.model.DeviceSecurityEvidence
+import com.msi.inspector.domain.model.EvidenceAvailability
 import com.msi.inspector.ui.state.MsiUiState
 import com.msi.inspector.ui.navigation.MsiDestination
 import java.text.DateFormat
@@ -257,6 +259,55 @@ fun DashboardScreen(
             }
         }
         MsiCard {
+            MsiSectionHeading("أمان نظام Android", "لقطة مؤشرات النظام من آخر فحص محفوظ.")
+            val device = state.deviceSecurity
+            if (device == null) {
+                Text(
+                    "لا توجد لقطة أمان للنظام في سجل الفحص بعد. ابدأ فحصًا لقراءة البيانات المتاحة.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            } else {
+                Text("إصدار Android: ${displayDeviceEvidence(device.androidRelease)}", fontSize = 12.sp)
+                Text("مستوى تصحيح الأمان: ${displayDeviceEvidence(device.securityPatch)}", fontSize = 12.sp)
+                Text("قفل الشاشة: ${displayDeviceEvidence(device.secureScreenLock)}", fontSize = 12.sp)
+                Text("تشفير التخزين: ${displayDeviceEvidence(device.storageEncryption)}", fontSize = 12.sp)
+                Text("حالة ADB: ${displayDeviceEvidence(device.adbEnabled)}", fontSize = 12.sp)
+                Text(
+                    "آخر قراءة: ${formatLocalDate(device.collectedAt)}",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 10.sp
+                )
+            }
+            OutlinedButton(
+                onClick = { onNavigate(MsiDestination.TOOLS) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("تفاصيل أمان النظام") }
+        }
+        MsiCard {
+            MsiSectionHeading("آخر الأحداث")
+            val latestEvents = state.timelineEvents.take(3)
+            if (latestEvents.isEmpty()) {
+                Text(
+                    "لا توجد أحداث مسجلة بعد. ستظهر تغيّرات الأدلة بين الفحوصات هنا.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+            } else {
+                latestEvents.forEach { event ->
+                    Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
+                        Text(event.title, fontSize = 12.sp, color = MaterialTheme.colorScheme.primary)
+                        Text(event.details, fontSize = 11.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(formatLocalDate(event.occurredAt), fontSize = 10.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            OutlinedButton(
+                onClick = { onNavigate(MsiDestination.HISTORY) },
+                modifier = Modifier.fillMaxWidth()
+            ) { Text("عرض سجل الأحداث") }
+        }
+        MsiCard {
             MsiSectionHeading("حالة اتصال الجهاز")
             Text(
                 when (state.vpnActive) {
@@ -328,6 +379,24 @@ private fun DeltaLine(label: String, delta: Int) {
         fontSize = 12.sp
     )
 }
+
+private fun displayDeviceEvidence(evidence: DeviceSecurityEvidence): String =
+    when (evidence.availability) {
+        EvidenceAvailability.UNAVAILABLE -> "غير متاح"
+        EvidenceAvailability.UNSUPPORTED -> "غير مدعوم"
+        EvidenceAvailability.ACCESS_DENIED -> "رفض Android الوصول"
+        EvidenceAvailability.ERROR -> "تعذرت القراءة"
+        EvidenceAvailability.AVAILABLE -> when (evidence.value) {
+            "enabled" -> "مفعّل"
+            "disabled" -> "غير مفعّل"
+            "active" -> "التشفير نشط"
+            "active_per_user" -> "التشفير نشط والمفتاح مرتبط بالمستخدم أو الملف الشخصي"
+            "active_default_key" -> "التشفير نشط لكن المفتاح الافتراضي غير محمي ببيانات اعتماد المستخدم"
+            "inactive" -> "غير نشط"
+            "activating" -> "جارٍ التفعيل"
+            else -> evidence.value ?: "غير متاح"
+        }
+    }
 
 private fun formatLocalDate(time: Long): String =
     DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT, Locale.getDefault())
