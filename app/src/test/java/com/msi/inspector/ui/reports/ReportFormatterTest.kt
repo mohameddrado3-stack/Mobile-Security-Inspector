@@ -24,11 +24,11 @@ class ReportFormatterTest {
     @Test
     fun csvQuotesAndEscapesValues() {
         val report = ReportFormatter.formatCsv(
-            listOf(app(label = "A, ""B""", packageName = "com.example.test")),
+            listOf(app(label = "A, \"B\"", packageName = "com.example.test")),
             1_700_000_000_000L
         )
-        assertTrue(report.contains("A, ""B"""))
-        assertTrue(report.contains(""" "com.example.test" """.trim()))
+        assertTrue(report.contains("\"A, \"\"B\"\"\""))
+        assertTrue(report.contains("\"com.example.test\""))
     }
 
     @Test
@@ -63,7 +63,7 @@ class ReportFormatterTest {
         assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
         assertTrue(textReport.contains("تعذر قراءة بيانات الحزمة"))
         assertTrue(jsonReport.contains("ACCESS_DENIED"))
-        assertTrue(jsonReport.contains("specialAccessStateAvailable"": false"))
+        assertTrue(jsonReport.contains("\"specialAccessStateAvailable\": false"))
         assertTrue(jsonReport.contains("تعذر قراءة بيانات الحزمة"))
     }
 
@@ -73,9 +73,9 @@ class ReportFormatterTest {
             listOf(app(label = "Example", packageName = "com.example")),
             null
         )
-        assertTrue(report.contains("targetSdk"": null"))
-        assertTrue(report.contains("signatureSha256"": null"))
-        assertTrue(report.contains("applicationCount"": 1"))
+        assertTrue(report.contains("\"targetSdk\": null"))
+        assertTrue(report.contains("\"signatureSha256\": null"))
+        assertTrue(report.contains("\"applicationCount\": 1"))
     }
 
     private fun app(label: String, packageName: String) = AppAudit(
