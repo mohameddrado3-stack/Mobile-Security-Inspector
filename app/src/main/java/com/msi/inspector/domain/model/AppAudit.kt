@@ -36,13 +36,16 @@ data class AppAudit(
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
 
+    val hasIncompleteEvidence: Boolean
+        get() = !packageMetadataAvailable ||
+            packageMetadataState != PackageMetadataState.AVAILABLE ||
+            unclassifiedPermissions.isNotEmpty() ||
+            !specialAccessStateAvailable
+
     val status: AuditStatus
         get() = when {
             specialAccessReasons.isNotEmpty() -> AuditStatus.REVIEW
-            !packageMetadataAvailable ||
-                packageMetadataState != PackageMetadataState.AVAILABLE ||
-                unclassifiedPermissions.isNotEmpty() ||
-                !specialAccessStateAvailable -> AuditStatus.INCOMPLETE
+            hasIncompleteEvidence -> AuditStatus.INCOMPLETE
             requestedSpecialAccess.isNotEmpty() -> AuditStatus.REQUESTED
             grantedSensitive.isNotEmpty() -> AuditStatus.SENSITIVE
             else -> AuditStatus.INFORMATIONAL
