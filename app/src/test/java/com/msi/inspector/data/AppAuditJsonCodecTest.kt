@@ -24,6 +24,7 @@ class AppAuditJsonCodecTest {
             restored.packageMetadataState
         )
         assertEquals(emptyList<String>(), restored.unclassifiedPermissions)
+        assertEquals(emptyList<String>(), restored.permissionsWithUnknownGrantState)
         assertEquals(false, restored.specialAccessStateAvailable)
         assertEquals(AuditStatus.INCOMPLETE, restored.status)
     }
@@ -50,7 +51,8 @@ class AppAuditJsonCodecTest {
             packageMetadataAvailable = false,
             packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
             unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
-            specialAccessStateAvailable = false
+            specialAccessStateAvailable = false,
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA")
         )
 
         val restored = AppAuditJsonCodec.decode(AppAuditJsonCodec.encode(listOf(application))).single()
@@ -74,6 +76,10 @@ class AppAuditJsonCodecTest {
         assertEquals(application.packageMetadataState, restored.packageMetadataState)
         assertEquals(application.unclassifiedPermissions, restored.unclassifiedPermissions)
         assertEquals(application.specialAccessStateAvailable, restored.specialAccessStateAvailable)
+        assertEquals(
+            application.permissionsWithUnknownGrantState,
+            restored.permissionsWithUnknownGrantState
+        )
         assertEquals(application.signals, restored.signals)
     }
 }
