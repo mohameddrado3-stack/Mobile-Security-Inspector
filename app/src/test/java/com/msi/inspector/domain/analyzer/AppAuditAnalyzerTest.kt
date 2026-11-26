@@ -136,6 +136,7 @@ class AppAuditAnalyzerTest {
         ).applications.single()
 
         assertEquals(AuditStatus.INCOMPLETE, result.status)
+        assertTrue(result.hasIncompleteEvidence)
         assertTrue(result.signals.any { it.contains("تعذر تحديد مستوى حساسية") })
     }
 }
