@@ -105,6 +105,47 @@ class AppAuditAnalyzerTest {
     }
 
     @Test
+    fun missingPermissionGrantFlagsAreNotReportedAsDenied() {
+        val app = CollectedAppEvidence(
+            label = "Grant state unavailable",
+            packageName = "com.example.grantstate",
+            version = "1.0",
+            installer = "Test",
+            isSystem = false,
+            permissions = listOf(
+                CollectedPermissionEvidence(
+                    "android.permission.CAMERA",
+                    granted = false,
+                    protection = PermissionProtection.DANGEROUS,
+                    grantStateKnown = false
+                )
+            ),
+            requestedSpecialAccess = emptyList(),
+            accessibilityEnabled = false,
+            deviceAdminEnabled = false,
+            lastUsedAt = null,
+            categoryLabel = null,
+            targetSdk = 35,
+            firstInstallTime = null,
+            lastUpdateTime = null,
+            signingCertificateSha256 = null,
+            packageMetadataState = PackageMetadataState.AVAILABLE
+        )
+
+        val result = AppAuditAnalyzer.analyze(
+            CollectedDeviceEvidence(listOf(app), vpnActive = null, completedAt = 100L)
+        ).applications.single()
+
+        assertTrue(result.grantedSensitive.isEmpty())
+        assertEquals(listOf("android.permission.CAMERA"), result.requestedSensitive)
+        assertEquals(listOf("android.permission.CAMERA"), result.permissionsWithUnknownGrantState)
+        assertTrue(result.hasIncompleteEvidence)
+        assertEquals(AuditStatus.INCOMPLETE, result.status)
+        assertTrue(result.signals.any { it.contains("لم تُحسب كممنوحة أو غير ممنوحة") })
+        assertFalse(result.signals.any { it.contains("غير ممنوحة حاليًا") })
+    }
+
+    @Test
     fun unknownPermissionClassificationDoesNotBecomeInformationalStatus() {
         val app = CollectedAppEvidence(
             label = "Partially classified",
