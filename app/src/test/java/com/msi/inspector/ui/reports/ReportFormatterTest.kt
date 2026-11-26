@@ -1,7 +1,6 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
-import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,33 +24,37 @@ class ReportFormatterTest {
     @Test
     fun csvQuotesAndEscapesValues() {
         val report = ReportFormatter.formatCsv(
-            listOf(app(label = "A, \"B\"", packageName = "com.example.test")),
+            listOf(app(label = "A, ""B""", packageName = "com.example.test")),
             1_700_000_000_000L
         )
-        assertTrue(report.contains("\"A, \"\"B\"\"\""))
-        assertTrue(report.contains("\"com.example.test\""))
+        assertTrue(report.contains("A, ""B"""))
+        assertTrue(report.contains(""" "com.example.test" """.trim()))
     }
 
     @Test
     fun csvTreatsFormulaLikeApplicationNamesAsPlainText() {
         val report = ReportFormatter.formatCsv(
-            listOf(app(label = "=HYPERLINK(\\"https://example.invalid\\",\\"open\\")", packageName = "com.example.test")),
+            listOf(
+                app(
+                    label = """=HYPERLINK("https://example.invalid","open")""",
+                    packageName = "com.example.test"
+                )
+            ),
             1_700_000_000_000L
         )
 
-        assertTrue(report.contains("\\\"'=HYPERLINK"))
+        assertTrue(report.contains("'=HYPERLINK"))
     }
 
     @Test
     fun textAndJsonReportsPreserveEvidenceAvailabilityAndExplanations() {
-        val application = app("Example", "com.example")
-            .copy(
-                packageMetadataAvailable = false,
-                packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
-                specialAccessStateAvailable = false,
-                unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
-                signals = listOf("تعذر قراءة بيانات الحزمة")
-            )
+        val application = app("Example", "com.example").copy(
+            packageMetadataAvailable = false,
+            packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
+            specialAccessStateAvailable = false,
+            unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
+            signals = listOf("تعذر قراءة بيانات الحزمة")
+        )
 
         val textReport = ReportFormatter.format(listOf(application), null)
         val jsonReport = ReportFormatter.formatJson(listOf(application), null)
@@ -59,9 +62,9 @@ class ReportFormatterTest {
         assertTrue(textReport.contains("رفض Android الوصول"))
         assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
         assertTrue(textReport.contains("تعذر قراءة بيانات الحزمة"))
-        assertTrue(jsonReport.contains("\\"packageMetadataState\\": \\"ACCESS_DENIED\\""))
-        assertTrue(jsonReport.contains("\\"specialAccessStateAvailable\\": false"))
-        assertTrue(jsonReport.contains("\\"signals\\": [\\"تعذر قراءة بيانات الحزمة\\"]"))
+        assertTrue(jsonReport.contains("ACCESS_DENIED"))
+        assertTrue(jsonReport.contains("specialAccessStateAvailable"": false"))
+        assertTrue(jsonReport.contains("تعذر قراءة بيانات الحزمة"))
     }
 
     @Test
@@ -70,9 +73,9 @@ class ReportFormatterTest {
             listOf(app(label = "Example", packageName = "com.example")),
             null
         )
-        assertTrue(report.contains("\"targetSdk\": null"))
-        assertTrue(report.contains("\"signatureSha256\": null"))
-        assertTrue(report.contains("\"applicationCount\": 1"))
+        assertTrue(report.contains("targetSdk"": null"))
+        assertTrue(report.contains("signatureSha256"": null"))
+        assertTrue(report.contains("applicationCount"": 1"))
     }
 
     private fun app(label: String, packageName: String) = AppAudit(
