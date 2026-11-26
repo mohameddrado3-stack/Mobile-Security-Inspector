@@ -18,6 +18,9 @@ class AppFilterTest {
         val specialAccessUnavailable = app("com.example.special").copy(
             specialAccessStateAvailable = false
         )
+        val unknownGrantState = app("com.example.grantstate").copy(
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA")
+        )
         val complete = app("com.example.complete")
 
         val result = filterApplications(
@@ -25,6 +28,7 @@ class AppFilterTest {
                 metadataDenied,
                 unknownPermission,
                 specialAccessUnavailable,
+                unknownGrantState,
                 complete
             ),
             query = "",
@@ -32,7 +36,7 @@ class AppFilterTest {
         )
 
         assertEquals(
-            listOf("com.example.denied", "com.example.permission", "com.example.special"),
+            listOf("com.example.denied", "com.example.permission", "com.example.special", "com.example.grantstate"),
             result.map { it.packageName }
         )
     }
