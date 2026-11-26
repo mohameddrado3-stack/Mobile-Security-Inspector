@@ -1,7 +1,6 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
-import com.msi.inspector.domain.model.PackageMetadataState
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -23,9 +22,6 @@ object ReportFormatter {
             report.append("التطبيق: ").append(app.label).append("\n")
             report.append("الحزمة: ").append(app.packageName).append("\n")
             report.append("الإصدار: ").append(app.version).append("\n")
-            report.append("حالة بيانات الحزمة: ").append(packageMetadataLabel(app.packageMetadataState)).append("\n")
-            report.append("حالة قراءة الوصول الخاص: ")
-                .append(if (app.specialAccessStateAvailable) "متاحة" else "غير مكتملة").append("\n")
             report.append("النوع: ").append(if (app.isSystem) "نظام" else "مثبّت").append("\n")
             report.append("مصدر التثبيت: ").append(app.installer).append("\n")
             report.append("تصنيف Android: ").append(app.categoryLabel ?: "غير محدد").append("\n")
@@ -38,8 +34,6 @@ object ReportFormatter {
             appendList(report, "إعدادات خاصة مطلوبة (غير مؤكدة التفعيل)", app.requestedSpecialAccess)
             appendList(report, "صلاحيات حساسة ممنوحة", app.grantedSensitive)
             appendList(report, "صلاحيات حساسة مطلوبة", app.requestedSensitive)
-            appendList(report, "صلاحيات تعذر تصنيفها", app.unclassifiedPermissions)
-            appendList(report, "تفسيرات وملاحظات الفحص", app.signals)
             report.append("\n")
         }
         report.append("هذا التقرير يعرض مؤشرات متاحة من Android ولا يثبت أن أي تطبيق ضار.")
@@ -53,9 +47,7 @@ object ReportFormatter {
                 "scan_time", "app_name", "package_name", "version", "installer",
                 "is_system", "target_sdk", "category", "signature_sha256",
                 "first_install", "last_update", "last_used", "active_special_access",
-                "requested_special_access", "granted_sensitive", "requested_sensitive",
-                "package_metadata_state", "special_access_state_available",
-                "unclassified_permissions", "indicator_explanations"
+                "requested_special_access", "granted_sensitive", "requested_sensitive"
             ).joinToString(",") { csv(it) }
         ).append("\n")
         applications.forEach { app ->
@@ -75,11 +67,7 @@ object ReportFormatter {
                 app.specialAccessReasons.joinToString(" | "),
                 app.requestedSpecialAccess.joinToString(" | "),
                 app.grantedSensitive.joinToString(" | "),
-                app.requestedSensitive.joinToString(" | "),
-                app.packageMetadataState.name,
-                app.specialAccessStateAvailable.toString(),
-                app.unclassifiedPermissions.joinToString(" | "),
-                app.signals.joinToString(" | ")
+                app.requestedSensitive.joinToString(" | ")
             )
             output.append(row.joinToString(",") { csv(it) }).append("\n")
         }
@@ -93,8 +81,6 @@ object ReportFormatter {
               "label": ${jsonString(app.label)},
               "packageName": ${jsonString(app.packageName)},
               "version": ${jsonString(app.version)},
-              "packageMetadataState": ${jsonString(app.packageMetadataState.name)},
-              "specialAccessStateAvailable": ${app.specialAccessStateAvailable},
               "installer": ${jsonString(app.installer)},
               "isSystem": ${app.isSystem},
               "targetSdk": ${app.targetSdk?.toString() ?: "null"},
@@ -106,9 +92,7 @@ object ReportFormatter {
               "activeSpecialAccess": ${jsonArray(app.specialAccessReasons)},
               "requestedSpecialAccess": ${jsonArray(app.requestedSpecialAccess)},
               "grantedSensitive": ${jsonArray(app.grantedSensitive)},
-              "requestedSensitive": ${jsonArray(app.requestedSensitive)},
-              "unclassifiedPermissions": ${jsonArray(app.unclassifiedPermissions)},
-              "signals": ${jsonArray(app.signals)}
+              "requestedSensitive": ${jsonArray(app.requestedSensitive)}
             }
             """.trimIndent()
         }
@@ -156,21 +140,8 @@ object ReportFormatter {
             .append("\n")
     }
 
-    private fun packageMetadataLabel(state: PackageMetadataState): String = when (state) {
-        PackageMetadataState.AVAILABLE -> "متاحة"
-        PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE -> "غير موجودة أو غير ظاهرة"
-        PackageMetadataState.ACCESS_DENIED -> "رفض Android الوصول"
-        PackageMetadataState.ERROR -> "خطأ أثناء القراءة"
-    }
-
-    private fun csv(value: String): String {
-        val normalized = value.replace("\r", " ").replace("\n", " ")
-        val formulaLike = normalized.trimStart().firstOrNull()?.let {
-            it == '=' || it == '+' || it == '-' || it == '@'
-        } == true
-        val safeValue = if (formulaLike) "'$normalized" else normalized
-        return "\"" + safeValue.replace("\"", "\"\"") + "\""
-    }
+    private fun csv(value: String): String =
+        "\"" + value.replace("\"", "\"\"").replace("\r", " ").replace("\n", " ") + "\""
 
     private fun formatDate(value: Long?): String =
         value?.let {
