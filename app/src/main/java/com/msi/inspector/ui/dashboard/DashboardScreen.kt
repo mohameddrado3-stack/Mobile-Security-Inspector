@@ -263,7 +263,7 @@ fun DashboardScreen(
                 Text("مستوى تصحيح الأمان: ${displayDeviceEvidence(device.securityPatch)}", fontSize = 12.sp)
                 Text("قفل الشاشة: ${displayDeviceEvidence(device.secureScreenLock)}", fontSize = 12.sp)
                 Text("تشفير التخزين: ${displayDeviceEvidence(device.storageEncryption)}", fontSize = 12.sp)
-                Text("تصحيح USB (ADB): ${displayDeviceEvidence(device.adbEnabled)}", fontSize = 12.sp)
+                Text("حالة ADB: ${displayDeviceEvidence(device.adbEnabled)}", fontSize = 12.sp)
                 Text(
                     "آخر قراءة: ${formatLocalDate(device.collectedAt)}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
