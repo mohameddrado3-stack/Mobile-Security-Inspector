@@ -1,6 +1,8 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.AuditStatus
+import com.msi.inspector.domain.model.PackageMetadataState
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -16,7 +18,9 @@ object ReportFormatter {
         report.append("إعدادات وصول خاصة نشطة: ").append(applications.count { it.needsReview }).append("\n")
         report.append("طلبات وصول خاص: ").append(applications.count { it.requestedSpecialAccess.isNotEmpty() }).append("\n")
         report.append("تطبيقات بصلاحيات حساسة ممنوحة: ")
-            .append(applications.count { it.grantedSensitive.isNotEmpty() }).append("\n\n")
+            .append(applications.count { it.grantedSensitive.isNotEmpty() }).append("\n")
+        report.append("تطبيقات ببيانات فحص غير مكتملة: ")
+            .append(applications.count { it.status == AuditStatus.INCOMPLETE }).append("\n\n")
 
         applications.forEach { app ->
             report.append("التطبيق: ").append(app.label).append("\n")
@@ -24,6 +28,9 @@ object ReportFormatter {
             report.append("الإصدار: ").append(app.version).append("\n")
             report.append("النوع: ").append(if (app.isSystem) "نظام" else "مثبّت").append("\n")
             report.append("مصدر التثبيت: ").append(app.installer).append("\n")
+            report.append("حالة بيانات الحزمة: ").append(packageMetadataLabel(app.packageMetadataState)).append("\n")
+            report.append("التحقق من الوصول الخاص: ")
+                .append(if (app.specialAccessStateAvailable) "متاح" else "غير مكتمل").append("\n")
             report.append("تصنيف Android: ").append(app.categoryLabel ?: "غير محدد").append("\n")
             report.append("Target SDK: ").append(app.targetSdk ?: "غير متاح").append("\n")
             report.append("SHA-256 للشهادة: ").append(app.signingCertificateSha256 ?: "غير متاح").append("\n")
@@ -34,6 +41,8 @@ object ReportFormatter {
             appendList(report, "إعدادات خاصة مطلوبة (غير مؤكدة التفعيل)", app.requestedSpecialAccess)
             appendList(report, "صلاحيات حساسة ممنوحة", app.grantedSensitive)
             appendList(report, "صلاحيات حساسة مطلوبة", app.requestedSensitive)
+            appendList(report, "صلاحيات غير مصنفة", app.unclassifiedPermissions)
+            appendList(report, "ملاحظات وحدود الفحص", app.signals)
             report.append("\n")
         }
         report.append("هذا التقرير يعرض مؤشرات متاحة من Android ولا يثبت أن أي تطبيق ضار.")
@@ -45,7 +54,8 @@ object ReportFormatter {
         output.append(
             listOf(
                 "scan_time", "app_name", "package_name", "version", "installer",
-                "is_system", "target_sdk", "category", "signature_sha256",
+                "is_system", "package_metadata_state", "special_access_evidence_available",
+                "unclassified_permissions", "signals", "target_sdk", "category", "signature_sha256",
                 "first_install", "last_update", "last_used", "active_special_access",
                 "requested_special_access", "granted_sensitive", "requested_sensitive"
             ).joinToString(",") { csv(it) }
@@ -58,6 +68,10 @@ object ReportFormatter {
                 app.version,
                 app.installer,
                 app.isSystem.toString(),
+                app.packageMetadataState.name,
+                app.specialAccessStateAvailable.toString(),
+                app.unclassifiedPermissions.joinToString(" | "),
+                app.signals.joinToString(" | "),
                 app.targetSdk?.toString().orEmpty(),
                 app.categoryLabel.orEmpty(),
                 app.signingCertificateSha256.orEmpty(),
@@ -83,6 +97,11 @@ object ReportFormatter {
               "version": ${jsonString(app.version)},
               "installer": ${jsonString(app.installer)},
               "isSystem": ${app.isSystem},
+              "packageMetadataAvailable": ${app.packageMetadataAvailable},
+              "packageMetadataState": ${jsonString(app.packageMetadataState.name)},
+              "specialAccessStateAvailable": ${app.specialAccessStateAvailable},
+              "unclassifiedPermissions": ${jsonArray(app.unclassifiedPermissions)},
+              "signals": ${jsonArray(app.signals)},
               "targetSdk": ${app.targetSdk?.toString() ?: "null"},
               "category": ${app.categoryLabel?.let(::jsonString) ?: "null"},
               "signatureSha256": ${app.signingCertificateSha256?.let(::jsonString) ?: "null"},
@@ -101,12 +120,20 @@ object ReportFormatter {
           "product": "MSI",
           "scanTime": ${scannedAt?.toString() ?: "null"},
           "applicationCount": ${applications.size},
+          "incompleteEvidenceCount": ${applications.count { it.status == AuditStatus.INCOMPLETE }},
           "applications": [
         ${rows.prependIndent("    ")}
           ],
           "disclaimer": "Indicators only; not a malware verdict."
         }
         """.trimIndent()
+    }
+
+    private fun packageMetadataLabel(state: PackageMetadataState): String = when (state) {
+        PackageMetadataState.AVAILABLE -> "متاحة"
+        PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE -> "غير متاحة أو غير ظاهرة"
+        PackageMetadataState.ACCESS_DENIED -> "رفض Android الوصول"
+        PackageMetadataState.ERROR -> "تعذرت القراءة بسبب خطأ"
     }
 
     private fun jsonArray(values: List<String>): String =
