@@ -20,6 +20,9 @@ class AuditSummaryTest {
             app("com.example.special").copy(
                 specialAccessStateAvailable = false
             ),
+            app("com.example.grantstate").copy(
+                permissionsWithUnknownGrantState = listOf("android.permission.CAMERA")
+            ),
             app("com.example.active").copy(
                 specialAccessReasons = listOf("Accessibility enabled"),
                 specialAccessStateAvailable = false
@@ -28,8 +31,8 @@ class AuditSummaryTest {
 
         val summary = AuditSummary.from(applications)
 
-        assertEquals(5, summary.totalApplications)
-        assertEquals(4, summary.applicationsWithIncompleteEvidence)
+        assertEquals(6, summary.totalApplications)
+        assertEquals(5, summary.applicationsWithIncompleteEvidence)
         assertEquals(1, summary.activeSpecialAccess)
     }
 
