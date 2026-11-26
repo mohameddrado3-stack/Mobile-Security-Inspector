@@ -140,7 +140,7 @@ fun ApplicationDetailsDialog(
                 Text("صلاحيات تعذّر التحقق من حالة منحها", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.permissionsWithUnknownGrantState.ifEmpty {
-                        listOf("تم التحقق من حالة المنح لكل الصلاحيات المدرجة.")
+                        listOf("لا توجد صلاحيات بحالة منح مجهولة ضمن قائمة الصلاحيات التي أمكن قراءتها.")
                     }.joinToString("\n"),
                     fontSize = 10.sp,
                     color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
