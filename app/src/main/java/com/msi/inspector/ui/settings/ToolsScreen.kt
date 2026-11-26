@@ -309,6 +309,8 @@ private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
             "enabled" -> "مفعّل"
             "disabled" -> "غير مفعّل"
             "active" -> "مشفّر ونشط"
+            "active_per_user" -> "مشفّر؛ المفتاح مرتبط بالمستخدم أو الملف الشخصي"
+            "active_default_key" -> "التشفير نشط لكن المفتاح الافتراضي غير محمي ببيانات اعتماد المستخدم"
             "inactive" -> "غير نشط"
             "activating" -> "جارٍ التفعيل"
             "unsupported" -> "غير مدعوم"
