@@ -39,6 +39,10 @@ data class AppAudit(
     val status: AuditStatus
         get() = when {
             specialAccessReasons.isNotEmpty() -> AuditStatus.REVIEW
+            !packageMetadataAvailable ||
+                packageMetadataState != PackageMetadataState.AVAILABLE ||
+                unclassifiedPermissions.isNotEmpty() ||
+                !specialAccessStateAvailable -> AuditStatus.INCOMPLETE
             requestedSpecialAccess.isNotEmpty() -> AuditStatus.REQUESTED
             grantedSensitive.isNotEmpty() -> AuditStatus.SENSITIVE
             else -> AuditStatus.INFORMATIONAL
@@ -49,7 +53,8 @@ enum class AuditStatus {
     REVIEW,
     REQUESTED,
     SENSITIVE,
-    INFORMATIONAL
+    INFORMATIONAL,
+    INCOMPLETE
 }
 
 data class ScanSnapshot(
