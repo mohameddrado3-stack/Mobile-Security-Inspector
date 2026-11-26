@@ -89,7 +89,7 @@ object TimelineEventDetector {
             addKnownChange("مستوى تصحيح الأمان", previousSecurity.securityPatch, currentSecurity.securityPatch, securityChanges)
             addKnownChange("قفل الشاشة الآمن", previousSecurity.secureScreenLock, currentSecurity.secureScreenLock, securityChanges)
             addKnownChange("تشفير التخزين", previousSecurity.storageEncryption, currentSecurity.storageEncryption, securityChanges)
-            addKnownChange("تصحيح USB (ADB)", previousSecurity.adbEnabled, currentSecurity.adbEnabled, securityChanges)
+            addKnownChange("حالة ADB", previousSecurity.adbEnabled, currentSecurity.adbEnabled, securityChanges)
             addKnownChange("خيارات المطوّر", previousSecurity.developerOptionsEnabled, currentSecurity.developerOptionsEnabled, securityChanges)
             if (securityChanges.isNotEmpty()) {
                 events += TimelineEvent(
