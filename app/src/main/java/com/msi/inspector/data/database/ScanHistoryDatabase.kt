@@ -118,8 +118,10 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     fun recentTimelineEvents(limit: Int = 500): List<TimelineEvent> {
+        val database = writableDatabase
+        trimTimelineEvents(database)
         val events = ArrayList<TimelineEvent>()
-        readableDatabase.query(
+        database.query(
             "timeline_events",
             arrayOf("id", "occurred_at", "event_type", "package_name", "app_label", "title", "details"),
             null, null, null, null, "occurred_at DESC, id DESC",
@@ -143,8 +145,10 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     fun recent(limit: Int = 50): List<ScanHistoryEntry> {
+        val database = writableDatabase
+        trimScanHistory(database)
         val entries = ArrayList<ScanHistoryEntry>()
-        readableDatabase.query(
+        database.query(
             "scan_history",
             arrayOf("id", "scanned_at", "total_applications", "active_special_access",
                 "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json",
