@@ -10,6 +10,7 @@ enum class AppFilter(val title: String) {
     ACTIVE_SPECIAL("وصول خاص نشط"),
     REQUESTED_SPECIAL("طلبات وصول خاص"),
     SENSITIVE("صلاحيات حساسة"),
+    INCOMPLETE("بيانات غير مكتملة"),
     TRUSTED("موثوق لدي"),
     IGNORED("متجاهل")
 }
@@ -30,6 +31,7 @@ fun filterApplications(
             AppFilter.ACTIVE_SPECIAL -> app.specialAccessReasons.isNotEmpty()
             AppFilter.REQUESTED_SPECIAL -> app.requestedSpecialAccess.isNotEmpty()
             AppFilter.SENSITIVE -> app.grantedSensitive.isNotEmpty()
+            AppFilter.INCOMPLETE -> app.hasIncompleteEvidence
             AppFilter.TRUSTED -> app.packageName in trustedPackages
             AppFilter.IGNORED -> app.packageName in ignoredPackages
         }
