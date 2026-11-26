@@ -122,7 +122,7 @@ jobs:
       - name: Upload debug and unsigned release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-security-inspector-v0.7.0-verification
+          name: mobile-security-inspector-v0.8.0-verification
           path: |
             app/build/outputs/apk/debug/app-debug.apk
             app/build/outputs/apk/release/app-release-unsigned.apk
