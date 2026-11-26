@@ -1,6 +1,7 @@
 package com.msi.inspector.domain.analyzer
 
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.AuditStatus
 import com.msi.inspector.domain.model.CollectedAppEvidence
 import com.msi.inspector.domain.model.CollectedDeviceEvidence
 import com.msi.inspector.domain.model.PackageMetadataState
@@ -20,6 +21,7 @@ object AppAuditAnalyzer {
             .map { analyzeApplication(it, evidence.completedAt) }
             .sortedWith(
                 compareByDescending<AppAudit> { it.specialAccessReasons.isNotEmpty() }
+                    .thenByDescending { it.status == AuditStatus.INCOMPLETE }
                     .thenByDescending { it.requestedSpecialAccess.isNotEmpty() }
                     .thenByDescending { it.grantedSensitive.size }
                     .thenBy { it.label.lowercase(Locale.ROOT) }
