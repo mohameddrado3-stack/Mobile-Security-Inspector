@@ -1,7 +1,6 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
-import com.msi.inspector.domain.model.AuditStatus
 import com.msi.inspector.domain.model.PackageMetadataState
 import java.text.DateFormat
 import java.util.Date
@@ -20,7 +19,7 @@ object ReportFormatter {
         report.append("تطبيقات بصلاحيات حساسة ممنوحة: ")
             .append(applications.count { it.grantedSensitive.isNotEmpty() }).append("\n")
         report.append("تطبيقات ببيانات فحص غير مكتملة: ")
-            .append(applications.count { it.status == AuditStatus.INCOMPLETE }).append("\n\n")
+            .append(applications.count { it.hasIncompleteEvidence }).append("\n\n")
 
         applications.forEach { app ->
             report.append("التطبيق: ").append(app.label).append("\n")
@@ -120,7 +119,7 @@ object ReportFormatter {
           "product": "MSI",
           "scanTime": ${scannedAt?.toString() ?: "null"},
           "applicationCount": ${applications.size},
-          "incompleteEvidenceCount": ${applications.count { it.status == AuditStatus.INCOMPLETE }},
+          "incompleteEvidenceCount": ${applications.count { it.hasIncompleteEvidence }},
           "applications": [
         ${rows.prependIndent("    ")}
           ],
