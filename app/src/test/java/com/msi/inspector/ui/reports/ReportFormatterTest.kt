@@ -1,6 +1,7 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.AuditStatus
 import com.msi.inspector.domain.model.PackageMetadataState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -56,11 +57,19 @@ class ReportFormatterTest {
                 "تعذر تحديد مستوى حساسية صلاحية واحدة."
             )
         )
-        val textReport = ReportFormatter.format(listOf(incomplete), 1_700_000_000_000L)
-        val csvReport = ReportFormatter.formatCsv(listOf(incomplete), 1_700_000_000_000L)
-        val jsonReport = ReportFormatter.formatJson(listOf(incomplete), 1_700_000_000_000L)
+        val activeWithPartialEvidence = incomplete.copy(
+            label = "Active and incomplete",
+            packageName = "com.example.active.partial",
+            specialAccessReasons = listOf("Accessibility enabled")
+        )
+        assertEquals(AuditStatus.REVIEW, activeWithPartialEvidence.status)
 
-        assertTrue(textReport.contains("تطبيقات ببيانات فحص غير مكتملة: 1"))
+        val applications = listOf(incomplete, activeWithPartialEvidence)
+        val textReport = ReportFormatter.format(applications, 1_700_000_000_000L)
+        val csvReport = ReportFormatter.formatCsv(applications, 1_700_000_000_000L)
+        val jsonReport = ReportFormatter.formatJson(applications, 1_700_000_000_000L)
+
+        assertTrue(textReport.contains("تطبيقات ببيانات فحص غير مكتملة: 2"))
         assertTrue(textReport.contains("حالة بيانات الحزمة: رفض Android الوصول"))
         assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
         assertTrue(textReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
@@ -70,7 +79,7 @@ class ReportFormatterTest {
         assertTrue(csvReport.contains("vendor.permission.UNKNOWN"))
         assertTrue(csvReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
 
-        assertTrue(jsonReport.contains("\"incompleteEvidenceCount\": 1"))
+        assertTrue(jsonReport.contains("\"incompleteEvidenceCount\": 2"))
         assertTrue(jsonReport.contains("\"packageMetadataState\": \"ACCESS_DENIED\""))
         assertTrue(jsonReport.contains("\"specialAccessStateAvailable\": false"))
         assertTrue(jsonReport.contains("\"unclassifiedPermissions\": [\"vendor.permission.UNKNOWN\"]"))
