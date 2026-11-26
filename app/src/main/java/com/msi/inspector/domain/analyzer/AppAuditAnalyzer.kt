@@ -49,7 +49,6 @@ object AppAuditAnalyzer {
         val unknownGrantState = requested
             .filter { !it.grantStateKnown }
             .map { it.name }
-            .map { it.name }
         val categories = grantedSensitive.mapNotNull(PermissionAnalyzer::categoryFor).distinct()
         val specialAccessStateAvailable =
             evidence.accessibilityEnabled != null && evidence.deviceAdminEnabled != null
