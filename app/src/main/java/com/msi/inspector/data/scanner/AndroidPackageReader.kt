@@ -6,30 +6,46 @@ import android.content.pm.PackageInfo
 import android.content.pm.PackageManager
 import android.content.pm.PermissionInfo
 import android.os.Build
+import com.msi.inspector.domain.model.PackageMetadataState
 import java.security.MessageDigest
+
+data class PackageInfoReadResult(
+    val packageInfo: PackageInfo?,
+    val state: PackageMetadataState
+)
 
 class AndroidPackageReader(context: Context) {
     private val packageManager = context.applicationContext.packageManager
-    private val dangerousPermissionCache = HashMap<String, Boolean>()
+    private val dangerousPermissionCache = HashMap<String, Boolean?>()
 
     @Suppress("DEPRECATION")
     fun installedApplications(): List<ApplicationInfo> =
         packageManager.getInstalledApplications(PackageManager.GET_META_DATA)
 
     @Suppress("DEPRECATION")
-    fun packageInfo(packageName: String): PackageInfo? {
+    fun readPackageInfo(packageName: String): PackageInfoReadResult {
+        val flags = PackageManager.GET_PERMISSIONS or
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                PackageManager.GET_SIGNING_CERTIFICATES
+            } else {
+                PackageManager.GET_SIGNATURES
+            }
         return try {
-            val flags = PackageManager.GET_PERMISSIONS or
-                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                    PackageManager.GET_SIGNING_CERTIFICATES
-                } else {
-                    PackageManager.GET_SIGNATURES
-                }
-            packageManager.getPackageInfo(packageName, flags)
+            PackageInfoReadResult(
+                packageInfo = packageManager.getPackageInfo(packageName, flags),
+                state = PackageMetadataState.AVAILABLE
+            )
+        } catch (_: PackageManager.NameNotFoundException) {
+            PackageInfoReadResult(null, PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE)
+        } catch (_: SecurityException) {
+            PackageInfoReadResult(null, PackageMetadataState.ACCESS_DENIED)
         } catch (_: Exception) {
-            null
+            PackageInfoReadResult(null, PackageMetadataState.ERROR)
         }
     }
+
+    @Suppress("DEPRECATION")
+    fun packageInfo(packageName: String): PackageInfo? = readPackageInfo(packageName).packageInfo
 
     fun applicationLabel(applicationInfo: ApplicationInfo): String =
         try {
@@ -70,15 +86,19 @@ class AndroidPackageReader(context: Context) {
     }
 
     @Suppress("DEPRECATION")
-    fun isDangerousPermission(permission: String): Boolean {
-        return dangerousPermissionCache.getOrPut(permission) {
-            try {
-                val info = packageManager.getPermissionInfo(permission, 0)
-                (info.protectionLevel and PermissionInfo.PROTECTION_DANGEROUS) != 0
-            } catch (_: Exception) {
-                false
-            }
+    @Synchronized
+    fun isDangerousPermission(permission: String): Boolean? {
+        if (dangerousPermissionCache.containsKey(permission)) {
+            return dangerousPermissionCache[permission]
         }
+        val result = try {
+            val info = packageManager.getPermissionInfo(permission, 0)
+            (info.protectionLevel and PermissionInfo.PROTECTION_DANGEROUS) != 0
+        } catch (_: Exception) {
+            null
+        }
+        dangerousPermissionCache[permission] = result
+        return result
     }
 
     fun installerLabel(packageName: String): String {

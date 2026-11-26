@@ -2,6 +2,7 @@ package com.msi.inspector.data
 
 import com.msi.inspector.data.serialization.AppAuditJsonCodec
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.AuditStatus
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -11,6 +12,23 @@ import org.robolectric.annotation.Config
 @RunWith(RobolectricTestRunner::class)
 @Config(sdk = [35])
 class AppAuditJsonCodecTest {
+    @Test
+    fun decodingOlderHistoryWithoutEvidenceFieldsUsesCompatibleDefaults() {
+        val restored = AppAuditJsonCodec.decode(
+            """[{"label":"Old app","packageName":"com.example.old","version":"1.0"}]"""
+        ).single()
+
+        assertEquals(true, restored.packageMetadataAvailable)
+        assertEquals(
+            com.msi.inspector.domain.model.PackageMetadataState.AVAILABLE,
+            restored.packageMetadataState
+        )
+        assertEquals(emptyList<String>(), restored.unclassifiedPermissions)
+        assertEquals(emptyList<String>(), restored.permissionsWithUnknownGrantState)
+        assertEquals(false, restored.specialAccessStateAvailable)
+        assertEquals(AuditStatus.INCOMPLETE, restored.status)
+    }
+
     @Test
     fun roundTripPreservesPersistedApplicationEvidence() {
         val application = AppAudit(
@@ -30,7 +48,11 @@ class AppAuditJsonCodecTest {
             signingCertificateSha256 = "ABCD",
             categoryLabel = "Productivity",
             lastUsedAt = 300L,
-            packageMetadataAvailable = true
+            packageMetadataAvailable = false,
+            packageMetadataState = com.msi.inspector.domain.model.PackageMetadataState.ACCESS_DENIED,
+            unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
+            specialAccessStateAvailable = false,
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA")
         )
 
         val restored = AppAuditJsonCodec.decode(AppAuditJsonCodec.encode(listOf(application))).single()
@@ -51,6 +73,13 @@ class AppAuditJsonCodecTest {
         assertEquals(application.categoryLabel, restored.categoryLabel)
         assertEquals(application.lastUsedAt, restored.lastUsedAt)
         assertEquals(application.packageMetadataAvailable, restored.packageMetadataAvailable)
-        assertEquals(emptyList<String>(), restored.signals)
+        assertEquals(application.packageMetadataState, restored.packageMetadataState)
+        assertEquals(application.unclassifiedPermissions, restored.unclassifiedPermissions)
+        assertEquals(application.specialAccessStateAvailable, restored.specialAccessStateAvailable)
+        assertEquals(
+            application.permissionsWithUnknownGrantState,
+            restored.permissionsWithUnknownGrantState
+        )
+        assertEquals(application.signals, restored.signals)
     }
 }

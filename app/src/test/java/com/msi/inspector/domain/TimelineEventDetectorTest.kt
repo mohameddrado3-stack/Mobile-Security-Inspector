@@ -1,6 +1,9 @@
 package com.msi.inspector.domain
 
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.DeviceSecurityEvidence
+import com.msi.inspector.domain.model.DeviceSecuritySnapshot
+import com.msi.inspector.domain.model.EvidenceAvailability
 import com.msi.inspector.domain.model.ScanSnapshot
 import com.msi.inspector.domain.timeline.TimelineEventDetector
 import com.msi.inspector.domain.timeline.TimelineEventType
@@ -103,6 +106,76 @@ class TimelineEventDetectorTest {
         )
         assertFalse(events.any { it.type == TimelineEventType.VPN_STATE_CHANGED })
     }
+
+    @Test fun unavailableSpecialAccessEvidenceDoesNotCreateFalseChange() {
+        val previous = snapshot(listOf(app())).copy(
+            applications = listOf(app().copy(
+                specialAccessReasons = listOf("Accessibility enabled"),
+                specialAccessStateAvailable = true
+            ))
+        )
+        val current = snapshot(listOf(app()), 2_000L).copy(
+            applications = listOf(app().copy(
+                specialAccessReasons = emptyList(),
+                specialAccessStateAvailable = false
+            ))
+        )
+        val events = TimelineEventDetector.detect(previous, current)
+        assertFalse(events.any { it.type == TimelineEventType.SPECIAL_ACCESS_CHANGED })
+    }
+
+
+    @Test fun recordsSystemSecurityChangesOnlyWhenBothSourcesAreAvailable() {
+        val previousSecurity = deviceSecurity(
+            lock = DeviceSecurityEvidence("disabled", EvidenceAvailability.AVAILABLE),
+            patch = DeviceSecurityEvidence("2026-09-01", EvidenceAvailability.AVAILABLE),
+            adb = DeviceSecurityEvidence("enabled", EvidenceAvailability.AVAILABLE)
+        )
+        val currentSecurity = deviceSecurity(
+            lock = DeviceSecurityEvidence("enabled", EvidenceAvailability.AVAILABLE),
+            patch = DeviceSecurityEvidence("2026-10-01", EvidenceAvailability.AVAILABLE),
+            adb = DeviceSecurityEvidence("disabled", EvidenceAvailability.AVAILABLE)
+        )
+        val events = TimelineEventDetector.detect(
+            snapshot().copy(deviceSecurity = previousSecurity),
+            snapshot(at = 2_000L).copy(deviceSecurity = currentSecurity)
+        )
+
+        val event = events.single { it.type == TimelineEventType.DEVICE_SECURITY_CHANGED }
+        assertTrue(event.details.contains("قفل الشاشة الآمن"))
+        assertTrue(event.details.contains("مستوى تصحيح الأمان"))
+        assertTrue(event.details.contains("حالة ADB"))
+    }
+
+    @Test fun unavailableSystemSecurityEvidenceDoesNotCreateFalseChange() {
+        val previousSecurity = deviceSecurity(
+            lock = DeviceSecurityEvidence(null, EvidenceAvailability.UNAVAILABLE)
+        )
+        val currentSecurity = deviceSecurity(
+            lock = DeviceSecurityEvidence("enabled", EvidenceAvailability.AVAILABLE)
+        )
+        val events = TimelineEventDetector.detect(
+            snapshot().copy(deviceSecurity = previousSecurity),
+            snapshot(at = 2_000L).copy(deviceSecurity = currentSecurity)
+        )
+
+        assertFalse(events.any { it.type == TimelineEventType.DEVICE_SECURITY_CHANGED })
+    }
+
+    private fun deviceSecurity(
+        lock: DeviceSecurityEvidence = DeviceSecurityEvidence("enabled", EvidenceAvailability.AVAILABLE),
+        patch: DeviceSecurityEvidence = DeviceSecurityEvidence("2026-09-01", EvidenceAvailability.AVAILABLE),
+        adb: DeviceSecurityEvidence = DeviceSecurityEvidence("disabled", EvidenceAvailability.AVAILABLE)
+    ) = DeviceSecuritySnapshot(
+        androidRelease = DeviceSecurityEvidence("16", EvidenceAvailability.AVAILABLE),
+        apiLevel = DeviceSecurityEvidence("36", EvidenceAvailability.AVAILABLE),
+        securityPatch = patch,
+        secureScreenLock = lock,
+        storageEncryption = DeviceSecurityEvidence("active", EvidenceAvailability.AVAILABLE),
+        adbEnabled = adb,
+        developerOptionsEnabled = DeviceSecurityEvidence("disabled", EvidenceAvailability.AVAILABLE),
+        collectedAt = 1_000L
+    )
 
     @Test fun detectsRemovedSensitivePermissionAndVpnTransition() {
         val events = TimelineEventDetector.detect(

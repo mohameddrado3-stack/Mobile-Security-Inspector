@@ -68,9 +68,10 @@ class ScanHistoryDatabaseTest {
             null
         ).use { it.moveToFirst() }
 
-        assertEquals(4, database.version)
+        assertEquals(5, database.version)
         assertEquals(listOf(-1, 1), values)
         assertTrue("applications_json" in columns)
+        assertTrue("device_security_json" in columns)
         assertTrue(timelineExists)
         assertEquals(2L, database.rawQuery(
             "SELECT COUNT(*) FROM scan_history",
@@ -158,6 +159,207 @@ class ScanHistoryDatabaseTest {
 
         assertEquals(0L, scanCount)
         assertEquals(0L, eventCount)
+        helper.close()
+    }
+
+
+    @Test
+    fun keepsOnlyTenRecentSessionsWithinTheRetentionWindow() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+
+        repeat(12) { index ->
+            helper.save(
+                ScanSnapshot(
+                    applications = emptyList(),
+                    vpnActive = null,
+                    completedAt = now - index * day
+                )
+            )
+        }
+
+        val retained = helper.recent(50)
+        assertEquals(10, retained.size)
+        assertEquals(now, retained.first().scannedAt)
+        assertTrue(retained.last().scannedAt >= now - 9L * day)
+        helper.close()
+    }
+
+    @Test
+    fun keepsTheLatestScanAsBaselineEvenWhenItIsOlderThanThirtyDays() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val oldBaselineAt = System.currentTimeMillis() - 45L * 24L * 60L * 60L * 1000L
+
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = oldBaselineAt
+            )
+        )
+
+        val retained = helper.recent()
+        assertEquals(1, retained.size)
+        assertEquals(oldBaselineAt, retained.single().scannedAt)
+        helper.close()
+    }
+
+    @Test
+    fun removesExpiredScanSessionsWhenANewerBaselineExists() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val thirtyOneDays = 31L * 24L * 60L * 60L * 1000L
+
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = now - thirtyOneDays
+            )
+        )
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = now
+            )
+        )
+
+        val retained = helper.recent(50)
+        assertEquals(1, retained.size)
+        assertEquals(now, retained.single().scannedAt)
+        helper.close()
+    }
+
+    @Test
+    fun removesTimelineEventsOlderThanThirtyDays() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+
+        fun event(at: Long, title: String) = TimelineEvent(
+            occurredAt = at,
+            type = TimelineEventType.APP_ADDED,
+            packageName = "com.example.app",
+            appLabel = "Example",
+            title = title,
+            details = title
+        )
+
+        helper.saveTimelineEvents(
+            listOf(
+                event(now - 31L * day, "Expired"),
+                event(now - 29L * day, "Retained")
+            )
+        )
+
+        val retained = helper.recentTimelineEvents(500)
+        assertEquals(1, retained.size)
+        assertEquals("Retained", retained.single().title)
+        helper.close()
+    }
+
+    @Test
+    fun retainsNoMoreThanFiveHundredNewestTimelineEvents() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val events = (0 until 510).map { index ->
+            TimelineEvent(
+                occurredAt = now - index * 1_000L,
+                type = TimelineEventType.APP_ADDED,
+                packageName = "com.example.app",
+                appLabel = "Example",
+                title = "Event $index",
+                details = "Event $index"
+            )
+        }
+
+        helper.saveTimelineEvents(events)
+
+        val retained = helper.recentTimelineEvents(500)
+        assertEquals(500, retained.size)
+        assertEquals(now, retained.first().occurredAt)
+        assertEquals(now - 499_000L, retained.last().occurredAt)
+        helper.close()
+    }
+
+    @Test
+    fun prunesExpiredScanSessionsWhenHistoryIsRead() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+        val latestBaseline = now - day
+
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = latestBaseline
+            )
+        )
+        helper.writableDatabase.execSQL(
+            """
+            INSERT INTO scan_history (
+                id, scanned_at, total_applications, active_special_access,
+                requested_special_access, sensitive_permissions, vpn_active,
+                applications_json, device_security_json
+            ) VALUES (999, ?, 0, 0, 0, 0, -1, '[]', 'null')
+            """.trimIndent(),
+            arrayOf(now - 31L * day)
+        )
+
+        val retained = helper.recent(50)
+        assertEquals(1, retained.size)
+        assertEquals(latestBaseline, retained.single().scannedAt)
+        helper.close()
+    }
+
+    @Test
+    fun prunesExpiredTimelineEventsWhenTimelineIsRead() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val database = helper.writableDatabase
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+
+        fun insertEvent(at: Long, title: String) {
+            database.execSQL(
+                """
+                INSERT INTO timeline_events (
+                    occurred_at, event_type, package_name, app_label, title, details
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+                arrayOf(
+                    at,
+                    TimelineEventType.APP_ADDED.name,
+                    "com.example.app",
+                    "Example",
+                    title,
+                    title
+                )
+            )
+        }
+
+        insertEvent(now - 31L * day, "Expired")
+        insertEvent(now - 29L * day, "Retained")
+
+        val retained = helper.recentTimelineEvents(500)
+        assertEquals(1, retained.size)
+        assertEquals("Retained", retained.single().title)
         helper.close()
     }
 

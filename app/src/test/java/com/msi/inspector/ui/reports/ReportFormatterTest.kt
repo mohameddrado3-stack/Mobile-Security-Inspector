@@ -1,6 +1,8 @@
 package com.msi.inspector.ui.reports
 
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.AuditStatus
+import com.msi.inspector.domain.model.PackageMetadataState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -41,6 +43,51 @@ class ReportFormatterTest {
         assertTrue(report.contains("\"targetSdk\": null"))
         assertTrue(report.contains("\"signatureSha256\": null"))
         assertTrue(report.contains("\"applicationCount\": 1"))
+    }
+
+    @Test
+    fun allExportFormatsPreserveIncompleteEvidenceAndUnknownPermissions() {
+        val incomplete = app("Limited", "com.example.limited").copy(
+            packageMetadataAvailable = false,
+            packageMetadataState = PackageMetadataState.ACCESS_DENIED,
+            unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA"),
+            specialAccessStateAvailable = false,
+            signals = listOf(
+                "رفض Android الوصول إلى بيانات هذه الحزمة.",
+                "تعذر تحديد مستوى حساسية صلاحية واحدة."
+            )
+        )
+        val activeWithPartialEvidence = incomplete.copy(
+            label = "Active and incomplete",
+            packageName = "com.example.active.partial",
+            specialAccessReasons = listOf("Accessibility enabled")
+        )
+        assertEquals(AuditStatus.REVIEW, activeWithPartialEvidence.status)
+
+        val applications = listOf(incomplete, activeWithPartialEvidence)
+        val textReport = ReportFormatter.format(applications, 1_700_000_000_000L)
+        val csvReport = ReportFormatter.formatCsv(applications, 1_700_000_000_000L)
+        val jsonReport = ReportFormatter.formatJson(applications, 1_700_000_000_000L)
+
+        assertTrue(textReport.contains("تطبيقات ببيانات فحص غير مكتملة: 2"))
+        assertTrue(textReport.contains("حالة بيانات الحزمة: رفض Android الوصول"))
+        assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
+        assertTrue(textReport.contains("صلاحيات تعذّر التحقق من حالة منحها: android.permission.CAMERA"))
+        assertTrue(textReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
+
+        assertTrue(csvReport.contains("\"ACCESS_DENIED\""))
+        assertTrue(csvReport.contains("\"false\""))
+        assertTrue(csvReport.contains("vendor.permission.UNKNOWN"))
+        assertTrue(csvReport.contains("android.permission.CAMERA"))
+        assertTrue(csvReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
+
+        assertTrue(jsonReport.contains("\"incompleteEvidenceCount\": 2"))
+        assertTrue(jsonReport.contains("\"packageMetadataState\": \"ACCESS_DENIED\""))
+        assertTrue(jsonReport.contains("\"specialAccessStateAvailable\": false"))
+        assertTrue(jsonReport.contains("\"unclassifiedPermissions\": [\"vendor.permission.UNKNOWN\"]"))
+        assertTrue(jsonReport.contains("\"permissionsWithUnknownGrantState\": [\"android.permission.CAMERA\"]"))
+        assertTrue(jsonReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
     }
 
     private fun app(label: String, packageName: String) = AppAudit(

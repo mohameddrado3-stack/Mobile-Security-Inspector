@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.data.repository.AppAuditRepository
+import com.msi.inspector.data.scanner.AndroidDeviceSecurityReader
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.security.applock.AppLockSettings
@@ -24,6 +25,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppAuditRepository(application)
     private val localLists = AppLocalLists(application)
     private val usageAccessReader = UsageAccessReader(application)
+    private val deviceSecurityReader = AndroidDeviceSecurityReader(application)
     private val appLockSettings = AppLockSettings(application)
     private val mutableState = MutableStateFlow(
         MsiUiState(appLockEnabled = appLockSettings.isEnabled())
@@ -47,6 +49,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     current.copy(
                         history = entries,
                         timelineEvents = loaded.second,
+                        deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
                         vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
                         lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
                     )
@@ -64,6 +67,25 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     fun navigate(destination: MsiDestination) {
         mutableState.update { it.copy(destination = destination, selectedApplication = null) }
+        if (destination == MsiDestination.TOOLS) refreshDeviceSecurity()
+    }
+
+    fun refreshDeviceSecurity() {
+        if (mutableState.value.isLoadingDeviceSecurity) return
+        mutableState.update { it.copy(isLoadingDeviceSecurity = true) }
+        viewModelScope.launch {
+            try {
+                val snapshot = withContext(Dispatchers.IO) { deviceSecurityReader.read() }
+                mutableState.update {
+                    it.copy(deviceSecurity = snapshot, isLoadingDeviceSecurity = false)
+                }
+            } catch (cancelled: CancellationException) {
+                mutableState.update { it.copy(isLoadingDeviceSecurity = false) }
+                throw cancelled
+            } catch (_: Exception) {
+                mutableState.update { it.copy(isLoadingDeviceSecurity = false) }
+            }
+        }
     }
 
     fun updateQuery(query: String) {
@@ -189,6 +211,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         history = history,
                         timelineEvents = recorded.second,
                         vpnActive = snapshot.vpnActive,
+                        deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
                         scanProgress = snapshot.applications.size,
@@ -201,6 +224,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     it.copy(
                         applications = snapshot.applications,
                         vpnActive = snapshot.vpnActive,
+                        deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false
                     )

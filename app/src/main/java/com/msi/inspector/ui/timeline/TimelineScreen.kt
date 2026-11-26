@@ -37,6 +37,9 @@ fun TimelineScreen(events: List<TimelineEvent>) {
             it.type == TimelineEventType.SENSITIVE_PERMISSION_REMOVED ||
             it.type == TimelineEventType.SPECIAL_ACCESS_CHANGED
     }
+    val deviceSecurityChanges = todayEvents.count {
+        it.type == TimelineEventType.DEVICE_SECURITY_CHANGED
+    }
     Column(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -48,6 +51,7 @@ fun TimelineScreen(events: List<TimelineEvent>) {
                 Text("أحداث مرصودة اليوم: ${todayEvents.size}", fontSize = 13.sp)
                 Text("تغيّرات مرتبطة بالتطبيقات: $appChanges", fontSize = 13.sp)
                 Text("تغيّرات الصلاحيات والوصول: $accessChanges", fontSize = 13.sp)
+                Text("تغيّرات أمان Android: $deviceSecurityChanges", fontSize = 13.sp)
                 Text(
                     "الأعداد تصف فروقًا بين نتائج الفحص فقط، ولا تعني أن تطبيقًا ضار أو آمن.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp

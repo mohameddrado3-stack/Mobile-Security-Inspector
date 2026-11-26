@@ -328,6 +328,7 @@ private fun ApplicationCard(
         AuditStatus.REQUESTED -> Color(0xFFFFC857)
         AuditStatus.SENSITIVE -> Color(0xFF85B8FF)
         AuditStatus.INFORMATIONAL -> Color(0xFF70E7D1)
+        AuditStatus.INCOMPLETE -> Color(0xFFFFA85C)
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
@@ -381,6 +382,7 @@ private fun ApplicationCard(
                         AuditStatus.REQUESTED -> "◷ طلب وصول خاص — التفعيل غير مؤكد"
                         AuditStatus.SENSITIVE -> "◈ صلاحيات حساسة ممنوحة"
                         AuditStatus.INFORMATIONAL -> "○ لم تُرصد المؤشرات المحددة"
+                        AuditStatus.INCOMPLETE -> "⚠ بيانات الفحص غير مكتملة — راجع التفاصيل"
                     },
                     color = accent,
                     fontSize = 11.sp

@@ -1,5 +1,12 @@
 package com.msi.inspector.domain.model
 
+enum class PackageMetadataState {
+    AVAILABLE,
+    NOT_FOUND_OR_NOT_VISIBLE,
+    ACCESS_DENIED,
+    ERROR
+}
+
 data class AppAudit(
     val label: String,
     val packageName: String,
@@ -17,14 +24,30 @@ data class AppAudit(
     val signingCertificateSha256: String? = null,
     val categoryLabel: String? = null,
     val lastUsedAt: Long? = null,
-    val packageMetadataAvailable: Boolean = true
+    val packageMetadataAvailable: Boolean = true,
+    val packageMetadataState: PackageMetadataState = if (packageMetadataAvailable) {
+        PackageMetadataState.AVAILABLE
+    } else {
+        PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE
+    },
+    val unclassifiedPermissions: List<String> = emptyList(),
+    val specialAccessStateAvailable: Boolean = true,
+    val permissionsWithUnknownGrantState: List<String> = emptyList()
 ) {
     val needsReview: Boolean
         get() = specialAccessReasons.isNotEmpty()
 
+    val hasIncompleteEvidence: Boolean
+        get() = !packageMetadataAvailable ||
+            packageMetadataState != PackageMetadataState.AVAILABLE ||
+            unclassifiedPermissions.isNotEmpty() ||
+            permissionsWithUnknownGrantState.isNotEmpty() ||
+            !specialAccessStateAvailable
+
     val status: AuditStatus
         get() = when {
             specialAccessReasons.isNotEmpty() -> AuditStatus.REVIEW
+            hasIncompleteEvidence -> AuditStatus.INCOMPLETE
             requestedSpecialAccess.isNotEmpty() -> AuditStatus.REQUESTED
             grantedSensitive.isNotEmpty() -> AuditStatus.SENSITIVE
             else -> AuditStatus.INFORMATIONAL
@@ -35,13 +58,15 @@ enum class AuditStatus {
     REVIEW,
     REQUESTED,
     SENSITIVE,
-    INFORMATIONAL
+    INFORMATIONAL,
+    INCOMPLETE
 }
 
 data class ScanSnapshot(
     val applications: List<AppAudit>,
     val vpnActive: Boolean?,
-    val completedAt: Long
+    val completedAt: Long,
+    val deviceSecurity: DeviceSecuritySnapshot? = null
 )
 
 data class ScanHistoryEntry(
@@ -52,5 +77,6 @@ data class ScanHistoryEntry(
     val requestedSpecialAccess: Int,
     val sensitivePermissions: Int,
     val vpnActive: Boolean?,
-    val applicationsJson: String = "[]"
+    val applicationsJson: String = "[]",
+    val deviceSecuritySnapshot: DeviceSecuritySnapshot? = null
 )

@@ -28,37 +28,80 @@ object PermissionAnalyzer {
         "media" to "الصور والفيديو والصوت"
     )
 
-    fun categoryFor(permission: String): String? {
-        val value = permission.lowercase()
-        return when {
-            value.contains("camera") -> "الكاميرا"
-            value.contains("record_audio") -> "الميكروفون"
-            value.contains("fine_location") ||
-                value.contains("coarse_location") ||
-                value.contains("background_location") -> "الموقع"
-            value.contains("read_sms") ||
-                value.contains("send_sms") ||
-                value.contains("receive_sms") -> "الرسائل"
-            value.contains("contacts") -> "جهات الاتصال"
-            value.contains("call_log") ||
-                value.contains("phone_state") ||
-                value.contains("call_phone") -> "الهاتف وسجل المكالمات"
-            value.contains("calendar") -> "التقويم"
-            value.contains("external_storage") ||
-                value.contains("manage_external_storage") -> "الملفات والتخزين"
-            value.contains("body_sensors") ||
-                value.contains("activity_recognition") -> "النشاط ومستشعرات الجسم"
-            value.contains("bluetooth") ||
-                value.contains("nearby_wifi") ||
-                value.contains("nearby_devices") -> "الأجهزة القريبة والبلوتوث"
-            value.contains("post_notifications") -> "الإشعارات"
-            value.contains("read_media_images") ||
-                value.contains("read_media_video") ||
-                value.contains("read_media_audio") ||
-                value.contains("read_media_visual_user_selected") -> "الصور والفيديو والصوت"
-            else -> null
+    private val permissionCategories = buildMap {
+        fun add(category: String, vararg permissions: String) {
+            permissions.forEach { put(it, category) }
         }
+
+        add("الكاميرا", "android.permission.CAMERA")
+        add("الميكروفون", "android.permission.RECORD_AUDIO")
+        add(
+            "الموقع",
+            "android.permission.ACCESS_FINE_LOCATION",
+            "android.permission.ACCESS_COARSE_LOCATION",
+            "android.permission.ACCESS_BACKGROUND_LOCATION"
+        )
+        add(
+            "الرسائل",
+            "android.permission.READ_SMS",
+            "android.permission.RECEIVE_SMS",
+            "android.permission.RECEIVE_MMS",
+            "android.permission.RECEIVE_WAP_PUSH",
+            "android.permission.SEND_SMS"
+        )
+        add(
+            "جهات الاتصال",
+            "android.permission.READ_CONTACTS",
+            "android.permission.WRITE_CONTACTS",
+            "android.permission.GET_ACCOUNTS"
+        )
+        add(
+            "الهاتف وسجل المكالمات",
+            "android.permission.READ_CALL_LOG",
+            "android.permission.WRITE_CALL_LOG",
+            "android.permission.PROCESS_OUTGOING_CALLS",
+            "android.permission.READ_PHONE_STATE",
+            "android.permission.READ_PHONE_NUMBERS",
+            "android.permission.CALL_PHONE",
+            "android.permission.ANSWER_PHONE_CALLS",
+            "android.permission.ADD_VOICEMAIL",
+            "android.permission.USE_SIP"
+        )
+        add(
+            "التقويم",
+            "android.permission.READ_CALENDAR",
+            "android.permission.WRITE_CALENDAR"
+        )
+        add(
+            "الملفات والتخزين",
+            "android.permission.READ_EXTERNAL_STORAGE",
+            "android.permission.WRITE_EXTERNAL_STORAGE",
+            "android.permission.MANAGE_EXTERNAL_STORAGE"
+        )
+        add(
+            "النشاط ومستشعرات الجسم",
+            "android.permission.BODY_SENSORS",
+            "android.permission.BODY_SENSORS_BACKGROUND",
+            "android.permission.ACTIVITY_RECOGNITION"
+        )
+        add(
+            "الأجهزة القريبة والبلوتوث",
+            "android.permission.BLUETOOTH_SCAN",
+            "android.permission.BLUETOOTH_CONNECT",
+            "android.permission.BLUETOOTH_ADVERTISE",
+            "android.permission.NEARBY_WIFI_DEVICES"
+        )
+        add("الإشعارات", "android.permission.POST_NOTIFICATIONS")
+        add(
+            "الصور والفيديو والصوت",
+            "android.permission.READ_MEDIA_IMAGES",
+            "android.permission.READ_MEDIA_VIDEO",
+            "android.permission.READ_MEDIA_AUDIO",
+            "android.permission.READ_MEDIA_VISUAL_USER_SELECTED"
+        )
     }
+
+    fun categoryFor(permission: String): String? = permissionCategories[permission]
 
     fun categories(applications: List<AppAudit>): List<PermissionCategory> {
         return buildCategories(applications, includeEmpty = false)

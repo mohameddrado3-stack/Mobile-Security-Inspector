@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import com.msi.inspector.data.serialization.AppAuditJsonCodec
+import com.msi.inspector.data.serialization.DeviceSecurityJsonCodec
 import com.msi.inspector.domain.analyzer.AuditSummary
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
@@ -35,6 +36,7 @@ class ScanHistoryDatabase(context: Context) :
             put("sensitive_permissions", summary.applicationsWithSensitivePermissions)
             put("vpn_active", VpnObservationStorage.encode(snapshot.vpnActive))
             put("applications_json", AppAuditJsonCodec.encode(snapshot.applications))
+            put("device_security_json", DeviceSecurityJsonCodec.encode(snapshot.deviceSecurity))
         }
         val database = writableDatabase
         database.beginTransaction()
@@ -63,9 +65,25 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     private fun trimScanHistory(database: SQLiteDatabase) {
+        val cutoff = System.currentTimeMillis() - SCAN_HISTORY_RETENTION_MILLIS
+        // Keep the newest entry as the current comparison baseline even if it
+        // is older than the normal retention window.
         database.execSQL(
-            "DELETE FROM scan_history WHERE id NOT IN " +
-                "(SELECT id FROM scan_history ORDER BY scanned_at DESC, id DESC LIMIT 50)"
+            """
+            DELETE FROM scan_history
+            WHERE id != (
+                SELECT id FROM scan_history ORDER BY scanned_at DESC, id DESC LIMIT 1
+            )
+            AND (
+                scanned_at < ?
+                OR id NOT IN (
+                    SELECT id FROM scan_history
+                    ORDER BY scanned_at DESC, id DESC
+                    LIMIT $MAX_SCAN_SESSIONS
+                )
+            )
+            """.trimIndent(),
+            arrayOf(cutoff)
         )
     }
 
@@ -84,19 +102,30 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     private fun trimTimelineEvents(database: SQLiteDatabase) {
+        val cutoff = System.currentTimeMillis() - TIMELINE_RETENTION_MILLIS
         database.execSQL(
-            "DELETE FROM timeline_events WHERE id NOT IN " +
-                "(SELECT id FROM timeline_events ORDER BY occurred_at DESC, id DESC LIMIT 500)"
+            """
+            DELETE FROM timeline_events
+            WHERE occurred_at < ?
+               OR id NOT IN (
+                    SELECT id FROM timeline_events
+                    ORDER BY occurred_at DESC, id DESC
+                    LIMIT $MAX_TIMELINE_EVENTS
+               )
+            """.trimIndent(),
+            arrayOf(cutoff)
         )
     }
 
     fun recentTimelineEvents(limit: Int = 500): List<TimelineEvent> {
+        val database = writableDatabase
+        trimTimelineEvents(database)
         val events = ArrayList<TimelineEvent>()
-        readableDatabase.query(
+        database.query(
             "timeline_events",
             arrayOf("id", "occurred_at", "event_type", "package_name", "app_label", "title", "details"),
             null, null, null, null, "occurred_at DESC, id DESC",
-            limit.coerceIn(1, 500).toString()
+            limit.coerceIn(1, MAX_TIMELINE_EVENTS).toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 val type = runCatching { TimelineEventType.valueOf(cursor.getString(2)) }
@@ -116,12 +145,16 @@ class ScanHistoryDatabase(context: Context) :
     }
 
     fun recent(limit: Int = 50): List<ScanHistoryEntry> {
+        val database = writableDatabase
+        trimScanHistory(database)
         val entries = ArrayList<ScanHistoryEntry>()
-        readableDatabase.query(
+        database.query(
             "scan_history",
             arrayOf("id", "scanned_at", "total_applications", "active_special_access",
-                "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json"),
-            null, null, null, null, "scanned_at DESC, id DESC", limit.coerceIn(1, 50).toString()
+                "requested_special_access", "sensitive_permissions", "vpn_active", "applications_json",
+                "device_security_json"),
+            null, null, null, null, "scanned_at DESC, id DESC",
+            limit.coerceIn(1, MAX_SCAN_SESSIONS).toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
                 entries += ScanHistoryEntry(
@@ -129,7 +162,8 @@ class ScanHistoryDatabase(context: Context) :
                     totalApplications = cursor.getInt(2), activeSpecialAccess = cursor.getInt(3),
                     requestedSpecialAccess = cursor.getInt(4), sensitivePermissions = cursor.getInt(5),
                     vpnActive = VpnObservationStorage.decode(cursor.getInt(6)),
-                    applicationsJson = cursor.getString(7) ?: "[]"
+                    applicationsJson = cursor.getString(7) ?: "[]",
+                    deviceSecuritySnapshot = DeviceSecurityJsonCodec.decode(cursor.getString(8))
                 )
             }
         }
@@ -149,5 +183,9 @@ class ScanHistoryDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "msi_security_history.db"
+        private const val MAX_SCAN_SESSIONS = 10
+        private const val MAX_TIMELINE_EVENTS = 500
+        private const val SCAN_HISTORY_RETENTION_MILLIS = 30L * 24L * 60L * 60L * 1000L
+        private const val TIMELINE_RETENTION_MILLIS = 30L * 24L * 60L * 60L * 1000L
     }
 }

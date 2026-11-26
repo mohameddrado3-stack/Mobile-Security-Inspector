@@ -1,6 +1,7 @@
 package com.msi.inspector.data.serialization
 
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.PackageMetadataState
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -21,6 +22,11 @@ object AppAuditJsonCodec {
                 put("category", app.categoryLabel ?: JSONObject.NULL)
                 put("lastUsedAt", app.lastUsedAt ?: JSONObject.NULL)
                 put("packageMetadataAvailable", app.packageMetadataAvailable)
+                put("packageMetadataState", app.packageMetadataState.name)
+                put("unclassifiedPermissions", JSONArray(app.unclassifiedPermissions))
+                put("permissionsWithUnknownGrantState", JSONArray(app.permissionsWithUnknownGrantState))
+                put("specialAccessStateAvailable", app.specialAccessStateAvailable)
+                put("signals", JSONArray(app.signals))
                 put("grantedSensitive", JSONArray(app.grantedSensitive))
                 put("requestedSensitive", JSONArray(app.requestedSensitive))
                 put("requestedSpecialAccess", JSONArray(app.requestedSpecialAccess))
@@ -35,6 +41,16 @@ object AppAuditJsonCodec {
         return buildList(array.length()) {
             for (index in 0 until array.length()) {
                 val item = array.getJSONObject(index)
+                val metadataAvailable = item.optBoolean(
+                    "packageMetadataAvailable",
+                    item.optString("version", "غير متاح") != "غير متاح"
+                )
+                val metadataState = runCatching {
+                    PackageMetadataState.valueOf(item.optString("packageMetadataState"))
+                }.getOrDefault(
+                    if (metadataAvailable) PackageMetadataState.AVAILABLE
+                    else PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE
+                )
                 add(
                     AppAudit(
                         label = item.optString("label", "تطبيق غير معروف"),
@@ -45,7 +61,7 @@ object AppAuditJsonCodec {
                         grantedSensitive = item.stringList("grantedSensitive"),
                         requestedSensitive = item.stringList("requestedSensitive"),
                         requestedSpecialAccess = item.stringList("requestedSpecialAccess"),
-                        signals = emptyList(),
+                        signals = item.stringList("signals"),
                         specialAccessReasons = item.stringList("activeSpecialAccess"),
                         targetSdk = item.nullableInt("targetSdk"),
                         firstInstallTime = item.nullableLong("firstInstallTime"),
@@ -53,10 +69,11 @@ object AppAuditJsonCodec {
                         signingCertificateSha256 = item.nullableString("signatureSha256"),
                         categoryLabel = item.nullableString("category"),
                         lastUsedAt = item.nullableLong("lastUsedAt"),
-                        packageMetadataAvailable = item.optBoolean(
-                            "packageMetadataAvailable",
-                            item.optString("version", "غير متاح") != "غير متاح"
-                        )
+                        packageMetadataAvailable = metadataAvailable,
+                        packageMetadataState = metadataState,
+                        unclassifiedPermissions = item.stringList("unclassifiedPermissions"),
+                        specialAccessStateAvailable = item.optBoolean("specialAccessStateAvailable", false),
+                        permissionsWithUnknownGrantState = item.stringList("permissionsWithUnknownGrantState")
                     )
                 )
             }
