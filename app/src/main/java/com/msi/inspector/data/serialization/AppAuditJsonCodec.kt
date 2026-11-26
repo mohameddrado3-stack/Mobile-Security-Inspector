@@ -24,6 +24,7 @@ object AppAuditJsonCodec {
                 put("packageMetadataAvailable", app.packageMetadataAvailable)
                 put("packageMetadataState", app.packageMetadataState.name)
                 put("unclassifiedPermissions", JSONArray(app.unclassifiedPermissions))
+                put("permissionsWithUnknownGrantState", JSONArray(app.permissionsWithUnknownGrantState))
                 put("specialAccessStateAvailable", app.specialAccessStateAvailable)
                 put("signals", JSONArray(app.signals))
                 put("grantedSensitive", JSONArray(app.grantedSensitive))
@@ -71,7 +72,8 @@ object AppAuditJsonCodec {
                         packageMetadataAvailable = metadataAvailable,
                         packageMetadataState = metadataState,
                         unclassifiedPermissions = item.stringList("unclassifiedPermissions"),
-                        specialAccessStateAvailable = item.optBoolean("specialAccessStateAvailable", false)
+                        specialAccessStateAvailable = item.optBoolean("specialAccessStateAvailable", false),
+                        permissionsWithUnknownGrantState = item.stringList("permissionsWithUnknownGrantState")
                     )
                 )
             }
