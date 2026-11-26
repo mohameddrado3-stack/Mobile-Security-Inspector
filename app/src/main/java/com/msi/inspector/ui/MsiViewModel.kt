@@ -58,7 +58,11 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 val entries = loaded.first
                 mutableState.update { current ->
                     current.copy(
-                        applications = if (current.lastScanAt == null) loaded.third else current.applications,
+                        applications = if (current.lastScanAt == null && !current.isScanning) {
+                            loaded.third
+                        } else {
+                            current.applications
+                        },
                         history = entries,
                         timelineEvents = loaded.second,
                         deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
