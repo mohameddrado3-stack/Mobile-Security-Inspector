@@ -51,6 +51,7 @@ class ReportFormatterTest {
             packageMetadataAvailable = false,
             packageMetadataState = PackageMetadataState.ACCESS_DENIED,
             unclassifiedPermissions = listOf("vendor.permission.UNKNOWN"),
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA"),
             specialAccessStateAvailable = false,
             signals = listOf(
                 "رفض Android الوصول إلى بيانات هذه الحزمة.",
@@ -72,17 +73,20 @@ class ReportFormatterTest {
         assertTrue(textReport.contains("تطبيقات ببيانات فحص غير مكتملة: 2"))
         assertTrue(textReport.contains("حالة بيانات الحزمة: رفض Android الوصول"))
         assertTrue(textReport.contains("vendor.permission.UNKNOWN"))
+        assertTrue(textReport.contains("صلاحيات تعذّر التحقق من حالة منحها: android.permission.CAMERA"))
         assertTrue(textReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
 
         assertTrue(csvReport.contains("\"ACCESS_DENIED\""))
         assertTrue(csvReport.contains("\"false\""))
         assertTrue(csvReport.contains("vendor.permission.UNKNOWN"))
+        assertTrue(csvReport.contains("android.permission.CAMERA"))
         assertTrue(csvReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
 
         assertTrue(jsonReport.contains("\"incompleteEvidenceCount\": 2"))
         assertTrue(jsonReport.contains("\"packageMetadataState\": \"ACCESS_DENIED\""))
         assertTrue(jsonReport.contains("\"specialAccessStateAvailable\": false"))
         assertTrue(jsonReport.contains("\"unclassifiedPermissions\": [\"vendor.permission.UNKNOWN\"]"))
+        assertTrue(jsonReport.contains("\"permissionsWithUnknownGrantState\": [\"android.permission.CAMERA\"]"))
         assertTrue(jsonReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
     }
 
