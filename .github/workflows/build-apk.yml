@@ -118,61 +118,19 @@ jobs:
           echo "Debug manifest verified: debuggable=$DEBUG_FLAG."
           stat -c 'Debug APK bytes: %s' "$DEBUG_APK"
           stat -c 'Release APK bytes: %s' "$APK"
-      - name: Sign final release APK with a one-time release certificate
-        shell: bash
-        run: |
-          set -euo pipefail
-          UNSIGNED="app/build/outputs/apk/release/app-release-unsigned.apk"
-          SIGNED="app/build/outputs/apk/release/app-release-final.apk"
-          KEYSTORE="/tmp/msi-v0.8.0-final.p12"
-          STORE_PASSWORD="$(openssl rand -hex 32)"
-          trap 'rm -f "$KEYSTORE"' EXIT
-          keytool -genkeypair -noprompt \\
-            -alias msi-final \\
-            -keyalg RSA -keysize 3072 -validity 10000 \\
-            -storetype PKCS12 -keystore "$KEYSTORE" \\
-            -storepass "$STORE_PASSWORD" -keypass "$STORE_PASSWORD" \\
-            -dname "CN=Mobile Security Inspector Final, OU=Android, O=Mobile Security Inspector, C=EG"
-          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -type f -name apksigner | sort -V | tail -n 1)"
-          test -n "$APKSIGNER"
-          "$APKSIGNER" sign \\
-            --ks "$KEYSTORE" --ks-type PKCS12 --ks-key-alias msi-final \\
-            --ks-pass "pass:$STORE_PASSWORD" --key-pass "pass:$STORE_PASSWORD" \\
-            --out "$SIGNED" "$UNSIGNED"
-          "$APKSIGNER" verify --verbose --print-certs "$SIGNED"
-          test -s "$SIGNED"
-          cat > app/build/outputs/apk/release/INSTALL-README.txt <<'EOF'
-          Mobile Security Inspector — Final 0.8.0
-          Package: com.msi.inspector
-          Version: 0.8.0 (versionCode 11)
-          Minimum Android: 8.0 (API 26)
-          Build: minified Release APK, signed and signature-verified in CI.
-          Privacy: the Release APK must contain no INTERNET permission; scanning and history remain local.
-          
-          Install only app-release-final.apk. Keep SHA256SUMS.txt and verify the APK checksum before installation.
-          Android may ask you to allow this file manager or browser to install apps.
-          
-          Important: an earlier debug-signed copy cannot be upgraded with this final release signature.
-          Back up/export any reports you need, then uninstall the old debug build before installing this final APK.
-          Uninstalling removes the app's local scan history and preferences.
-          
-          This is the final 0.8.0 build. No further app version is planned.
-          EOF
       - name: Generate and verify checksums
-        shell: bash
         run: |
-          set -euo pipefail
           cd app/build/outputs/apk
-          sha256sum debug/app-debug.apk release/app-release-unsigned.apk release/app-release-final.apk > SHA256SUMS.txt
+          sha256sum debug/app-debug.apk release/app-release-unsigned.apk > SHA256SUMS.txt
           sha256sum --check SHA256SUMS.txt
-      - name: Upload final signed release artifact
+      - name: Upload debug and unsigned release artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: mobile-security-inspector-v0.8.0-final-signed
+          name: mobile-security-inspector-v0.8.0-verification
           path: |
-            app/build/outputs/apk/release/app-release-final.apk
-            app/build/outputs/apk/release/INSTALL-README.txt
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk
             app/build/outputs/apk/SHA256SUMS.txt
             app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
-          retention-days: 90
+          retention-days: 30
