@@ -63,6 +63,12 @@ fun ApplicationDetailsDialog(
                     fontSize = 11.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+                Text(
+                    "حالة المنح غير معروفة: ${application.permissionsWithUnknownGrantState.size}",
+                    fontSize = 11.sp,
+                    color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
+                )
                 Text("النوع: ${if (application.isSystem) "تطبيق نظام" else "تطبيق مثبت"}", fontSize = 12.sp)
                 Text("مصدر التثبيت: ${application.installer}", fontSize = 12.sp)
                 Text("تصنيف Android: ${application.categoryLabel ?: "غير محدد من التطبيق"}", fontSize = 12.sp)
