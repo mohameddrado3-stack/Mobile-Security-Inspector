@@ -38,13 +38,17 @@ object AppAuditAnalyzer {
     ): AppAudit {
         val requested = evidence.permissions
         val grantedSensitive = requested
-            .filter { it.granted && it.protection == PermissionProtection.DANGEROUS }
+            .filter { it.grantStateKnown && it.granted && it.protection == PermissionProtection.DANGEROUS }
             .map { it.name }
         val requestedSensitive = requested
             .filter { it.protection == PermissionProtection.DANGEROUS }
             .map { it.name }
         val unclassified = requested
             .filter { it.protection == PermissionProtection.UNKNOWN }
+            .map { it.name }
+        val unknownGrantState = requested
+            .filter { !it.grantStateKnown }
+            .map { it.name }
             .map { it.name }
         val categories = grantedSensitive.mapNotNull(PermissionAnalyzer::categoryFor).distinct()
         val specialAccessStateAvailable =
@@ -82,6 +86,9 @@ object AppAuditAnalyzer {
             if (unclassified.isNotEmpty()) {
                 add("تعذر تحديد مستوى حساسية ${unclassified.size} صلاحية؛ لم تُحتسب كصلاحيات عادية أو حساسة.")
             }
+            if (unknownGrantState.isNotEmpty()) {
+                add("تعذر التحقق من حالة منح ${unknownGrantState.size} صلاحية؛ لم تُحسب كممنوحة أو غير ممنوحة.")
+            }
             if (evidence.requestedSpecialAccess.isNotEmpty()) {
                 add("التطبيق يطلب إعدادات وصول خاصة في ملفه، لكن حالة تفعيلها لا يمكن تأكيدها من هذا الفحص.")
             }
@@ -92,7 +99,13 @@ object AppAuditAnalyzer {
                         ". قد تكون مطلوبة لوظيفة التطبيق ولا تعني أنه ضار."
                 )
             }
-            if (requestedSensitive.size > grantedSensitive.size && requestedSensitive.isNotEmpty()) {
+            val confirmedNotGrantedSensitive = requested
+                .filter {
+                    it.grantStateKnown &&
+                        !it.granted &&
+                        it.protection == PermissionProtection.DANGEROUS
+                }
+            if (confirmedNotGrantedSensitive.isNotEmpty()) {
                 add("هناك صلاحيات حساسة مطلوبة لكنها غير ممنوحة حاليًا.")
             }
             if (unusedForAtLeastThirtyDays && grantedSensitive.isNotEmpty()) {
@@ -121,7 +134,8 @@ object AppAuditAnalyzer {
             packageMetadataAvailable = evidence.packageMetadataState == PackageMetadataState.AVAILABLE,
             packageMetadataState = evidence.packageMetadataState,
             unclassifiedPermissions = unclassified,
-            specialAccessStateAvailable = specialAccessStateAvailable
+            specialAccessStateAvailable = specialAccessStateAvailable,
+            permissionsWithUnknownGrantState = unknownGrantState
         )
     }
 }
