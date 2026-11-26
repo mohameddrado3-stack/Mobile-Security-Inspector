@@ -209,6 +209,91 @@ class ScanHistoryDatabaseTest {
         helper.close()
     }
 
+    @Test
+    fun removesExpiredScanSessionsWhenANewerBaselineExists() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val thirtyOneDays = 31L * 24L * 60L * 60L * 1000L
+
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = now - thirtyOneDays
+            )
+        )
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = now
+            )
+        )
+
+        val retained = helper.recent(50)
+        assertEquals(1, retained.size)
+        assertEquals(now, retained.single().scannedAt)
+        helper.close()
+    }
+
+    @Test
+    fun removesTimelineEventsOlderThanThirtyDays() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+
+        fun event(at: Long, title: String) = TimelineEvent(
+            occurredAt = at,
+            type = TimelineEventType.APP_ADDED,
+            packageName = "com.example.app",
+            appLabel = "Example",
+            title = title,
+            details = title
+        )
+
+        helper.saveTimelineEvents(
+            listOf(
+                event(now - 31L * day, "Expired"),
+                event(now - 29L * day, "Retained")
+            )
+        )
+
+        val retained = helper.recentTimelineEvents(500)
+        assertEquals(1, retained.size)
+        assertEquals("Retained", retained.single().title)
+        helper.close()
+    }
+
+    @Test
+    fun retainsNoMoreThanFiveHundredNewestTimelineEvents() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val events = (0 until 510).map { index ->
+            TimelineEvent(
+                occurredAt = now - index * 1_000L,
+                type = TimelineEventType.APP_ADDED,
+                packageName = "com.example.app",
+                appLabel = "Example",
+                title = "Event $index",
+                details = "Event $index"
+            )
+        }
+
+        helper.saveTimelineEvents(events)
+
+        val retained = helper.recentTimelineEvents(500)
+        assertEquals(500, retained.size)
+        assertEquals(now, retained.first().occurredAt)
+        assertEquals(now - 499_000L, retained.last().occurredAt)
+        helper.close()
+    }
+
     private companion object {
         const val DATABASE_NAME = "msi_security_history.db"
     }
