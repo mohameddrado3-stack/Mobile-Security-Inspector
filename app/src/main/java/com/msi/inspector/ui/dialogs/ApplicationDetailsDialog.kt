@@ -137,6 +137,15 @@ fun ApplicationDetailsDialog(
                     color = if (application.unclassifiedPermissions.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.tertiary
                 )
+                Text("صلاحيات تعذّر التحقق من حالة منحها", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    application.permissionsWithUnknownGrantState.ifEmpty {
+                        listOf("تم التحقق من حالة المنح لكل الصلاحيات المدرجة.")
+                    }.joinToString("\n"),
+                    fontSize = 10.sp,
+                    color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
+                )
                 Text("الصلاحيات الحساسة الممنوحة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.grantedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
