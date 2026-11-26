@@ -294,6 +294,75 @@ class ScanHistoryDatabaseTest {
         helper.close()
     }
 
+    @Test
+    fun prunesExpiredScanSessionsWhenHistoryIsRead() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+        val latestBaseline = now - day
+
+        helper.save(
+            ScanSnapshot(
+                applications = emptyList(),
+                vpnActive = null,
+                completedAt = latestBaseline
+            )
+        )
+        helper.writableDatabase.execSQL(
+            """
+            INSERT INTO scan_history (
+                id, scanned_at, total_applications, active_special_access,
+                requested_special_access, sensitive_permissions, vpn_active,
+                applications_json, device_security_json
+            ) VALUES (999, ?, 0, 0, 0, 0, -1, '[]', 'null')
+            """.trimIndent(),
+            arrayOf(now - 31L * day)
+        )
+
+        val retained = helper.recent(50)
+        assertEquals(1, retained.size)
+        assertEquals(latestBaseline, retained.single().scannedAt)
+        helper.close()
+    }
+
+    @Test
+    fun prunesExpiredTimelineEventsWhenTimelineIsRead() {
+        val context = RuntimeEnvironment.getApplication()
+        context.deleteDatabase(DATABASE_NAME)
+        val helper = ScanHistoryDatabase(context)
+        val database = helper.writableDatabase
+        val now = System.currentTimeMillis()
+        val day = 24L * 60L * 60L * 1000L
+
+        fun insertEvent(at: Long, title: String) {
+            database.execSQL(
+                """
+                INSERT INTO timeline_events (
+                    occurred_at, event_type, package_name, app_label, title, details
+                ) VALUES (?, ?, ?, ?, ?, ?)
+                """.trimIndent(),
+                arrayOf(
+                    at,
+                    TimelineEventType.APP_ADDED.name,
+                    "com.example.app",
+                    "Example",
+                    title,
+                    title
+                )
+            )
+        }
+
+        insertEvent(now - 31L * day, "Expired")
+        insertEvent(now - 29L * day, "Retained")
+
+        val retained = helper.recentTimelineEvents(500)
+        assertEquals(1, retained.size)
+        assertEquals("Retained", retained.single().title)
+        helper.close()
+    }
+
     private companion object {
         const val DATABASE_NAME = "msi_security_history.db"
     }
