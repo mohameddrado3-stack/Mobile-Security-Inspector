@@ -380,7 +380,9 @@ private fun displayDeviceEvidence(evidence: DeviceSecurityEvidence): String =
         EvidenceAvailability.AVAILABLE -> when (evidence.value) {
             "enabled" -> "مفعّل"
             "disabled" -> "غير مفعّل"
-            "active" -> "نشط"
+            "active" -> "التشفير نشط"
+            "active_per_user" -> "التشفير نشط والمفتاح مرتبط بالمستخدم أو الملف الشخصي"
+            "active_default_key" -> "التشفير نشط لكن المفتاح الافتراضي غير محمي ببيانات اعتماد المستخدم"
             "inactive" -> "غير نشط"
             "activating" -> "جارٍ التفعيل"
             else -> evidence.value ?: "غير متاح"
