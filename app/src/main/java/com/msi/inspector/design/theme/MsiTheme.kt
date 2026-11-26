@@ -25,7 +25,7 @@ object MsiColors {
     val Surface = Color(0xFF111B2B)
     val SurfaceElevated = Color(0xFF18283B)
     val Accent = Color(0xFF42C8FF)
-    val Calm = Color(0xFF70E7D1)
+    val Calm = Accent
     val Review = Color(0xFFFF9B45)
     val Attention = Color(0xFFFF604D)
     val TextPrimary = Color(0xFFF1F5FA)

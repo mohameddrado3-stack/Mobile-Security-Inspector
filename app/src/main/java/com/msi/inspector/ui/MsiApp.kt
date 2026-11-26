@@ -78,7 +78,7 @@ fun MsiApp(
     val context = LocalContext.current
     val preferences = remember(context) { MsiPreferences(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, state.destination) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshUsageAccessState()
