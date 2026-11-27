@@ -83,6 +83,7 @@ fun MsiApp(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshUsageAccessState()
+                viewModel.refreshScanHistory()
                 if (state.destination == MsiDestination.TOOLS) viewModel.refreshDeviceSecurity()
             }
         }
