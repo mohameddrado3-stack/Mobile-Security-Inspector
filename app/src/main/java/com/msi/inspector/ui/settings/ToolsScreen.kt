@@ -26,6 +26,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiSectionHeading
+import com.msi.inspector.BuildConfig
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.domain.model.DeviceSecurityEvidence
 import com.msi.inspector.domain.model.DeviceSecuritySnapshot
@@ -63,6 +64,7 @@ fun ToolsScreen(
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
+        UpdateCenterCard(currentVersion = BuildConfig.VERSION_NAME)
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
             val security = deviceSecurity
