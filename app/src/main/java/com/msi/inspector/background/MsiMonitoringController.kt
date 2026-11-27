@@ -59,7 +59,7 @@ object MsiMonitoringController {
             .putBoolean(KEY_ENABLED, false)
             .apply()
 
-        WorkManager.getInstance(appContext).cancelUniquePeriodicWork(PERIODIC_WORK_NAME)
+        WorkManager.getInstance(appContext).cancelUniqueWork(PERIODIC_WORK_NAME)
         WorkManager.getInstance(appContext).cancelUniqueWork(EVENT_WORK_NAME)
         appContext.stopService(Intent(appContext, MsiMonitoringService::class.java))
     }
