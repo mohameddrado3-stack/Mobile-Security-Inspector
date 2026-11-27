@@ -49,10 +49,12 @@ class MsiMonitoringService : Service() {
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
-        if (
-            intent?.action == ACTION_STOP ||
-            !MsiMonitoringController.isEnabled(applicationContext)
-        ) {
+        if (intent?.action == ACTION_STOP) {
+            MsiMonitoringController.disable(applicationContext)
+            stopSelf(startId)
+            return START_NOT_STICKY
+        }
+        if (!MsiMonitoringController.isEnabled(applicationContext)) {
             stopSelf(startId)
             return START_NOT_STICKY
         }
