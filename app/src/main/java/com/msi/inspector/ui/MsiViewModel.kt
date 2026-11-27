@@ -58,7 +58,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         history = entries,
                         timelineEvents = loaded.second,
                         deviceSecurity = current.deviceSecurity ?: latestSnapshot?.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
-                        vpnActive = current.vpnActive ?: latestSnapshot?.vpnActive ?: entries.firstOrNull()?.vpnActive,
+                        vpnActive = if (latestSnapshot != null) latestSnapshot.vpnActive else current.vpnActive ?: entries.firstOrNull()?.vpnActive,
                         lastScanAt = current.lastScanAt ?: latestSnapshot?.completedAt ?: entries.firstOrNull()?.scannedAt
                     )
                 }
@@ -118,7 +118,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                             history = loaded.first,
                             timelineEvents = loaded.second,
                             deviceSecurity = latest?.deviceSecurity ?: current.deviceSecurity,
-                            vpnActive = latest?.vpnActive ?: current.vpnActive,
+                            vpnActive = if (latest != null) latest.vpnActive else current.vpnActive,
                             lastScanAt = latest?.completedAt ?: current.lastScanAt
                         )
                     }
