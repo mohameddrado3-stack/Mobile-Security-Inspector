@@ -551,6 +551,7 @@ private fun displayDeviceEvidence(evidence: DeviceSecurityEvidence): String =
         EvidenceAvailability.UNAVAILABLE -> "غير متاح"
         EvidenceAvailability.UNSUPPORTED -> "غير مدعوم"
         EvidenceAvailability.ACCESS_DENIED -> "رفض Android الوصول"
+        EvidenceAvailability.RESTRICTED_BY_ANDROID -> "Android يحجب القراءة عن التطبيقات العادية"
         EvidenceAvailability.ERROR -> "تعذرت القراءة"
         EvidenceAvailability.AVAILABLE -> when (evidence.value) {
             "enabled" -> "مفعّل"
