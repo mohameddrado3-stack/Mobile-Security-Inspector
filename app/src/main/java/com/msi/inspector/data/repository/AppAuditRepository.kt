@@ -66,6 +66,21 @@ class AppAuditRepository(context: Context) {
 
     fun loadTimeline(): List<TimelineEvent> = history.recentTimelineEvents()
 
+    fun loadLatestSnapshot(): ScanSnapshot? = synchronized(SCAN_HISTORY_LOCK) {
+        val entry = history.recent(1).firstOrNull() ?: return@synchronized null
+        if (entry.applicationsJson.isBlank() || entry.applicationsJson == "[]") {
+            return@synchronized null
+        }
+        runCatching {
+            ScanSnapshot(
+                applications = AppAuditJsonCodec.decode(entry.applicationsJson),
+                vpnActive = entry.vpnActive,
+                completedAt = entry.scannedAt,
+                deviceSecurity = entry.deviceSecuritySnapshot
+            )
+        }.getOrNull()
+    }
+
     fun clearHistory() = synchronized(SCAN_HISTORY_LOCK) { history.clearHistory() }
 
     fun close() = history.close()
