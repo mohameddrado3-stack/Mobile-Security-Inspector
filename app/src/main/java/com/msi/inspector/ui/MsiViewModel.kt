@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.data.repository.AppAuditRepository
+import com.msi.inspector.data.serialization.AppAuditJsonCodec
 import com.msi.inspector.data.scanner.AndroidDeviceSecurityReader
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.model.AppAudit
@@ -43,15 +44,28 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             try {
-                val loaded = withContext(Dispatchers.IO) { repository.loadHistory() to repository.loadTimeline() }
+                val loaded = withContext(Dispatchers.IO) {
+                    val entries = repository.loadHistory()
+                    val latestApplications = entries.firstOrNull()?.applicationsJson?.let { json ->
+                        runCatching { AppAuditJsonCodec.decode(json) }.getOrDefault(emptyList())
+                    }.orEmpty()
+                    Triple(entries, repository.loadTimeline(), latestApplications)
+                }
                 val entries = loaded.first
                 mutableState.update { current ->
+                    val shouldRestoreLatestScan = current.lastScanAt == null && !current.isScanning
+                    val latestEntry = entries.firstOrNull()
                     current.copy(
+                        applications = if (shouldRestoreLatestScan) loaded.third else current.applications,
                         history = entries,
                         timelineEvents = loaded.second,
-                        deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
-                        vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
-                        lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
+                        deviceSecurity = if (shouldRestoreLatestScan) {
+                            latestEntry?.deviceSecuritySnapshot
+                        } else {
+                            current.deviceSecurity
+                        },
+                        vpnActive = if (shouldRestoreLatestScan) latestEntry?.vpnActive else current.vpnActive,
+                        lastScanAt = if (shouldRestoreLatestScan) latestEntry?.scannedAt else current.lastScanAt
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -77,7 +91,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val snapshot = withContext(Dispatchers.IO) { deviceSecurityReader.read() }
                 mutableState.update {
-                    it.copy(deviceSecurity = snapshot, isLoadingDeviceSecurity = false)
+                    it.copy(liveDeviceSecurity = snapshot, isLoadingDeviceSecurity = false)
                 }
             } catch (cancelled: CancellationException) {
                 mutableState.update { it.copy(isLoadingDeviceSecurity = false) }
@@ -212,6 +226,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         timelineEvents = recorded.second,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
+                        liveDeviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
                         scanProgress = snapshot.applications.size,
@@ -225,6 +240,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         applications = snapshot.applications,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
+                        liveDeviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false
                     )

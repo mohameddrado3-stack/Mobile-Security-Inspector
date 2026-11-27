@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.msi.inspector.domain.analyzer.AppPermissionGuidance
 import com.msi.inspector.domain.model.AppAudit
+import com.msi.inspector.domain.model.PackageMetadataState
 import java.text.DateFormat
 import java.util.Date
 import java.util.Locale
@@ -43,12 +44,30 @@ fun ApplicationDetailsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Text("اسم الحزمة: ${application.packageName}", fontSize = 11.sp)
+                Text("اسم الحزمة: ${application.packageName}", fontSize = 12.sp)
                 Text("الإصدار: ${application.version}", fontSize = 12.sp)
+                Text("حالة قراءة بيانات الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                Text(
+                    when (application.packageMetadataState) {
+                        PackageMetadataState.AVAILABLE -> "متاحة من Android"
+                        PackageMetadataState.NOT_FOUND_OR_NOT_VISIBLE -> "غير موجودة أو غير ظاهرة لهذا التطبيق"
+                        PackageMetadataState.ACCESS_DENIED -> "رفض Android الوصول إليها"
+                        PackageMetadataState.ERROR -> "حدث خطأ أثناء قراءتها"
+                    },
+                    fontSize = 12.sp,
+                    color = if (application.packageMetadataAvailable) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
+                )
                 Text(
                     "الصلاحيات الحساسة: ${application.grantedSensitive.size} ممنوحة / ${application.requestedSensitive.size} مطلوبة",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "حالة المنح غير معروفة: ${application.permissionsWithUnknownGrantState.size}",
+                    fontSize = 12.sp,
+                    color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
                 )
                 Text("النوع: ${if (application.isSystem) "تطبيق نظام" else "تطبيق مثبت"}", fontSize = 12.sp)
                 Text("مصدر التثبيت: ${application.installer}", fontSize = 12.sp)
@@ -60,7 +79,7 @@ fun ApplicationDetailsDialog(
                 Text("SHA-256 لشهادة التوقيع:", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 Text(
                     application.signingCertificateSha256 ?: "غير متاح من Android لهذا التطبيق",
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 Text("التصنيف المحلي", color = MaterialTheme.colorScheme.primary)
                 Text(
@@ -69,57 +88,86 @@ fun ApplicationDetailsDialog(
                         isIgnored -> "أنت وضعت هذا التطبيق في قائمة متجاهل لتقليل الضوضاء. بياناته لا تُحذف."
                         else -> "يمكنك وضع تسمية محلية لتسهيل مراجعة القوائم."
                     },
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
                 Text("ماذا أفعل؟", color = MaterialTheme.colorScheme.primary)
                 application.specialAccessReasons.forEach { reason ->
-                    Text(reason, fontSize = 11.sp)
+                    Text(reason, fontSize = 12.sp)
                     Text(
                         com.msi.inspector.domain.analyzer.AppPermissionGuidance.explainSpecialAccess(reason),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 (application.grantedSensitive + application.requestedSensitive).distinct().forEach { permission ->
-                    Text(permission.substringAfterLast('.'), fontSize = 10.sp)
+                    Text(permission.substringAfterLast('.'), fontSize = 12.sp)
                     Text(
                         com.msi.inspector.domain.analyzer.AppPermissionGuidance.explain(permission),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 Text("ملاحظات الفحص", color = MaterialTheme.colorScheme.primary)
-                application.signals.forEach { signal -> Text("• $signal", fontSize = 11.sp) }
+                application.signals.forEach { signal -> Text("• $signal", fontSize = 12.sp) }
                 Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
                 Text(
-                    application.specialAccessReasons.ifEmpty {
-                        listOf("لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق.")
-                    }.joinToString("\n"),
-                    fontSize = 11.sp
+                    when {
+                        application.specialAccessReasons.isNotEmpty() &&
+                            !application.specialAccessStateAvailable ->
+                            application.specialAccessReasons.joinToString("\n") +
+                                "\nتعذر التحقق من بعض مصادر الوصول الخاص الأخرى."
+                        application.specialAccessReasons.isNotEmpty() ->
+                            application.specialAccessReasons.joinToString("\n")
+                        !application.specialAccessStateAvailable ->
+                            "تعذر التحقق من بعض مصادر الوصول الخاص. لا يمكن اعتبار غياب النتيجة دليلًا على عدم التفعيل."
+                        else ->
+                            "لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق."
+                    },
+                    fontSize = 12.sp,
+                    color = if (application.specialAccessStateAvailable) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
                 )
                 Text("إعدادات خاصة مطلوبة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.requestedSpecialAccess.ifEmpty {
                         listOf("لم تُرصد طلبات الإعدادات الخاصة المعروفة.")
                     }.joinToString("\n"),
-                    fontSize = 11.sp
+                    fontSize = 12.sp
+                )
+                Text("صلاحيات تعذر تحديد مستوى حمايتها", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    application.unclassifiedPermissions.ifEmpty {
+                        listOf("لا توجد صلاحيات غير مصنفة ضمن البيانات المتاحة.")
+                    }.joinToString("\n"),
+                    fontSize = 12.sp,
+                    color = if (application.unclassifiedPermissions.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
+                )
+                Text("صلاحيات تعذّر التحقق من حالة منحها", color = MaterialTheme.colorScheme.primary)
+                Text(
+                    application.permissionsWithUnknownGrantState.ifEmpty {
+                        listOf("لا توجد صلاحيات بحالة منح مجهولة ضمن قائمة الصلاحيات التي أمكن قراءتها.")
+                    }.joinToString("\n"),
+                    fontSize = 12.sp,
+                    color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.tertiary
                 )
                 Text("الصلاحيات الحساسة الممنوحة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.grantedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
                         .joinToString("\n"),
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 Text("الصلاحيات الحساسة المطلوبة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.requestedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
                         .joinToString("\n"),
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 Text(
                     "وجود صلاحية أو إعداد خاص لا يثبت أن التطبيق ضار. قد تكون الصلاحيات ضرورية لوظيفته.",
                     color = MaterialTheme.colorScheme.tertiary,
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
             }
         },

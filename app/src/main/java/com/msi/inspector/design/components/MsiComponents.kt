@@ -1,29 +1,46 @@
 package com.msi.inspector.design.components
 
+import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.msi.inspector.design.theme.MsiColors
+import com.msi.inspector.R
+
+private val CardShape = RoundedCornerShape(20.dp)
+private val BadgeShape = RoundedCornerShape(12.dp)
 
 @Composable
 fun MsiCard(
@@ -32,15 +49,128 @@ fun MsiCard(
 ) {
     Card(
         modifier = modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(20.dp),
+        shape = CardShape,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
             modifier = Modifier.padding(18.dp),
-            verticalArrangement = Arrangement.spacedBy(9.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
             content = content
         )
+    }
+}
+
+@Composable
+fun MsiIconBadge(
+    iconRes: Int,
+    tint: Color,
+    modifier: Modifier = Modifier,
+    size: Dp = 40.dp
+) {
+    Box(
+        modifier = modifier
+            .size(size)
+            .clip(BadgeShape)
+            .background(tint.copy(alpha = 0.14f)),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(
+            painter = painterResource(iconRes),
+            contentDescription = null,
+            tint = tint,
+            modifier = Modifier.size(size * 0.55f)
+        )
+    }
+}
+
+@Composable
+fun MsiStatusChip(
+    text: String,
+    color: Color,
+    modifier: Modifier = Modifier,
+    iconRes: Int? = null
+) {
+    Row(
+        modifier = modifier
+            .clip(RoundedCornerShape(50))
+            .background(color.copy(alpha = 0.14f))
+            .padding(horizontal = 10.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp)
+    ) {
+        if (iconRes != null) {
+            Icon(
+                painter = painterResource(iconRes),
+                contentDescription = null,
+                tint = color,
+                modifier = Modifier.size(14.dp)
+            )
+        }
+        Text(text, color = color, style = MaterialTheme.typography.labelMedium)
+    }
+}
+
+@Composable
+fun MsiKeyValueRow(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .fillMaxWidth()
+            .defaultMinSize(minHeight = 36.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)
+    ) {
+        Text(
+            label,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.weight(0.45f)
+        )
+        Text(
+            value,
+            style = MaterialTheme.typography.bodyMedium,
+            fontWeight = FontWeight.Medium,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(0.55f)
+        )
+    }
+}
+
+@Composable
+fun MsiDivider(modifier: Modifier = Modifier) {
+    Spacer(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(1.dp)
+            .background(MaterialTheme.colorScheme.outlineVariant)
+    )
+}
+
+@Composable
+fun MsiActionTile(
+    title: String,
+    iconRes: Int,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier
+) {
+    Row(
+        modifier = modifier
+            .clip(CardShape)
+            .background(MaterialTheme.colorScheme.surface)
+            .border(1.dp, MaterialTheme.colorScheme.outlineVariant, CardShape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .defaultMinSize(minHeight = 64.dp)
+            .padding(horizontal = 14.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        MsiIconBadge(iconRes = iconRes, tint = MaterialTheme.colorScheme.primary, size = 36.dp)
+        Text(title, style = MaterialTheme.typography.titleSmall)
     }
 }
 
@@ -52,26 +182,85 @@ fun MsiMetricCard(
     accent: Color,
     modifier: Modifier = Modifier,
     statusSymbol: String = "●",
-    onClick: (() -> Unit)? = null
+    onClick: (() -> Unit)? = null,
+    iconRes: Int? = null
 ) {
     val cardModifier = if (onClick == null) modifier else modifier
-        .clickable(onClick = onClick)
+        .clip(CardShape)
+        .clickable(role = Role.Button, onClick = onClick)
         .semantics { contentDescription = "$title: $value. $detail" }
     Card(
         modifier = cardModifier,
-        shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Column(
-            modifier = Modifier.padding(15.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text(statusSymbol, color = accent, fontSize = 12.sp)
-                Text(title, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            if (iconRes != null) {
+                MsiIconBadge(iconRes = iconRes, tint = accent, size = 36.dp)
+            } else {
+                Text(statusSymbol, color = accent, style = MaterialTheme.typography.titleMedium)
             }
-            Text(value, color = accent, fontSize = 25.sp, fontWeight = FontWeight.Bold)
-            Text(detail, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    value,
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    detail,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+        }
+    }
+}
+
+@Composable
+fun MsiMetricRow(
+    title: String,
+    value: String,
+    detail: String,
+    accent: Color,
+    iconRes: Int,
+    modifier: Modifier = Modifier,
+    onClick: (() -> Unit)? = null
+) {
+    val rowModifier = if (onClick == null) modifier else modifier
+        .clip(CardShape)
+        .clickable(role = Role.Button, onClick = onClick)
+        .semantics { contentDescription = "$title: $value. $detail" }
+    Card(
+        modifier = rowModifier.fillMaxWidth(),
+        shape = CardShape,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Row(
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            MsiIconBadge(iconRes = iconRes, tint = accent, size = 40.dp)
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp)
+            ) {
+                Text(title, style = MaterialTheme.typography.titleSmall)
+                Text(
+                    detail,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+            Text(value, style = MaterialTheme.typography.headlineSmall)
         }
     }
 }
@@ -81,10 +270,14 @@ fun MsiSectionHeading(
     title: String,
     description: String? = null
 ) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium)
         if (description != null) {
-            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+            Text(
+                description,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
         }
     }
 }
@@ -94,36 +287,23 @@ fun MsiBrandHeader() {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .background(
-                Brush.linearGradient(
-                    listOf(MsiColors.Surface, Color(0xFF112A3A), Color(0xFF111D30))
-                ),
-                RoundedCornerShape(20.dp)
-            )
-            .padding(horizontal = 18.dp, vertical = 17.dp),
+            .padding(vertical = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Text(
-                "MSI  /  MOBILE SECURITY",
-                color = MsiColors.Accent,
-                fontWeight = FontWeight.ExtraBold,
-                letterSpacing = 1.4.sp,
-                fontSize = 16.sp
-            )
+        Image(
+            painter = painterResource(R.drawable.msi_brand_icon),
+            contentDescription = "شعار Mobile Security Inspector",
+            modifier = Modifier.size(44.dp).clip(CircleShape),
+            contentScale = ContentScale.Fit
+        )
+        Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+            Text("Mobile Security Inspector", style = MaterialTheme.typography.titleMedium)
             Text(
                 "مركز فحص مؤشرات أمان التطبيقات",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
+                style = MaterialTheme.typography.bodySmall
             )
         }
-        Text(
-            "⬡",
-            modifier = Modifier.semantics { contentDescription = "شعار Mobile Security Inspector" },
-            color = MsiColors.Accent,
-            fontSize = 34.sp,
-            fontWeight = FontWeight.Light
-        )
     }
 }

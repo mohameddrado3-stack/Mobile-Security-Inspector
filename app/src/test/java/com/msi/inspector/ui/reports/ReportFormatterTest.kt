@@ -90,6 +90,54 @@ class ReportFormatterTest {
         assertTrue(jsonReport.contains("رفض Android الوصول إلى بيانات هذه الحزمة."))
     }
 
+    @Test
+    fun allExportFormatsIncludeDeviceSecurityEvidenceAndAndroidRestrictions() {
+        val device = com.msi.inspector.domain.model.DeviceSecuritySnapshot(
+            androidRelease = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                "16",
+                com.msi.inspector.domain.model.EvidenceAvailability.AVAILABLE
+            ),
+            apiLevel = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                "36",
+                com.msi.inspector.domain.model.EvidenceAvailability.AVAILABLE
+            ),
+            securityPatch = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                "2026-10-01",
+                com.msi.inspector.domain.model.EvidenceAvailability.AVAILABLE
+            ),
+            secureScreenLock = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                "enabled",
+                com.msi.inspector.domain.model.EvidenceAvailability.AVAILABLE
+            ),
+            storageEncryption = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                "active",
+                com.msi.inspector.domain.model.EvidenceAvailability.AVAILABLE
+            ),
+            adbEnabled = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                null,
+                com.msi.inspector.domain.model.EvidenceAvailability.RESTRICTED_BY_ANDROID
+            ),
+            developerOptionsEnabled = com.msi.inspector.domain.model.DeviceSecurityEvidence(
+                null,
+                com.msi.inspector.domain.model.EvidenceAvailability.RESTRICTED_BY_ANDROID
+            ),
+            collectedAt = 1_700_000_000_000L
+        )
+        val applications = listOf(app("Example", "com.example.app"))
+
+        val textReport = ReportFormatter.format(applications, 1_700_000_000_000L, device)
+        val csvReport = ReportFormatter.formatCsv(applications, 1_700_000_000_000L, device)
+        val jsonReport = ReportFormatter.formatJson(applications, 1_700_000_000_000L, device)
+
+        assertTrue(textReport.contains("مؤشرات أمان نظام Android"))
+        assertTrue(textReport.contains("Android يحجب القراءة عن التطبيقات العادية"))
+        assertTrue(csvReport.contains("\"device\""))
+        assertTrue(csvReport.contains("\"RESTRICTED_BY_ANDROID\""))
+        assertTrue(csvReport.contains("\"application\""))
+        assertTrue(jsonReport.contains("\"deviceSecurity\""))
+        assertTrue(jsonReport.contains("\"RESTRICTED_BY_ANDROID\""))
+    }
+
     private fun app(label: String, packageName: String) = AppAudit(
         label = label,
         packageName = packageName,

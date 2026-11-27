@@ -37,6 +37,24 @@ class TimelineEventDetectorTest {
         assertFalse(events.any { it.type == TimelineEventType.SIGNATURE_CHANGED })
     }
 
+    @Test fun detectsKnownVersionNameChange() {
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(app().copy(version = "1.0"))),
+            snapshot(listOf(app().copy(version = "1.1")), 2_000L)
+        )
+
+        assertTrue(events.any { it.type == TimelineEventType.APP_VERSION_CHANGED })
+    }
+
+    @Test fun unavailableVersionNameDoesNotCreateFalseVersionChange() {
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(app().copy(version = "1.0"))),
+            snapshot(listOf(app().copy(version = "غير متاح")), 2_000L)
+        )
+
+        assertFalse(events.any { it.type == TimelineEventType.APP_VERSION_CHANGED })
+    }
+
     @Test fun detectsSignatureChangeOnlyWhenBothFingerprintsExist() {
         val events = TimelineEventDetector.detect(
             snapshot(listOf(app(signature = "OLD"))),
@@ -54,6 +72,38 @@ class TimelineEventDetectorTest {
         )
         assertFalse(events.any { it.type == TimelineEventType.SENSITIVE_PERMISSION_REMOVED })
         assertFalse(events.any { it.type == TimelineEventType.APP_VERSION_CHANGED })
+    }
+
+    @Test fun unknownGrantStateDoesNotCreateFalsePermissionRevocation() {
+        val previous = app(
+            granted = listOf("android.permission.CAMERA", "android.permission.RECORD_AUDIO")
+        )
+        val current = app().copy(
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA")
+        )
+
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(previous)),
+            snapshot(listOf(current), 2_000L)
+        )
+
+        val event = events.single { it.type == TimelineEventType.SENSITIVE_PERMISSION_REMOVED }
+        assertTrue(event.details.contains("android.permission.RECORD_AUDIO"))
+        assertFalse(event.details.contains("android.permission.CAMERA"))
+    }
+
+    @Test fun previouslyUnknownPermissionDoesNotCreateFalsePermissionAddition() {
+        val previous = app().copy(
+            permissionsWithUnknownGrantState = listOf("android.permission.CAMERA")
+        )
+        val current = app(granted = listOf("android.permission.CAMERA"))
+
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(previous)),
+            snapshot(listOf(current), 2_000L)
+        )
+
+        assertFalse(events.any { it.type == TimelineEventType.SENSITIVE_PERMISSION_ADDED })
     }
 
     @Test fun missingAppIsReportedAsNoLongerVisibleNotAsUninstalled() {

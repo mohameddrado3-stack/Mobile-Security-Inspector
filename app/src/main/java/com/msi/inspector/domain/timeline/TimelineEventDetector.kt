@@ -39,10 +39,14 @@ object TimelineEventDetector {
             val old = oldApps.getValue(key)
             val new = newApps.getValue(key)
             if (old.packageMetadataAvailable && new.packageMetadataAvailable) {
-                if (old.version != new.version) {
+                if (
+                    old.version != new.version &&
+                    old.version.isKnownVersionName() &&
+                    new.version.isKnownVersionName()
+                ) {
                     events += event(current, TimelineEventType.APP_VERSION_CHANGED, new,
                         "تغيّر إصدار التطبيق",
-                        "السابق: ${old.version.ifBlank { "غير متاح" }}؛ الحالي: ${new.version.ifBlank { "غير متاح" }}.")
+                        "السابق: ${old.version}؛ الحالي: ${new.version}.")
                 }
                 val oldSignature = old.signingCertificateSha256
                 val newSignature = new.signingCertificateSha256
@@ -51,8 +55,18 @@ object TimelineEventDetector {
                         "تغيّرت بصمة شهادة التوقيع",
                         "اختلفت بصمة SHA-256 المتاحة بين الفحصين. راجع مصدر التطبيق وتفاصيله يدويًا.")
                 }
-                val addedGranted = (new.grantedSensitive.toSet() - old.grantedSensitive.toSet()).sorted()
-                val removedGranted = (old.grantedSensitive.toSet() - new.grantedSensitive.toSet()).sorted()
+                val uncertainPermissions = (
+                    old.permissionsWithUnknownGrantState +
+                        new.permissionsWithUnknownGrantState +
+                        old.unclassifiedPermissions +
+                        new.unclassifiedPermissions
+                    ).toSet()
+                val addedGranted = (
+                    new.grantedSensitive.toSet() - old.grantedSensitive.toSet() - uncertainPermissions
+                    ).sorted()
+                val removedGranted = (
+                    old.grantedSensitive.toSet() - new.grantedSensitive.toSet() - uncertainPermissions
+                    ).sorted()
                 if (addedGranted.isNotEmpty()) {
                     events += event(current, TimelineEventType.SENSITIVE_PERMISSION_ADDED, new,
                         "ظهرت صلاحيات حساسة ممنوحة",
@@ -145,6 +159,9 @@ object TimelineEventDetector {
         title = title,
         details = details
     )
+
+    private fun String.isKnownVersionName(): Boolean =
+        isNotBlank() && this != "غير متاح"
 
     private const val MAX_EVENTS_PER_SCAN = 500
 }

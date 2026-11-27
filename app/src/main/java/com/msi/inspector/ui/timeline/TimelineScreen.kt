@@ -15,6 +15,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.msi.inspector.design.components.MsiKeyValueRow
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventType
@@ -44,17 +45,17 @@ fun TimelineScreen(events: List<TimelineEvent>) {
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        MsiSectionHeading("MSI Timeline", "سجل محلي يوضح ما تغيّر بين الفحوصات، دون إصدار أحكام أمنية.")
+        MsiSectionHeading("ما تغيّر بين الفحوصات", "سجل محلي يوضح الفروق بين نتائج الفحص، دون إصدار أحكام أمنية.")
         OutlinedCard(modifier = Modifier.fillMaxWidth()) {
             Column(modifier = Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Text("الملخص اليومي", style = MaterialTheme.typography.titleMedium)
-                Text("أحداث مرصودة اليوم: ${todayEvents.size}", fontSize = 13.sp)
-                Text("تغيّرات مرتبطة بالتطبيقات: $appChanges", fontSize = 13.sp)
-                Text("تغيّرات الصلاحيات والوصول: $accessChanges", fontSize = 13.sp)
-                Text("تغيّرات أمان Android: $deviceSecurityChanges", fontSize = 13.sp)
+                MsiKeyValueRow("أحداث مرصودة اليوم", todayEvents.size.toString())
+                MsiKeyValueRow("تغيّرات مرتبطة بالتطبيقات", appChanges.toString())
+                MsiKeyValueRow("تغيّرات الصلاحيات والوصول", accessChanges.toString())
+                MsiKeyValueRow("تغيّرات أمان Android", deviceSecurityChanges.toString())
                 Text(
                     "الأعداد تصف فروقًا بين نتائج الفحص فقط، ولا تعني أن تطبيقًا ضار أو آمن.",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 11.sp
+                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp
                 )
             }
         }
@@ -73,11 +74,11 @@ fun TimelineScreen(events: List<TimelineEvent>) {
                                 Text(event.title, modifier = Modifier.weight(1f),
                                     style = MaterialTheme.typography.titleSmall)
                                 Text(formatEventDate(event.occurredAt),
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                             }
                             event.appLabel?.let {
                                 Text("$it • ${event.packageName.orEmpty()}",
-                                    color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                                    color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                             }
                             Text(event.details, fontSize = 12.sp)
                         }

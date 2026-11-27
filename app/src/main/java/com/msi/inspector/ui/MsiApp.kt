@@ -16,6 +16,7 @@ import androidx.compose.material3.CenterAlignedTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.windowsizeclass.ExperimentalMaterial3WindowSizeClassApi
 import androidx.compose.material3.windowsizeclass.WindowWidthSizeClass
 import androidx.compose.material3.windowsizeclass.calculateWindowSizeClass
@@ -38,10 +39,8 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.data.preferences.MsiPreferences
@@ -78,7 +77,7 @@ fun MsiApp(
     val context = LocalContext.current
     val preferences = remember(context) { MsiPreferences(context) }
     val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
+    DisposableEffect(lifecycleOwner, state.destination) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshUsageAccessState()
@@ -132,10 +131,14 @@ fun MsiApp(
                     title = {
                         Text(
                             state.destination.title,
-                            fontWeight = FontWeight.Bold,
-                            fontSize = 17.sp
+                            style = MaterialTheme.typography.titleMedium
                         )
-                    }
+                    },
+                    colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.background,
+                        scrolledContainerColor = MaterialTheme.colorScheme.background,
+                        titleContentColor = MaterialTheme.colorScheme.onBackground
+                    )
                 )
             },
             bottomBar = {
@@ -242,7 +245,7 @@ fun MsiApp(
                 onDismiss = { showShareConfirmation = false },
                 onExport = { format ->
                     showShareConfirmation = false
-                    shareReport(context, state.applications, state.lastScanAt, format)
+                    shareReport(context, state.applications, state.lastScanAt, format, state.deviceSecurity)
                 }
             )
         }

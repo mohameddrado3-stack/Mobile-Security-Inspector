@@ -32,9 +32,11 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.msi.inspector.design.components.MsiDivider
+import com.msi.inspector.design.components.MsiKeyValueRow
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.design.theme.MsiTheme
-import com.msi.inspector.design.theme.MsiColors
+import com.msi.inspector.design.theme.msiSemanticColors
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import org.json.JSONArray
 import java.text.DateFormat
@@ -61,7 +63,7 @@ fun HistoryScreen(
             Text(
                 "اختر فحصين للمقارنة التفصيلية. السجلات القديمة التي لا تحتوي على لقطة تطبيقات ستعرض مقارنة الأعداد فقط.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
         }
         OutlinedButton(
@@ -94,7 +96,7 @@ fun HistoryScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Column(modifier = Modifier.weight(1f)) {
                                     Text(formatDate(entry.scannedAt), style = MaterialTheme.typography.titleSmall)
-                                    Text("الفحص ${index + 1}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                                    Text("الفحص ${index + 1}", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
                                 }
                                 Checkbox(
                                     checked = isSelected,
@@ -108,24 +110,26 @@ fun HistoryScreen(
                                     }
                                 )
                             }
-                            Text("التطبيقات الظاهرة: ${entry.totalApplications}", fontSize = 12.sp)
-                            Text("وصول خاص نشط: ${entry.activeSpecialAccess}", fontSize = 12.sp)
-                            Text("طلبات وصول خاص: ${entry.requestedSpecialAccess}", fontSize = 12.sp)
-                            Text("تطبيقات بصلاحيات حساسة: ${entry.sensitivePermissions}", fontSize = 12.sp)
+                            MsiDivider()
+                            MsiKeyValueRow("التطبيقات الظاهرة", entry.totalApplications.toString())
+                            MsiKeyValueRow("وصول خاص نشط", entry.activeSpecialAccess.toString())
+                            MsiKeyValueRow("طلبات وصول خاص", entry.requestedSpecialAccess.toString())
+                            MsiKeyValueRow("تطبيقات بصلاحيات حساسة", entry.sensitivePermissions.toString())
+                            MsiDivider()
                             Text(
                                 when (entry.vpnActive) {
-                                    true -> "● VPN نشط وقت الفحص"
-                                    false -> "○ لم يُرصد VPN نشط وقت الفحص"
-                                    null -> "؟ حالة VPN غير متاحة في هذا الفحص"
+                                    true -> "VPN نشط وقت الفحص"
+                                    false -> "لم يُرصد VPN نشط وقت الفحص"
+                                    null -> "حالة VPN غير متاحة في هذا الفحص"
                                 },
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp
+                                fontSize = 12.sp
                             )
                             if (entry.applicationsJson == "[]") {
                                 Text(
                                     "هذا السجل لا يحتوي على تفاصيل التطبيقات؛ تم حفظ الأعداد فقط في إصدار أقدم.",
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    fontSize = 10.sp
+                                    fontSize = 12.sp
                                 )
                             }
                             if (olderEntry != null) {
@@ -133,7 +137,7 @@ fun HistoryScreen(
                                 Text(
                                     "مقارنة بالفحص الأقدم: ${signed(delta)} تطبيقًا",
                                     color = MaterialTheme.colorScheme.primary,
-                                    fontSize = 11.sp
+                                    fontSize = 12.sp
                                 )
                             }
                         }
@@ -167,12 +171,13 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
     val maximum = (points.maxOfOrNull { it.activeSpecialAccess } ?: 0).coerceAtLeast(1)
     val chartColor = MaterialTheme.colorScheme.primary
     val unknownColor = MaterialTheme.colorScheme.outline
+    val attentionColor = msiSemanticColors().attention
     Canvas(
         modifier = Modifier.fillMaxWidth().height(104.dp)
     ) {
         if (points.size == 1) {
             val pointColor = when (points.single().vpnActive) {
-                true -> MsiColors.Attention
+                true -> attentionColor
                 false -> chartColor
                 null -> unknownColor
             }
@@ -185,7 +190,7 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
                 if (index == 0) path.moveTo(x, y) else path.lineTo(x, y)
                 drawCircle(
                     color = when (entry.vpnActive) {
-                        true -> MsiColors.Attention
+                        true -> attentionColor
                         false -> chartColor
                         null -> unknownColor
                     },
@@ -200,14 +205,14 @@ private fun HistoryTrend(history: List<ScanHistoryEntry>) {
         horizontalArrangement = Arrangement.spacedBy(14.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text("● VPN نشط", color = MsiColors.Attention, fontSize = 10.sp)
-        Text("● VPN غير نشط", color = chartColor, fontSize = 10.sp)
-        Text("● غير معروف", color = unknownColor, fontSize = 10.sp)
+        Text("● VPN نشط", color = attentionColor, fontSize = 12.sp)
+        Text("● VPN غير نشط", color = chartColor, fontSize = 12.sp)
+        Text("● غير معروف", color = unknownColor, fontSize = 12.sp)
     }
     Text(
         "الخط يوضح عدد التطبيقات التي لديها وصول خاص نشط، وليس مستوى خطورة. النقطة الرمادية تعني أن Android لم يوفر حالة VPN موثوقة.",
         color = MaterialTheme.colorScheme.onSurfaceVariant,
-        fontSize = 10.sp
+        fontSize = 12.sp
     )
 }
 
@@ -231,7 +236,7 @@ private fun HistoryComparisonCard(first: ScanHistoryEntry, second: ScanHistoryEn
                 Text(
                     "المقارنة التفصيلية غير متاحة لأحد الفحصين لأن بيانات التطبيقات لم تكن محفوظة وقتها.",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
             }
         }

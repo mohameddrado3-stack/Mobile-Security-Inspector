@@ -22,12 +22,33 @@ class DeviceSecurityJsonCodecTest {
             securityPatch = DeviceSecurityEvidence(null, EvidenceAvailability.UNAVAILABLE),
             secureScreenLock = DeviceSecurityEvidence("enabled", EvidenceAvailability.AVAILABLE),
             storageEncryption = DeviceSecurityEvidence(null, EvidenceAvailability.UNSUPPORTED),
-            adbEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.ACCESS_DENIED),
-            developerOptionsEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.ERROR),
+            adbEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.RESTRICTED_BY_ANDROID),
+            developerOptionsEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.RESTRICTED_BY_ANDROID),
             collectedAt = 123456L
         )
 
         assertEquals(snapshot, DeviceSecurityJsonCodec.decode(DeviceSecurityJsonCodec.encode(snapshot)))
+    }
+
+    @Test
+    fun androidRestrictedSettingsRoundTripWithoutBecomingDisabled() {
+        val snapshot = DeviceSecuritySnapshot(
+            androidRelease = DeviceSecurityEvidence("16", EvidenceAvailability.AVAILABLE),
+            apiLevel = DeviceSecurityEvidence("36", EvidenceAvailability.AVAILABLE),
+            securityPatch = DeviceSecurityEvidence("2026-10-01", EvidenceAvailability.AVAILABLE),
+            secureScreenLock = DeviceSecurityEvidence("enabled", EvidenceAvailability.AVAILABLE),
+            storageEncryption = DeviceSecurityEvidence("active", EvidenceAvailability.AVAILABLE),
+            adbEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.RESTRICTED_BY_ANDROID),
+            developerOptionsEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.RESTRICTED_BY_ANDROID),
+            collectedAt = 123456L
+        )
+
+        val restored = DeviceSecurityJsonCodec.decode(DeviceSecurityJsonCodec.encode(snapshot))
+
+        assertEquals(EvidenceAvailability.RESTRICTED_BY_ANDROID, restored?.adbEnabled?.availability)
+        assertEquals(EvidenceAvailability.RESTRICTED_BY_ANDROID, restored?.developerOptionsEnabled?.availability)
+        assertNull(restored?.adbEnabled?.value)
+        assertNull(restored?.developerOptionsEnabled?.value)
     }
 
     @Test

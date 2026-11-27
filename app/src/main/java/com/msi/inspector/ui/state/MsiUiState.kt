@@ -27,6 +27,7 @@ data class MsiUiState(
     val usageAccessOptIn: Boolean = false,
     val usageAccessGranted: Boolean = false,
     val deviceSecurity: DeviceSecuritySnapshot? = null,
+    val liveDeviceSecurity: DeviceSecuritySnapshot? = null,
     val isLoadingDeviceSecurity: Boolean = false,
     val error: String? = null
 )
