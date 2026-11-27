@@ -5,6 +5,7 @@ enum class EvidenceAvailability {
     UNSUPPORTED,
     UNAVAILABLE,
     ACCESS_DENIED,
+    RESTRICTED_BY_ANDROID,
     ERROR
 }
 
