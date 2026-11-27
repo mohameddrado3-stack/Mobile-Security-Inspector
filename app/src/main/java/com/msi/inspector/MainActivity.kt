@@ -15,6 +15,7 @@ import androidx.fragment.app.FragmentActivity
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import com.msi.inspector.background.MsiMonitoringController
 import com.msi.inspector.background.PeriodicScanScheduler
 import com.msi.inspector.data.preferences.MsiPreferences
 import com.msi.inspector.design.theme.MsiTheme
@@ -35,9 +36,11 @@ class MainActivity : FragmentActivity() {
     private var themeMode by mutableStateOf(MsiThemeMode.DARK)
     private var useDynamicColor by mutableStateOf(false)
     private var periodicScanEnabled by mutableStateOf(false)
+    private var activeMonitoringEnabled by mutableStateOf(false)
     private var scheduledHour by mutableStateOf(9)
     private var scheduledMinute by mutableStateOf(0)
     private var pendingPeriodicEnable = false
+    private var pendingMonitoringEnable = false
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -54,6 +57,22 @@ class MainActivity : FragmentActivity() {
         pendingPeriodicEnable = false
     }
 
+    private val monitoringNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { granted ->
+        if (pendingMonitoringEnable && granted) {
+            persistActiveMonitoringEnabled(true)
+        } else if (pendingMonitoringEnable) {
+            activeMonitoringEnabled = false
+            Toast.makeText(
+                this,
+                "لم يتم تشغيل المراقبة لأن إذن الإشعارات لم يُمنح.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
+        pendingMonitoringEnable = false
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -62,6 +81,7 @@ class MainActivity : FragmentActivity() {
         appLocked = appLockSettings.isEnabled()
         loadThemePreferences()
         loadPeriodicScanPreference()
+        loadActiveMonitoringPreference()
         acceptShortcutIntent(intent)
         window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
         window.navigationBarColor = android.graphics.Color.rgb(7, 11, 22)
@@ -78,6 +98,8 @@ class MainActivity : FragmentActivity() {
                         onThemeChanged = ::saveThemePreferences,
                         periodicScanEnabled = periodicScanEnabled,
                         onPeriodicScanChanged = ::configurePeriodicScan,
+                        activeMonitoringEnabled = activeMonitoringEnabled,
+                        onActiveMonitoringChanged = ::configureActiveMonitoring,
                         scheduledHour = scheduledHour,
                         scheduledMinute = scheduledMinute,
                         onScheduledTimeChanged = ::saveScanSchedule
@@ -139,6 +161,60 @@ class MainActivity : FragmentActivity() {
         preferences.saveScanSchedule(scheduledHour, scheduledMinute)
         if (periodicScanEnabled) {
             PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+        }
+    }
+
+
+    private fun loadActiveMonitoringPreference() {
+        if (!MsiMonitoringController.isEnabled(this)) return
+        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (permissionGranted) {
+            activeMonitoringEnabled = true
+            runCatching { MsiMonitoringController.enable(this) }.onFailure {
+                activeMonitoringEnabled = false
+                MsiMonitoringController.disable(this)
+                Toast.makeText(this, "تعذر استئناف المراقبة النشطة.", Toast.LENGTH_LONG).show()
+            }
+        } else {
+            activeMonitoringEnabled = false
+            MsiMonitoringController.disable(this)
+        }
+    }
+
+    private fun configureActiveMonitoring(enabled: Boolean) {
+        if (!enabled) {
+            persistActiveMonitoringEnabled(false)
+            return
+        }
+        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (permissionGranted) {
+            persistActiveMonitoringEnabled(true)
+        } else {
+            pendingMonitoringEnable = true
+            monitoringNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+    }
+
+    private fun persistActiveMonitoringEnabled(enabled: Boolean) {
+        activeMonitoringEnabled = enabled
+        if (!enabled) {
+            MsiMonitoringController.disable(this)
+            return
+        }
+        try {
+            MsiMonitoringController.enable(this)
+        } catch (_: Exception) {
+            activeMonitoringEnabled = false
+            MsiMonitoringController.disable(this)
+            Toast.makeText(
+                this,
+                "تعذر تشغيل خدمة المراقبة. افتح التطبيق وحاول مرة أخرى.",
+                Toast.LENGTH_LONG
+            ).show()
         }
     }
 
