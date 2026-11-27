@@ -4,7 +4,6 @@ import android.app.admin.DevicePolicyManager
 import android.app.KeyguardManager
 import android.content.Context
 import android.os.Build
-import android.provider.Settings
 import com.msi.inspector.domain.model.DeviceSecurityEvidence
 import com.msi.inspector.domain.model.DeviceSecuritySnapshot
 import com.msi.inspector.domain.model.EvidenceAvailability
@@ -26,20 +25,10 @@ class AndroidDeviceSecurityReader(context: Context) {
             if (keyguard.isDeviceSecure) "enabled" else "disabled"
         },
         storageEncryption = readStorageEncryption(),
-        adbEnabled = readGlobalBoolean(Settings.Global.ADB_ENABLED),
-        developerOptionsEnabled = readGlobalBoolean(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED),
+        adbEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.RESTRICTED_BY_ANDROID),
+        developerOptionsEnabled = DeviceSecurityEvidence(null, EvidenceAvailability.RESTRICTED_BY_ANDROID),
         collectedAt = System.currentTimeMillis()
     )
-
-    private fun readGlobalBoolean(key: String): DeviceSecurityEvidence {
-        return capture {
-            when (Settings.Global.getInt(appContext.contentResolver, key, -1)) {
-                1 -> "enabled"
-                0 -> "disabled"
-                else -> null
-            }
-        }
-    }
 
     private fun capture(source: () -> String?): DeviceSecurityEvidence {
         return try {
