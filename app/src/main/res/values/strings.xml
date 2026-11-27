@@ -14,4 +14,18 @@
     <string name="msi_notification_text">تم رصد %1$d تغيّرًا بين الفحوصات المحلية.</string>
     <string name="msi_notification_big_text">سجّل MSI %1$d تغيّرًا بين آخر الفحوصات المحلية. افتح التطبيق لمراجعة التفاصيل والأدلة المتاحة. هذا تنبيه للمراجعة وليس حكمًا على سلامة أي تطبيق.</string>
     <string name="msi_notification_subtext">فحص محلي • دون اتصال بخادم</string>
+    <string name="monitor_notification_channel_name">MSI device monitoring</string>
+    <string name="monitor_notification_channel_description">Persistent notification while user-enabled local monitoring is running.</string>
+    <string name="monitor_notification_title">MSI • Active monitoring</string>
+    <string name="monitor_notification_text">Local monitoring is active for apps and Android security settings.</string>
+    <string name="monitor_notification_big_text">Monitoring is active because you enabled it. MSI observes app install changes and ADB/developer settings, and periodically rechecks device indicators. Android may delay some scans. MSI does not send scan data to a server.</string>
+    <string name="monitor_notification_stop">Stop monitoring</string>
+    <string name="monitor_card_title">Active device monitoring</string>
+    <string name="monitor_card_description">Watch local app changes and selected security settings with a persistent notification while the service is running.</string>
+    <string name="monitor_card_enabled">Monitoring is enabled. MSI observes app install changes and ADB/developer settings, with a fallback scan every few hours.</string>
+    <string name="monitor_card_disabled">Monitoring is off. No background service is running.</string>
+    <string name="monitor_card_privacy">No internet or Usage Access is needed. App names and scan results are not sent to a server.</string>
+    <string name="monitor_card_limits">Notification permission is required. Android may stop the service or delay scans because of battery and system restrictions. After a device restart, open MSI to start the service again.</string>
+    <string name="monitor_enable">Start monitoring</string>
+    <string name="monitor_disable">Stop monitoring</string>
 </resources>

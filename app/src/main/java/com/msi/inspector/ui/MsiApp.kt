@@ -68,6 +68,8 @@ fun MsiApp(
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit = { _, _ -> },
     periodicScanEnabled: Boolean = false,
     onPeriodicScanChanged: (Boolean) -> Unit = {},
+    activeMonitoringEnabled: Boolean = false,
+    onActiveMonitoringChanged: (Boolean) -> Unit = {},
     scheduledHour: Int = 9,
     scheduledMinute: Int = 0,
     onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
@@ -81,6 +83,7 @@ fun MsiApp(
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshUsageAccessState()
+                viewModel.refreshScanHistory()
                 if (state.destination == MsiDestination.TOOLS) viewModel.refreshDeviceSecurity()
             }
         }
@@ -160,6 +163,8 @@ fun MsiApp(
                     onThemeChanged = onThemeChanged,
                     periodicScanEnabled = periodicScanEnabled,
                     onPeriodicScanChanged = onPeriodicScanChanged,
+                    activeMonitoringEnabled = activeMonitoringEnabled,
+                    onActiveMonitoringChanged = onActiveMonitoringChanged,
                     scheduledHour = scheduledHour,
                     scheduledMinute = scheduledMinute,
                     onScheduledTimeChanged = onScheduledTimeChanged,

@@ -43,15 +43,23 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             try {
-                val loaded = withContext(Dispatchers.IO) { repository.loadHistory() to repository.loadTimeline() }
+                val loaded = withContext(Dispatchers.IO) {
+                    Triple(
+                        repository.loadHistory(),
+                        repository.loadTimeline(),
+                        repository.loadLatestSnapshot()
+                    )
+                }
                 val entries = loaded.first
+                val latestSnapshot = loaded.third
                 mutableState.update { current ->
                     current.copy(
+                        applications = current.applications.ifEmpty { latestSnapshot?.applications.orEmpty() },
                         history = entries,
                         timelineEvents = loaded.second,
-                        deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
-                        vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
-                        lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
+                        deviceSecurity = current.deviceSecurity ?: latestSnapshot?.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
+                        vpnActive = if (latestSnapshot != null) latestSnapshot.vpnActive else current.vpnActive ?: entries.firstOrNull()?.vpnActive,
+                        lastScanAt = current.lastScanAt ?: latestSnapshot?.completedAt ?: entries.firstOrNull()?.scannedAt
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -84,6 +92,46 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 throw cancelled
             } catch (_: Exception) {
                 mutableState.update { it.copy(isLoadingDeviceSecurity = false) }
+            }
+        }
+    }
+
+    fun refreshScanHistory() {
+        viewModelScope.launch {
+            try {
+                val loaded = withContext(Dispatchers.IO) {
+                    Triple(
+                        repository.loadHistory(),
+                        repository.loadTimeline(),
+                        repository.loadLatestSnapshot()
+                    )
+                }
+                mutableState.update { current ->
+                    val latest = loaded.third
+                    if (latest != null && current.lastScanAt != null &&
+                        latest.completedAt < current.lastScanAt
+                    ) {
+                        current
+                    } else {
+                        current.copy(
+                            applications = latest?.applications ?: current.applications,
+                            history = loaded.first,
+                            timelineEvents = loaded.second,
+                            deviceSecurity = latest?.deviceSecurity ?: current.deviceSecurity,
+                            vpnActive = if (latest != null) latest.vpnActive else current.vpnActive,
+                            lastScanAt = latest?.completedAt ?: current.lastScanAt
+                        )
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                mutableState.update {
+                    it.copy(
+                        error = exception.localizedMessage?.takeIf(String::isNotBlank)
+                            ?: "تعذر تحديث سجل الفحوصات المحلي."
+                    )
+                }
             }
         }
     }
@@ -176,13 +224,13 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         viewModelScope.launch {
-            val snapshot = try {
+            val scanResult = try {
                 withContext(Dispatchers.IO) {
-                    repository.scan { completed, total ->
+                    repository.scanAndSave(onProgress = { completed, total ->
                         mutableState.update {
                             it.copy(scanProgress = completed, scanTotal = total)
                         }
-                    }
+                    })
                 }
             } catch (cancelled: CancellationException) {
                 mutableState.update { it.copy(isScanning = false) }
@@ -198,18 +246,17 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            val snapshot = scanResult.snapshot
             try {
-                val recorded = withContext(Dispatchers.IO) {
-                    repository.saveHistory(snapshot)
+                withContext(Dispatchers.IO) {
                     runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
-                    repository.loadHistory() to repository.loadTimeline()
                 }
-                val history = recorded.first
+                val history = scanResult.history
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
                         history = history,
-                        timelineEvents = recorded.second,
+                        timelineEvents = scanResult.timeline,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,

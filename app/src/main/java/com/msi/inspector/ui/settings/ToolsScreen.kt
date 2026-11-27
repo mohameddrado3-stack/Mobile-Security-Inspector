@@ -9,6 +9,8 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
@@ -26,6 +28,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiSectionHeading
+import com.msi.inspector.BuildConfig
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.domain.model.DeviceSecurityEvidence
 import com.msi.inspector.domain.model.DeviceSecuritySnapshot
@@ -45,6 +48,8 @@ fun ToolsScreen(
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
     periodicScanEnabled: Boolean = false,
     onPeriodicScanChanged: (Boolean) -> Unit = {},
+    activeMonitoringEnabled: Boolean = false,
+    onActiveMonitoringChanged: (Boolean) -> Unit = {},
     scheduledHour: Int = 9,
     scheduledMinute: Int = 0,
     onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
@@ -59,10 +64,16 @@ fun ToolsScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
+            .verticalScroll(rememberScrollState())
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
+        UpdateCenterCard(currentVersion = BuildConfig.VERSION_NAME)
+        ActiveMonitoringCard(
+            enabled = activeMonitoringEnabled,
+            onEnabledChanged = onActiveMonitoringChanged
+        )
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
             val security = deviceSecurity
