@@ -112,6 +112,6 @@
 
 ## البناء والإصدار
 
-GitHub Actions يشغّل Unit Tests، ثم يبني Debug APK وRelease APK مع R8، ويتحقق من targetSdk وdebuggable وغياب INTERNET وPreviewActivity ومكوّنات exported غير المتوقعة وDebugProbes، ويتحقق من mapping.txt ويولد checksums ويعرض أحجام APK. Release الناتج في CI **غير موقّع** عمدًا. يلزم إعداد مفتاح توقيع إنتاجي في GitHub Secrets خارج المستودع قبل توزيع Release.
+GitHub Actions يشغّل Unit Tests، ثم يبني Debug APK وRelease APK مع R8، ويتحقق من targetSdk وdebuggable، وغياب INTERNET من Debug وقصره على فحص GitHub Releases في Release، وغياب PreviewActivity ومكوّنات exported غير المتوقعة وDebugProbes، ويتحقق من mapping.txt ويولد checksums ويعرض أحجام APK. Release الناتج في CI **غير موقّع** عمدًا. يلزم إعداد مفتاح توقيع إنتاجي في GitHub Secrets خارج المستودع قبل توزيع Release.
 
 يخضع QUERY_ALL_PACKAGES لمراجعة وسياسات Google Play. يلزم كذلك اختبار Android 8 إلى Android 16، والقفل، والاختصارات، وTalkBack، والـRTL وتكبير الخط على أجهزة فعلية قبل الاعتماد.
