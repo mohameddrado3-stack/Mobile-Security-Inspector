@@ -94,17 +94,17 @@ fun PermissionsScreen(
                             Text(
                                 "التطبيقات: ${category.applicationCount}",
                                 color = MaterialTheme.colorScheme.primary,
-                                fontSize = 12.sp
+                                style = MaterialTheme.typography.labelLarge
                             )
                             Text(
                                 "ممنوحة لدى: ${category.grantedApplicationCount}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp
+                                fontSize = 12.sp
                             )
                             Text(
                                 "مطلوبة لدى: ${category.requestedApplicationCount}",
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp
+                                fontSize = 12.sp
                             )
                         }
                     }
@@ -114,7 +114,7 @@ fun PermissionsScreen(
         Text(
             "الصلاحية المعلنة ليست بالضرورة ممنوحة أو مستخدمة. وجود صلاحية حساسة لا يثبت أن التطبيق ضار.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            fontSize = 11.sp
+            fontSize = 12.sp
         )
     }
 }

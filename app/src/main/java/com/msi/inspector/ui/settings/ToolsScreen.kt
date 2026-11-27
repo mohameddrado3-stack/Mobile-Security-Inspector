@@ -87,7 +87,7 @@ fun ToolsScreen(
                         java.text.DateFormat.SHORT
                     ).format(java.util.Date(security.collectedAt)),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
             }
             OutlinedButton(
@@ -100,7 +100,7 @@ fun ToolsScreen(
             Text(
                 "قراءة فقط. لا يغيّر MSI أي إعداد في الجهاز.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
             OutlinedButton(onClick = onSecuritySettings, modifier = Modifier.fillMaxWidth()) {
                 Text("فتح إعدادات الأمان")
@@ -127,7 +127,7 @@ fun ToolsScreen(
                     Text(
                         "متاحة على Android 12 وما بعده.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 Switch(
@@ -149,7 +149,7 @@ fun ToolsScreen(
                     Text(
                         "لا يحتاج اتصال شبكة. يرسل إشعارًا فقط إذا تغيّرت مؤشرات محددة.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 Switch(checked = periodicScanEnabled, onCheckedChange = onPeriodicScanChanged)
@@ -175,7 +175,7 @@ fun ToolsScreen(
             Text(
                 "يطلب Android إذن الإشعارات عند التفعيل فقط. قد يؤخر Android التنفيذ بسبب البطارية أو قيود النظام؛ الموعد ليس ضمانًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp
+                fontSize = 12.sp
             )
         }
         MsiCard {
@@ -191,7 +191,7 @@ fun ToolsScreen(
                         if (usageAccessGranted && usageAccessOptIn) "الوصول الخاص مفعّل بإذن المستخدم."
                         else "مغلق افتراضيًا. يفتح إعدادات Usage Access فقط بعد تفعيل الخيار.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 Switch(checked = usageAccessOptIn, onCheckedChange = onUsageAccessChanged)
@@ -199,7 +199,7 @@ fun ToolsScreen(
             Text(
                 "عند تفعيله، يقرأ MSI آخر وقت استخدام معروف محليًا ليشير إلى تطبيقات لديها صلاحيات حساسة ولم تُستخدم منذ 30 يومًا. قد تكون البيانات غير مكتملة، ولا يُسحب أي إذن تلقائيًا.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp
+                fontSize = 12.sp
             )
         }
         MsiCard {
@@ -234,7 +234,7 @@ fun ToolsScreen(
                     Text(
                         "يستخدم البصمة القوية أو قفل شاشة الجهاز إذا كان مدعومًا.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 Switch(
@@ -245,7 +245,7 @@ fun ToolsScreen(
             Text(
                 "يمكن إيقاف الميزة من داخل MSI بعد فتحه. لا يخزن التطبيق رمز PIN أو بيانات البصمة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp
+                fontSize = 12.sp
             )
         }
         MsiCard {
@@ -258,7 +258,7 @@ fun ToolsScreen(
             Text(
                 "التغييرات التي تتطلب صلاحيات نظام خاصة تُفتح في إعدادات Android ولا ينفذها MSI بصمت.",
                 color = MaterialTheme.colorScheme.primary,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
         }
     }

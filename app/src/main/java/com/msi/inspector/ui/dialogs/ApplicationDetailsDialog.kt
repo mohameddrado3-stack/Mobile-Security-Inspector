@@ -44,7 +44,7 @@ fun ApplicationDetailsDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                Text("اسم الحزمة: ${application.packageName}", fontSize = 11.sp)
+                Text("اسم الحزمة: ${application.packageName}", fontSize = 12.sp)
                 Text("الإصدار: ${application.version}", fontSize = 12.sp)
                 Text("حالة قراءة بيانات الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 Text(
@@ -54,18 +54,18 @@ fun ApplicationDetailsDialog(
                         PackageMetadataState.ACCESS_DENIED -> "رفض Android الوصول إليها"
                         PackageMetadataState.ERROR -> "حدث خطأ أثناء قراءتها"
                     },
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = if (application.packageMetadataAvailable) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.tertiary
                 )
                 Text(
                     "الصلاحيات الحساسة: ${application.grantedSensitive.size} ممنوحة / ${application.requestedSensitive.size} مطلوبة",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
                 Text(
                     "حالة المنح غير معروفة: ${application.permissionsWithUnknownGrantState.size}",
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.tertiary
                 )
@@ -79,7 +79,7 @@ fun ApplicationDetailsDialog(
                 Text("SHA-256 لشهادة التوقيع:", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
                 Text(
                     application.signingCertificateSha256 ?: "غير متاح من Android لهذا التطبيق",
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 Text("التصنيف المحلي", color = MaterialTheme.colorScheme.primary)
                 Text(
@@ -88,27 +88,27 @@ fun ApplicationDetailsDialog(
                         isIgnored -> "أنت وضعت هذا التطبيق في قائمة متجاهل لتقليل الضوضاء. بياناته لا تُحذف."
                         else -> "يمكنك وضع تسمية محلية لتسهيل مراجعة القوائم."
                     },
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
                 Text("ماذا أفعل؟", color = MaterialTheme.colorScheme.primary)
                 application.specialAccessReasons.forEach { reason ->
-                    Text(reason, fontSize = 11.sp)
+                    Text(reason, fontSize = 12.sp)
                     Text(
                         com.msi.inspector.domain.analyzer.AppPermissionGuidance.explainSpecialAccess(reason),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 (application.grantedSensitive + application.requestedSensitive).distinct().forEach { permission ->
-                    Text(permission.substringAfterLast('.'), fontSize = 10.sp)
+                    Text(permission.substringAfterLast('.'), fontSize = 12.sp)
                     Text(
                         com.msi.inspector.domain.analyzer.AppPermissionGuidance.explain(permission),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
                 Text("ملاحظات الفحص", color = MaterialTheme.colorScheme.primary)
-                application.signals.forEach { signal -> Text("• $signal", fontSize = 11.sp) }
+                application.signals.forEach { signal -> Text("• $signal", fontSize = 12.sp) }
                 Text("إعدادات وصول خاصة نشطة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     when {
@@ -123,7 +123,7 @@ fun ApplicationDetailsDialog(
                         else ->
                             "لم يتم رصد تفعيل Accessibility أو Device Admin لهذا التطبيق."
                     },
-                    fontSize = 11.sp,
+                    fontSize = 12.sp,
                     color = if (application.specialAccessStateAvailable) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.tertiary
                 )
@@ -132,14 +132,14 @@ fun ApplicationDetailsDialog(
                     application.requestedSpecialAccess.ifEmpty {
                         listOf("لم تُرصد طلبات الإعدادات الخاصة المعروفة.")
                     }.joinToString("\n"),
-                    fontSize = 11.sp
+                    fontSize = 12.sp
                 )
                 Text("صلاحيات تعذر تحديد مستوى حمايتها", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.unclassifiedPermissions.ifEmpty {
                         listOf("لا توجد صلاحيات غير مصنفة ضمن البيانات المتاحة.")
                     }.joinToString("\n"),
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     color = if (application.unclassifiedPermissions.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.tertiary
                 )
@@ -148,7 +148,7 @@ fun ApplicationDetailsDialog(
                     application.permissionsWithUnknownGrantState.ifEmpty {
                         listOf("لا توجد صلاحيات بحالة منح مجهولة ضمن قائمة الصلاحيات التي أمكن قراءتها.")
                     }.joinToString("\n"),
-                    fontSize = 10.sp,
+                    fontSize = 12.sp,
                     color = if (application.permissionsWithUnknownGrantState.isEmpty()) MaterialTheme.colorScheme.onSurfaceVariant
                         else MaterialTheme.colorScheme.tertiary
                 )
@@ -156,18 +156,18 @@ fun ApplicationDetailsDialog(
                 Text(
                     application.grantedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
                         .joinToString("\n"),
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 Text("الصلاحيات الحساسة المطلوبة", color = MaterialTheme.colorScheme.primary)
                 Text(
                     application.requestedSensitive.ifEmpty { listOf("لا توجد ضمن المعلومات المتاحة.") }
                         .joinToString("\n"),
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 Text(
                     "وجود صلاحية أو إعداد خاص لا يثبت أن التطبيق ضار. قد تكون الصلاحيات ضرورية لوظيفته.",
                     color = MaterialTheme.colorScheme.tertiary,
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
             }
         },

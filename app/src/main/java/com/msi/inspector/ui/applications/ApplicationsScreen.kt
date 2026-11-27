@@ -7,6 +7,7 @@ import android.content.Intent
 import android.widget.Toast
 import android.graphics.drawable.Drawable
 import android.widget.ImageView
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -29,6 +30,7 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -49,12 +51,15 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
+import com.msi.inspector.R
 import com.msi.inspector.design.components.MsiSectionHeading
 import com.msi.inspector.design.theme.MsiTheme
+import com.msi.inspector.design.theme.msiSemanticColors
 import com.msi.inspector.domain.analyzer.AppFilter
 import com.msi.inspector.domain.analyzer.ApplicationSortOrder
 import com.msi.inspector.domain.analyzer.compareApplications
@@ -93,6 +98,14 @@ fun ApplicationsScreen(
             onValueChange = onQueryChange,
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            shape = RoundedCornerShape(14.dp),
+            leadingIcon = {
+                Icon(
+                    painter = painterResource(R.drawable.ic_msi_search),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
+            },
             label = { Text("بحث عن تطبيق") },
             placeholder = { Text("اسم التطبيق أو package name") }
         )
@@ -128,7 +141,7 @@ fun ApplicationsScreen(
             Text(
                 "اختر تطبيقًا آخر لإكمال المقارنة (${selectedForComparison.size}/2).",
                 color = MaterialTheme.colorScheme.primary,
-                fontSize = 11.sp
+                fontSize = 12.sp
             )
         }
         if (applications.isEmpty()) {
@@ -220,18 +233,18 @@ private fun ComparisonCard(first: AppAudit, second: AppAudit) {
         Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text("مقارنة تطبيقين", style = MaterialTheme.typography.titleSmall)
             Text("${first.label}  مقابل  ${second.label}", fontSize = 12.sp)
-            Text("الإصدار: ${first.version} / ${second.version}", fontSize = 11.sp)
-            Text("Target SDK: ${first.targetSdk ?: "غير متاح"} / ${second.targetSdk ?: "غير متاح"}", fontSize = 11.sp)
-            Text("مصدر التثبيت: ${first.installer} / ${second.installer}", fontSize = 11.sp)
-            Text(signatureStatus, fontSize = 11.sp)
-            Text("صلاحيات ممنوحة في الأول فقط: ${display(comparison.grantedOnlyInFirst)}", fontSize = 11.sp)
-            Text("صلاحيات ممنوحة في الثاني فقط: ${display(comparison.grantedOnlyInSecond)}", fontSize = 11.sp)
-            Text("صلاحيات مطلوبة في الأول فقط: ${display(comparison.requestedOnlyInFirst)}", fontSize = 11.sp)
-            Text("صلاحيات مطلوبة في الثاني فقط: ${display(comparison.requestedOnlyInSecond)}", fontSize = 11.sp)
+            Text("الإصدار: ${first.version} / ${second.version}", fontSize = 12.sp)
+            Text("Target SDK: ${first.targetSdk ?: "غير متاح"} / ${second.targetSdk ?: "غير متاح"}", fontSize = 12.sp)
+            Text("مصدر التثبيت: ${first.installer} / ${second.installer}", fontSize = 12.sp)
+            Text(signatureStatus, fontSize = 12.sp)
+            Text("صلاحيات ممنوحة في الأول فقط: ${display(comparison.grantedOnlyInFirst)}", fontSize = 12.sp)
+            Text("صلاحيات ممنوحة في الثاني فقط: ${display(comparison.grantedOnlyInSecond)}", fontSize = 12.sp)
+            Text("صلاحيات مطلوبة في الأول فقط: ${display(comparison.requestedOnlyInFirst)}", fontSize = 12.sp)
+            Text("صلاحيات مطلوبة في الثاني فقط: ${display(comparison.requestedOnlyInSecond)}", fontSize = 12.sp)
             Text(
                 "المقارنة تعرض اختلافات البيانات المتاحة، ولا تعني أن تطبيقًا أكثر أمانًا من الآخر.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 10.sp
+                fontSize = 12.sp
             )
         }
     }
@@ -287,8 +300,8 @@ private fun SwipeableApplicationCard(
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text("نسخ اسم الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
-                Text("إعدادات التطبيق", color = MaterialTheme.colorScheme.primary, fontSize = 11.sp)
+                Text("نسخ اسم الحزمة", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
+                Text("إعدادات التطبيق", color = MaterialTheme.colorScheme.primary, fontSize = 12.sp)
             }
         },
         enableDismissFromStartToEnd = true,
@@ -323,17 +336,26 @@ private fun ApplicationCard(
             runCatching { context.packageManager.getApplicationIcon(app.packageName) }.getOrNull()
         }
     }
-    val accent = when (app.status) {
-        AuditStatus.REVIEW -> Color(0xFFFF7A6B)
-        AuditStatus.REQUESTED -> Color(0xFFFFC857)
-        AuditStatus.SENSITIVE -> Color(0xFF85B8FF)
-        AuditStatus.INFORMATIONAL -> Color(0xFF70E7D1)
-        AuditStatus.INCOMPLETE -> Color(0xFFFFA85C)
+    val semantic = msiSemanticColors()
+    val accent: Color = when (app.status) {
+        AuditStatus.REVIEW -> semantic.attention
+        AuditStatus.REQUESTED -> semantic.review
+        AuditStatus.SENSITIVE -> semantic.info
+        AuditStatus.INFORMATIONAL -> semantic.calm
+        AuditStatus.INCOMPLETE -> semantic.review
+    }
+    val statusIcon = when (app.status) {
+        AuditStatus.REVIEW -> R.drawable.ic_msi_shield_alert
+        AuditStatus.REQUESTED -> R.drawable.ic_msi_key
+        AuditStatus.SENSITIVE -> R.drawable.ic_msi_eye
+        AuditStatus.INFORMATIONAL -> R.drawable.ic_msi_check
+        AuditStatus.INCOMPLETE -> R.drawable.ic_msi_warning
     }
     Card(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
     ) {
         Box {
         Row(
@@ -361,42 +383,56 @@ private fun ApplicationCard(
                         .padding(5.dp)
                 )
             } else {
-                Text(
-                    app.label.firstOrNull()?.uppercase() ?: "A",
+                Box(
                     modifier = Modifier.size(48.dp)
-                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp))
-                        .padding(10.dp),
-                    color = MaterialTheme.colorScheme.primary,
-                    fontSize = 22.sp
-                )
+                        .background(MaterialTheme.colorScheme.surfaceVariant, RoundedCornerShape(14.dp)),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        app.label.firstOrNull()?.uppercase() ?: "A",
+                        color = MaterialTheme.colorScheme.primary,
+                        style = MaterialTheme.typography.titleLarge
+                    )
+                }
             }
             Column(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
                 Text(app.label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp, maxLines = 1)
-                Text(
-                    when (app.status) {
-                        AuditStatus.REVIEW -> "● وصول خاص نشط — راجع السبب"
-                        AuditStatus.REQUESTED -> "◷ طلب وصول خاص — التفعيل غير مؤكد"
-                        AuditStatus.SENSITIVE -> "◈ صلاحيات حساسة ممنوحة"
-                        AuditStatus.INFORMATIONAL -> "○ لم تُرصد المؤشرات المحددة"
-                        AuditStatus.INCOMPLETE -> "⚠ بيانات الفحص غير مكتملة — راجع التفاصيل"
-                    },
-                    color = accent,
-                    fontSize = 11.sp
-                )
+                Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
+                ) {
+                    Icon(
+                        painter = painterResource(statusIcon),
+                        contentDescription = null,
+                        tint = accent,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Text(
+                        when (app.status) {
+                            AuditStatus.REVIEW -> "وصول خاص نشط — راجع السبب"
+                            AuditStatus.REQUESTED -> "طلب وصول خاص — التفعيل غير مؤكد"
+                            AuditStatus.SENSITIVE -> "صلاحيات حساسة ممنوحة"
+                            AuditStatus.INFORMATIONAL -> "لم تُرصد المؤشرات المحددة"
+                            AuditStatus.INCOMPLETE -> "بيانات الفحص غير مكتملة — راجع التفاصيل"
+                        },
+                        color = accent,
+                        style = MaterialTheme.typography.labelMedium
+                    )
+                }
                 Text(
                     "${if (app.isSystem) "تطبيق نظام" else "تطبيق مثبت"} • ${app.version}",
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 10.sp
+                    fontSize = 12.sp
                 )
                 if (isTrusted || isIgnored) {
                     Text(
-                        if (isTrusted) "✓ موثوق لدي — تسمية محلية" else "↘ متجاهل — تسمية محلية",
+                        if (isTrusted) "موثوق لدي — تسمية محلية" else "متجاهل — تسمية محلية",
                         color = MaterialTheme.colorScheme.primary,
-                        fontSize = 10.sp
+                        fontSize = 12.sp
                     )
                 }
             }
