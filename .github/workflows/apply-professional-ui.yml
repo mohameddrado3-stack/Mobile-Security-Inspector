@@ -49,7 +49,7 @@ jobs:
           git diff --check
           python - <<'PY'
           import subprocess
-          paths = subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()
+          paths = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=ACMRT"], text=True).splitlines()
           if not paths:
               raise SystemExit("The UI patch produced no source changes")
           forbidden = [p for p in paths if not (
