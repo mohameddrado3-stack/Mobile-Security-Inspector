@@ -37,6 +37,24 @@ class TimelineEventDetectorTest {
         assertFalse(events.any { it.type == TimelineEventType.SIGNATURE_CHANGED })
     }
 
+    @Test fun detectsKnownVersionNameChange() {
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(app().copy(version = "1.0"))),
+            snapshot(listOf(app().copy(version = "1.1")), 2_000L)
+        )
+
+        assertTrue(events.any { it.type == TimelineEventType.APP_VERSION_CHANGED })
+    }
+
+    @Test fun unavailableVersionNameDoesNotCreateFalseVersionChange() {
+        val events = TimelineEventDetector.detect(
+            snapshot(listOf(app().copy(version = "1.0"))),
+            snapshot(listOf(app().copy(version = "غير متاح")), 2_000L)
+        )
+
+        assertFalse(events.any { it.type == TimelineEventType.APP_VERSION_CHANGED })
+    }
+
     @Test fun detectsSignatureChangeOnlyWhenBothFingerprintsExist() {
         val events = TimelineEventDetector.detect(
             snapshot(listOf(app(signature = "OLD"))),
