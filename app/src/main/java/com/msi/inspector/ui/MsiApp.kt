@@ -245,7 +245,7 @@ fun MsiApp(
                 onDismiss = { showShareConfirmation = false },
                 onExport = { format ->
                     showShareConfirmation = false
-                    shareReport(context, state.applications, state.lastScanAt, format)
+                    shareReport(context, state.applications, state.lastScanAt, format, state.deviceSecurity)
                 }
             )
         }
