@@ -19,10 +19,12 @@ class AppAuditRepository(context: Context) {
         SCAN_MUTEX.withLock { scanner.scan(onProgress) }
 
     suspend fun scanAndSave(
-        onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }
+        onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> },
+        shouldPersist: () -> Boolean = { true }
     ): Pair<ScanSnapshot, List<TimelineEvent>> = SCAN_MUTEX.withLock {
         val snapshot = scanner.scan(onProgress)
-        snapshot to saveHistory(snapshot)
+        val events = if (shouldPersist()) saveHistory(snapshot) else emptyList()
+        snapshot to events
     }
 
     fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
