@@ -79,7 +79,7 @@ fun ToolsScreen(
                 DeviceSecurityRow("مستوى تصحيح الأمان", security.securityPatch)
                 DeviceSecurityRow("قفل شاشة آمن", security.secureScreenLock, onSecuritySettings)
                 DeviceSecurityRow("تشفير التخزين", security.storageEncryption, onSecuritySettings)
-                DeviceSecurityRow("تصحيح USB (ADB)", security.adbEnabled, onDeveloperSettings)
+                DeviceSecurityRow("حالة ADB", security.adbEnabled, onDeveloperSettings)
                 DeviceSecurityRow("خيارات المطوّر", security.developerOptionsEnabled, onDeveloperSettings)
                 Text(
                     "آخر قراءة: " + java.text.DateFormat.getDateTimeInstance(
@@ -309,6 +309,8 @@ private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
             "enabled" -> "مفعّل"
             "disabled" -> "غير مفعّل"
             "active" -> "مشفّر ونشط"
+            "active_per_user" -> "مشفّر بمفتاح مرتبط بالمستخدم أو الملف الشخصي"
+            "active_default_key" -> "مشفّر لكن المفتاح غير محمي ببيانات اعتماد المستخدم"
             "inactive" -> "غير نشط"
             "activating" -> "جارٍ التفعيل"
             "unsupported" -> "غير مدعوم"
