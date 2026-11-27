@@ -43,6 +43,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import com.msi.inspector.R
 import com.msi.inspector.design.components.MsiActionTile
+import com.msi.inspector.ui.dashboard.BatteryUsageCard
 import com.msi.inspector.design.components.MsiBrandHeader
 import com.msi.inspector.design.components.MsiCard
 import com.msi.inspector.design.components.MsiDivider
@@ -279,6 +280,12 @@ fun DashboardScreen(
                 }
             }
         }
+
+        BatteryUsageCard(
+            summary = state.batteryUsage,
+            isLoading = state.isLoadingBatteryUsage,
+            isTrackingEnabled = state.batteryTrackingEnabled
+        )
 
         MsiSectionHeading("مؤشرات الفحص", "كل بطاقة تفتح التطبيقات المرتبطة بالمؤشر.")
         Row(
