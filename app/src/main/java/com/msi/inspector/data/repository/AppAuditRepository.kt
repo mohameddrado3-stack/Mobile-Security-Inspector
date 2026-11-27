@@ -11,6 +11,13 @@ import com.msi.inspector.domain.timeline.TimelineEventDetector
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 
+data class ScanAndSaveResult(
+    val snapshot: ScanSnapshot,
+    val events: List<TimelineEvent>,
+    val history: List<ScanHistoryEntry>,
+    val timeline: List<TimelineEvent>
+)
+
 class AppAuditRepository(context: Context) {
     private val scanner = AndroidAppScanner(context)
     private val history = ScanHistoryDatabase(context)
@@ -21,10 +28,18 @@ class AppAuditRepository(context: Context) {
     suspend fun scanAndSave(
         onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> },
         shouldPersist: () -> Boolean = { true }
-    ): Pair<ScanSnapshot, List<TimelineEvent>> = SCAN_MUTEX.withLock {
+    ): ScanAndSaveResult = SCAN_MUTEX.withLock {
         val snapshot = scanner.scan(onProgress)
         val events = if (shouldPersist()) saveHistory(snapshot) else emptyList()
-        snapshot to events
+        val savedData = synchronized(SCAN_HISTORY_LOCK) {
+            history.recent() to history.recentTimelineEvents()
+        }
+        ScanAndSaveResult(
+            snapshot = snapshot,
+            events = events,
+            history = savedData.first,
+            timeline = savedData.second
+        )
     }
 
     fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
