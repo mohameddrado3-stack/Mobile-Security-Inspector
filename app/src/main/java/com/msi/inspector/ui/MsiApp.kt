@@ -84,6 +84,7 @@ fun MsiApp(
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshUsageAccessState()
                 viewModel.refreshScanHistory()
+                viewModel.refreshBatteryUsage()
                 if (state.destination == MsiDestination.TOOLS) viewModel.refreshDeviceSecurity()
             }
         }
