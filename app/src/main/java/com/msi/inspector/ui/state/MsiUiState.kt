@@ -1,6 +1,7 @@
 package com.msi.inspector.ui.state
 
 import com.msi.inspector.domain.analyzer.AppFilter
+import com.msi.inspector.domain.battery.BatteryUsageSummary
 import com.msi.inspector.domain.model.AppAudit
 import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.DeviceSecuritySnapshot
@@ -23,6 +24,9 @@ data class MsiUiState(
     val scanTotal: Int = 0,
     val vpnActive: Boolean? = null,
     val lastScanAt: Long? = null,
+    val batteryUsage: BatteryUsageSummary? = null,
+    val isLoadingBatteryUsage: Boolean = false,
+    val batteryTrackingEnabled: Boolean = true,
     val appLockEnabled: Boolean = false,
     val usageAccessOptIn: Boolean = false,
     val usageAccessGranted: Boolean = false,
