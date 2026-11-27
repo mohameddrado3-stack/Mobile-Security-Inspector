@@ -40,8 +40,8 @@ jobs:
             grep -Ei "$BLOCKED" /tmp/msi-release-deps.txt >&2
             exit 1
           fi
-      - name: Run unit tests
-        run: gradle testDebugUnitTest --stacktrace
+      - name: Run unit tests and Android Lint
+        run: gradle testDebugUnitTest lintDebug lintRelease --stacktrace
       - name: Build debug and minified release APKs
         run: gradle clean assembleDebug assembleRelease --stacktrace
       - name: Verify release manifest and minification outputs
@@ -59,6 +59,11 @@ jobs:
           DEBUGGABLE="$("$ANALYZER" manifest debuggable "$APK")"
           DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
           DEBUG_FLAG="$("$ANALYZER" manifest debuggable "$DEBUG_APK")"
+          DEBUG_VERSION_NAME="$("$ANALYZER" manifest version-name "$DEBUG_APK")"
+          DEBUG_VERSION_CODE="$("$ANALYZER" manifest version-code "$DEBUG_APK")"
+          APKSIGNER="$(find "$ANDROID_HOME" -type f -name apksigner | head -n 1)"
+          test -n "$APKSIGNER"
+          "$APKSIGNER" verify --verbose "$DEBUG_APK"
           PERMISSIONS="$("$ANALYZER" manifest permissions "$APK")"
           DEBUG_PERMISSIONS="$("$ANALYZER" manifest permissions "$DEBUG_APK")"
           MANIFEST_FILE="/tmp/msi-release-manifest.xml"
@@ -66,6 +71,8 @@ jobs:
           test "$TARGET_SDK" -ge 36
           test "$VERSION_NAME" = "0.8.0"
           test "$VERSION_CODE" -eq 11
+          test "$DEBUG_VERSION_NAME" = "0.8.0"
+          test "$DEBUG_VERSION_CODE" -eq 11
           test "$DEBUG_FLAG" = "true"
           if [ "$DEBUGGABLE" != "false" ]; then
             echo "Release APK must not be debuggable (actual: $DEBUGGABLE)" >&2
