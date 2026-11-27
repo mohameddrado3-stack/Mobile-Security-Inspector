@@ -43,6 +43,7 @@ class MsiMonitoringService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        running = true
         createNotificationChannel()
         registerPackageReceiver()
         registerSettingsObservers()
@@ -98,6 +99,7 @@ class MsiMonitoringService : Service() {
             settingsObserverRegistered = false
         }
         ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        running = false
         super.onDestroy()
     }
 
@@ -200,6 +202,11 @@ class MsiMonitoringService : Service() {
         private const val NOTIFICATION_ID = 6101
         private const val STOP_REQUEST_CODE = 6102
         private const val ACTION_STOP = "com.msi.inspector.action.STOP_MONITORING"
+
+        @Volatile
+        private var running = false
+
+        fun isRunning(): Boolean = running
 
         fun refreshNotification(context: Context, lastScanText: String) {
             val appContext = context.applicationContext
