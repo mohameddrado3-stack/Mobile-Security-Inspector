@@ -176,9 +176,9 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             )
         }
         viewModelScope.launch {
-            val snapshot = try {
+            val scanResult = try {
                 withContext(Dispatchers.IO) {
-                    repository.scan { completed, total ->
+                    repository.scanAndSave { completed, total ->
                         mutableState.update {
                             it.copy(scanProgress = completed, scanTotal = total)
                         }
@@ -198,9 +198,10 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
+            val snapshot = scanResult.first
+            val events = scanResult.second
             try {
                 val recorded = withContext(Dispatchers.IO) {
-                    repository.saveHistory(snapshot)
                     runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
                     repository.loadHistory() to repository.loadTimeline()
                 }
