@@ -21,6 +21,7 @@ class MsiMonitoringWorker(
         val repository = AppAuditRepository(applicationContext)
         return try {
             val snapshot = repository.scan()
+            if (!MsiMonitoringController.isEnabled(applicationContext)) return Result.success()
             val events = repository.saveHistory(snapshot)
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
