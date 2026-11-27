@@ -2,6 +2,7 @@ package com.msi.inspector.data.updates
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import android.net.Uri
 import org.json.JSONObject
 import java.io.BufferedReader
 import java.io.InputStreamReader
@@ -70,7 +71,7 @@ object GitHubReleaseChecker {
             val latest = tag.removePrefix("v").removePrefix("V")
             val releaseUrl = json.optString("html_url")
             if (!isValidVersion(latest)) throw IOException("صيغة رقم الإصدار المنشور غير معروفة.")
-            if (!releaseUrl.startsWith(RELEASE_PAGE_PREFIX)) {
+            if (!isTrustedReleaseUrl(releaseUrl)) {
                 throw IOException("رابط الإصدار غير موثوق.")
             }
 
