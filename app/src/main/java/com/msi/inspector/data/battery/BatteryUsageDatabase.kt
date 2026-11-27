@@ -84,7 +84,7 @@ class BatteryUsageDatabase(context: Context) : SQLiteOpenHelper(
             null,
             null,
             null,
-            "id ASC",
+            "id DESC",
             safeLimit.toString()
         ).use { cursor ->
             while (cursor.moveToNext()) {
@@ -99,7 +99,7 @@ class BatteryUsageDatabase(context: Context) : SQLiteOpenHelper(
                 )
             }
         }
-        return samples
+        return samples.asReversed()
     }
 
     private fun android.database.Cursor.nullableInt(index: Int): Int? =
