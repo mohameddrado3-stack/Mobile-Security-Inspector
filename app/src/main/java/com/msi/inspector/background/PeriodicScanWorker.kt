@@ -4,7 +4,7 @@ import android.content.Context
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import com.msi.inspector.data.repository.AppAuditRepository
-import com.msi.inspector.domain.timeline.TimelineEventType
+import com.msi.inspector.domain.timeline.TimelineNotificationPolicy
 import com.msi.inspector.widget.MsiWidgetStateUpdater
 import kotlinx.coroutines.CancellationException
 
@@ -22,8 +22,9 @@ class PeriodicScanWorker(
 
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
-            if (events.any { it.type != TimelineEventType.BASELINE_CREATED }) {
-                MsiScanNotifications.showChange(applicationContext, events.size)
+            val changeCount = TimelineNotificationPolicy.changeCount(events)
+            if (changeCount > 0) {
+                MsiScanNotifications.showChange(applicationContext, changeCount)
             }
             Result.success()
         } catch (cancelled: CancellationException) {
