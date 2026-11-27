@@ -71,12 +71,20 @@ jobs:
             echo "Release APK must not be debuggable (actual: $DEBUGGABLE)" >&2
             exit 1
           fi
-          if ! printf '%s\\n' "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+          if ! printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
             echo "Update Center requires INTERNET permission in Release" >&2
             exit 1
           fi
-          if printf '%s\\n' "$DEBUG_PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+          if printf '%s\n' "$DEBUG_PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
             echo "Unexpected INTERNET permission in Debug APK" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.FOREGROUND_SERVICE'; then
+            echo "Missing base foreground service permission in Release" >&2
+            exit 1
+          fi
+          if ! printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'; then
+            echo "Missing special-use foreground service permission in Release" >&2
             exit 1
           fi
           if ! grep -q 'api.github.com/repos/mohameddrado3-stack/Mobile-Security-Inspector/releases/latest' app/src/main/java/com/msi/inspector/data/updates/GitHubReleaseChecker.kt; then
@@ -106,6 +114,20 @@ jobs:
               if "." not in name:
                   return package_name + "." + name
               return name
+          monitor_service = None
+          for service in manifest.findall("./application/service"):
+              if normalize_name(service.get(ns + "name", "")) == package_name + ".background.MsiMonitoringService":
+                  monitor_service = service
+                  break
+          if monitor_service is None:
+              raise SystemExit("Active monitoring foreground service is missing")
+          if monitor_service.get(ns + "exported", "false").lower() != "false":
+              raise SystemExit("Active monitoring service must not be exported")
+          if "specialUse" not in monitor_service.get(ns + "foregroundServiceType", ""):
+              raise SystemExit("Active monitoring service must declare specialUse")
+          subtype = monitor_service.find("property")
+          if subtype is None or subtype.get(ns + "name") != "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE":
+              raise SystemExit("Active monitoring service special-use purpose is missing")
           for tag in ("activity", "activity-alias", "service", "receiver", "provider"):
               for component in manifest.findall(f"./application/{tag}"):
                   exported = component.get(ns + "exported", "false").lower() == "true"
@@ -122,7 +144,7 @@ jobs:
             echo "DebugProbes must not be packaged in Release" >&2
             exit 1
           fi
-          echo "Release manifest verified: versionName=$VERSION_NAME versionCode=$VERSION_CODE targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; only the approved GitHub release-check INTERNET access, no PreviewActivity, unexpected exported components, or DebugProbes."
+          echo "Release manifest verified: versionName=$VERSION_NAME versionCode=$VERSION_CODE targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; restricted GitHub release-check networking, non-exported special-use monitoring service, no PreviewActivity, unexpected exported components, or DebugProbes."
           echo "Debug manifest verified: debuggable=$DEBUG_FLAG."
           stat -c 'Debug APK bytes: %s' "$DEBUG_APK"
           stat -c 'Release APK bytes: %s' "$APK"
