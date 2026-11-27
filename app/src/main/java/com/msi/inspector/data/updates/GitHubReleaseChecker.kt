@@ -20,9 +20,6 @@ data class ReleaseCheckResult(
 object GitHubReleaseChecker {
     private const val RELEASE_API =
         "https://api.github.com/repos/mohameddrado3-stack/Mobile-Security-Inspector/releases/latest"
-    private const val RELEASE_PAGE_PREFIX =
-        "https://github.com/mohameddrado3-stack/Mobile-Security-Inspector/releases/"
-
     suspend fun check(currentVersion: String): ReleaseCheckResult = withContext(Dispatchers.IO) {
         val connection = (URL(RELEASE_API).openConnection() as HttpURLConnection).apply {
             requestMethod = "GET"
@@ -87,13 +84,13 @@ object GitHubReleaseChecker {
     }
 
     private fun isValidVersion(value: String): Boolean =
-        Regex("^\\d+\\.\\d+\\.\\d+(?:[-+][A-Za-z0-9.-]+)?$").matches(value)
+        Regex("^\\d+\\.\\d+\\.\\d+(?:-[0-9A-Za-z.-]+)?(?:\\+[0-9A-Za-z.-]+)?$").matches(value)
 
     internal fun compareVersions(left: String, right: String): Int {
         val leftParts = numericVersion(left)
         val rightParts = numericVersion(right)
         for (index in 0..2) {
-            val comparison = leftParts[index].compareTo(rightParts[index])
+            val comparison = compareNumericIdentifiers(leftParts[index], rightParts[index])
             if (comparison != 0) return comparison
         }
 
@@ -117,16 +114,18 @@ object GitHubReleaseChecker {
         val leftNumeric = left.all(Char::isDigit)
         val rightNumeric = right.all(Char::isDigit)
         return when {
-            leftNumeric && rightNumeric -> {
-                val normalizedLeft = left.trimStart('0').ifEmpty { "0" }
-                val normalizedRight = right.trimStart('0').ifEmpty { "0" }
-                normalizedLeft.length.compareTo(normalizedRight.length).takeIf { it != 0 }
-                    ?: normalizedLeft.compareTo(normalizedRight)
-            }
+            leftNumeric && rightNumeric -> compareNumericIdentifiers(left, right)
             leftNumeric -> -1
             rightNumeric -> 1
             else -> left.compareTo(right)
         }
+    }
+
+    private fun compareNumericIdentifiers(left: String, right: String): Int {
+        val normalizedLeft = left.trimStart('0').ifEmpty { "0" }
+        val normalizedRight = right.trimStart('0').ifEmpty { "0" }
+        return normalizedLeft.length.compareTo(normalizedRight.length).takeIf { it != 0 }
+            ?: normalizedLeft.compareTo(normalizedRight)
     }
 
     private fun prereleaseIdentifiers(value: String): List<String> {
@@ -135,10 +134,10 @@ object GitHubReleaseChecker {
         return suffix.split('.').filter(String::isNotEmpty)
     }
 
-    private fun numericVersion(value: String): List<Int> {
+    private fun numericVersion(value: String): List<String> {
         val core = value.substringBefore('-').substringBefore('+')
         val match = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$").find(core)
             ?: throw IOException("تعذر مقارنة رقم الإصدار.")
-        return (1..3).map { match.groupValues[it].toIntOrNull() ?: 0 }
+        return (1..3).map { match.groupValues[it] }
     }
 }
