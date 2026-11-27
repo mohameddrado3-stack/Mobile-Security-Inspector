@@ -16,6 +16,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import com.msi.inspector.background.MsiMonitoringController
+import com.msi.inspector.background.MsiMonitoringService
 import com.msi.inspector.background.PeriodicScanScheduler
 import com.msi.inspector.data.preferences.MsiPreferences
 import com.msi.inspector.design.theme.MsiTheme
@@ -193,11 +194,15 @@ class MainActivity : FragmentActivity() {
             PackageManager.PERMISSION_GRANTED
         if (permissionGranted) {
             activeMonitoringEnabled = true
-            if (!com.msi.inspector.background.MsiMonitoringService.isRunning()) {
+            if (!MsiMonitoringService.isRunning()) {
                 runCatching { MsiMonitoringController.enable(this) }.onFailure {
-                activeMonitoringEnabled = false
-                MsiMonitoringController.disable(this)
-                    Toast.makeText(this, "تعذر استئناف المراقبة النشطة.", Toast.LENGTH_LONG).show()
+                    activeMonitoringEnabled = false
+                    MsiMonitoringController.disable(this)
+                    Toast.makeText(
+                        this,
+                        "تعذر استئناف المراقبة النشطة.",
+                        Toast.LENGTH_LONG
+                    ).show()
                 }
             }
         } else {
