@@ -83,6 +83,9 @@ class MainActivity : FragmentActivity() {
         val permissionGranted = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
+        if (!MsiMonitoringController.isEnabled(this)) {
+            activeMonitoringEnabled = false
+        }
         if (activeMonitoringEnabled && !permissionGranted) {
             persistActiveMonitoringEnabled(false)
             Toast.makeText(this, "توقفت المراقبة لأن إذن الإشعارات لم يعد متاحًا.", Toast.LENGTH_LONG).show()
@@ -181,7 +184,10 @@ class MainActivity : FragmentActivity() {
 
 
     private fun loadActiveMonitoringPreference() {
-        if (!MsiMonitoringController.isEnabled(this)) return
+        if (!MsiMonitoringController.isEnabled(this)) {
+            activeMonitoringEnabled = false
+            return
+        }
         val permissionGranted = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
