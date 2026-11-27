@@ -71,8 +71,16 @@ jobs:
             echo "Release APK must not be debuggable (actual: $DEBUGGABLE)" >&2
             exit 1
           fi
-          if printf '%s\n%s\n' "$PERMISSIONS" "$DEBUG_PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
-            echo "Unexpected INTERNET permission in APK" >&2
+          if ! printf '%s\\n' "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+            echo "Update Center requires INTERNET permission in Release" >&2
+            exit 1
+          fi
+          if printf '%s\\n' "$DEBUG_PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+            echo "Unexpected INTERNET permission in Debug APK" >&2
+            exit 1
+          fi
+          if ! grep -q 'api.github.com/repos/mohameddrado3-stack/Mobile-Security-Inspector/releases/latest' app/src/main/java/com/msi/inspector/data/updates/GitHubReleaseChecker.kt; then
+            echo "Expected fixed GitHub release endpoint was not found" >&2
             exit 1
           fi
           if grep -q 'PreviewActivity' "$MANIFEST_FILE"; then
@@ -114,7 +122,7 @@ jobs:
             echo "DebugProbes must not be packaged in Release" >&2
             exit 1
           fi
-          echo "Release manifest verified: versionName=$VERSION_NAME versionCode=$VERSION_CODE targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; no INTERNET, PreviewActivity, unexpected exported components, or DebugProbes."
+          echo "Release manifest verified: versionName=$VERSION_NAME versionCode=$VERSION_CODE targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE; only the approved GitHub release-check INTERNET access, no PreviewActivity, unexpected exported components, or DebugProbes."
           echo "Debug manifest verified: debuggable=$DEBUG_FLAG."
           stat -c 'Debug APK bytes: %s' "$DEBUG_APK"
           stat -c 'Release APK bytes: %s' "$APK"
