@@ -5,7 +5,7 @@
         <item name="android:windowBackground">@color/msi_window_background</item>
         <item name="android:colorAccent">#70E7D1</item>
         <item name="android:statusBarColor">#080D18</item>
-        <item name="android:navigationBarColor">#070B16</item>
+        <item name="android:navigationBarColor">#080D18</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
     <style name="Theme.Msi.Splash" parent="Theme.SplashScreen">
