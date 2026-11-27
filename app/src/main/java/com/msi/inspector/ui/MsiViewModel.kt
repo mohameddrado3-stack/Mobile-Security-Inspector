@@ -43,15 +43,23 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         }
         viewModelScope.launch {
             try {
-                val loaded = withContext(Dispatchers.IO) { repository.loadHistory() to repository.loadTimeline() }
+                val loaded = withContext(Dispatchers.IO) {
+                    Triple(
+                        repository.loadHistory(),
+                        repository.loadTimeline(),
+                        repository.loadLatestSnapshot()
+                    )
+                }
                 val entries = loaded.first
+                val latestSnapshot = loaded.third
                 mutableState.update { current ->
                     current.copy(
+                        applications = current.applications.ifEmpty { latestSnapshot?.applications.orEmpty() },
                         history = entries,
                         timelineEvents = loaded.second,
-                        deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
-                        vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
-                        lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
+                        deviceSecurity = current.deviceSecurity ?: latestSnapshot?.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
+                        vpnActive = current.vpnActive ?: latestSnapshot?.vpnActive ?: entries.firstOrNull()?.vpnActive,
+                        lastScanAt = current.lastScanAt ?: latestSnapshot?.completedAt ?: entries.firstOrNull()?.scannedAt
                     )
                 }
             } catch (cancelled: CancellationException) {
@@ -84,6 +92,46 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 throw cancelled
             } catch (_: Exception) {
                 mutableState.update { it.copy(isLoadingDeviceSecurity = false) }
+            }
+        }
+    }
+
+    fun refreshScanHistory() {
+        viewModelScope.launch {
+            try {
+                val loaded = withContext(Dispatchers.IO) {
+                    Triple(
+                        repository.loadHistory(),
+                        repository.loadTimeline(),
+                        repository.loadLatestSnapshot()
+                    )
+                }
+                mutableState.update { current ->
+                    val latest = loaded.third
+                    if (latest != null && current.lastScanAt != null &&
+                        latest.completedAt < current.lastScanAt
+                    ) {
+                        current
+                    } else {
+                        current.copy(
+                            applications = latest?.applications ?: current.applications,
+                            history = loaded.first,
+                            timelineEvents = loaded.second,
+                            deviceSecurity = latest?.deviceSecurity ?: current.deviceSecurity,
+                            vpnActive = latest?.vpnActive ?: current.vpnActive,
+                            lastScanAt = latest?.completedAt ?: current.lastScanAt
+                        )
+                    }
+                }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (exception: Exception) {
+                mutableState.update {
+                    it.copy(
+                        error = exception.localizedMessage?.takeIf(String::isNotBlank)
+                            ?: "تعذر تحديث سجل الفحوصات المحلي."
+                    )
+                }
             }
         }
     }
