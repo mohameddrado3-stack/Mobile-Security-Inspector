@@ -32,10 +32,10 @@ import androidx.core.view.WindowCompat
 import com.msi.inspector.R
 
 object MsiColors {
-    val Background = Color(0xFF070B16)
-    val Surface = Color(0xFF111B2B)
+    val Background = Color(0xFF080D18)
+    val Surface = Color(0xFF10243A)
     val SurfaceElevated = Color(0xFF18283B)
-    val Accent = Color(0xFF42C8FF)
+    val Accent = Color(0xFF70E7D1)
     val Calm = Accent
     val Review = Color(0xFFFF9B45)
     val Attention = Color(0xFFFF604D)
@@ -120,7 +120,7 @@ enum class MsiThemeMode {
 
 private val msiDarkScheme = darkColorScheme(
     primary = MsiColors.Accent,
-    onPrimary = Color(0xFF07131A),
+    onPrimary = Color(0xFF080D18),
     secondary = Color(0xFF9CC8FF),
     onSecondary = Color(0xFF071426),
     tertiary = MsiColors.Review,
