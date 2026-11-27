@@ -50,6 +50,8 @@ fun ToolsScreen(
     onPeriodicScanChanged: (Boolean) -> Unit = {},
     activeMonitoringEnabled: Boolean = false,
     onActiveMonitoringChanged: (Boolean) -> Unit = {},
+    batteryTrackingEnabled: Boolean = true,
+    onBatteryTrackingChanged: (Boolean) -> Unit = {},
     scheduledHour: Int = 9,
     scheduledMinute: Int = 0,
     onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
@@ -74,6 +76,33 @@ fun ToolsScreen(
             enabled = activeMonitoringEnabled,
             onEnabledChanged = onActiveMonitoringChanged
         )
+        MsiCard {
+            Text("قياس البطارية كل ساعة تقريبًا", style = MaterialTheme.typography.titleMedium)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text("تسجيل قراءات محلية تلقائيًا", fontSize = 13.sp)
+                    Text(
+                        if (batteryTrackingEnabled) "مفعّل — لا يحتاج صلاحية إضافية أو اتصال إنترنت."
+                        else "متوقف — لن تُحفظ عينات جديدة.",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp
+                    )
+                }
+                Switch(
+                    checked = batteryTrackingEnabled,
+                    onCheckedChange = onBatteryTrackingChanged
+                )
+            }
+            Text(
+                "يعرض التغير الصافي في بطارية الهاتف بين قراءتين، وليس استهلاك تطبيق محدد. قد يتأخر التنفيذ حسب سياسة توفير الطاقة في Android.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+        }
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
             val security = deviceSecurity
