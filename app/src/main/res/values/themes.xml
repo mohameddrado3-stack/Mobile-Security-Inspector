@@ -3,15 +3,15 @@
     <style name="Theme.Msi" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:fontFamily">sans</item>
         <item name="android:windowBackground">@color/msi_window_background</item>
-        <item name="android:colorAccent">#42C8FF</item>
-        <item name="android:statusBarColor">#070B16</item>
+        <item name="android:colorAccent">#70E7D1</item>
+        <item name="android:statusBarColor">#080D18</item>
         <item name="android:navigationBarColor">#070B16</item>
         <item name="android:windowLightStatusBar">false</item>
     </style>
     <style name="Theme.Msi.Splash" parent="Theme.SplashScreen">
         <item name="windowSplashScreenBackground">@color/msi_window_background</item>
         <item name="windowSplashScreenAnimatedIcon">@drawable/msi_launcher_foreground</item>
-        <item name="windowSplashScreenIconBackgroundColor">#111B2B</item>
+        <item name="windowSplashScreenIconBackgroundColor">#10243A</item>
         <item name="postSplashScreenTheme">@style/Theme.Msi</item>
     </style>
 </resources>
