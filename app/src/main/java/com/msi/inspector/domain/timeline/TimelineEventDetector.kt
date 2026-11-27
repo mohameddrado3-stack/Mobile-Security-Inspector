@@ -39,10 +39,14 @@ object TimelineEventDetector {
             val old = oldApps.getValue(key)
             val new = newApps.getValue(key)
             if (old.packageMetadataAvailable && new.packageMetadataAvailable) {
-                if (old.version != new.version) {
+                if (
+                    old.version != new.version &&
+                    old.version.isKnownVersionName() &&
+                    new.version.isKnownVersionName()
+                ) {
                     events += event(current, TimelineEventType.APP_VERSION_CHANGED, new,
                         "تغيّر إصدار التطبيق",
-                        "السابق: ${old.version.ifBlank { "غير متاح" }}؛ الحالي: ${new.version.ifBlank { "غير متاح" }}.")
+                        "السابق: ${old.version}؛ الحالي: ${new.version}.")
                 }
                 val oldSignature = old.signingCertificateSha256
                 val newSignature = new.signingCertificateSha256
@@ -155,6 +159,9 @@ object TimelineEventDetector {
         title = title,
         details = details
     )
+
+    private fun String.isKnownVersionName(): Boolean =
+        isNotBlank() && this != "غير متاح"
 
     private const val MAX_EVENTS_PER_SCAN = 500
 }
