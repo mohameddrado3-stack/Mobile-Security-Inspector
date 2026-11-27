@@ -89,18 +89,55 @@ object GitHubReleaseChecker {
     private fun isValidVersion(value: String): Boolean =
         Regex("^\\d+\\.\\d+\\.\\d+(?:[-+][A-Za-z0-9.-]+)?$").matches(value)
 
-    private fun compareVersions(left: String, right: String): Int {
+    internal fun compareVersions(left: String, right: String): Int {
         val leftParts = numericVersion(left)
         val rightParts = numericVersion(right)
         for (index in 0..2) {
             val comparison = leftParts[index].compareTo(rightParts[index])
             if (comparison != 0) return comparison
         }
-        return 0
+
+        val leftPrerelease = prereleaseIdentifiers(left)
+        val rightPrerelease = prereleaseIdentifiers(right)
+        if (leftPrerelease.isEmpty() && rightPrerelease.isEmpty()) return 0
+        if (leftPrerelease.isEmpty()) return 1
+        if (rightPrerelease.isEmpty()) return -1
+
+        for (index in 0 until minOf(leftPrerelease.size, rightPrerelease.size)) {
+            val comparison = comparePrereleaseIdentifier(
+                leftPrerelease[index],
+                rightPrerelease[index]
+            )
+            if (comparison != 0) return comparison
+        }
+        return leftPrerelease.size.compareTo(rightPrerelease.size)
+    }
+
+    private fun comparePrereleaseIdentifier(left: String, right: String): Int {
+        val leftNumeric = left.all(Char::isDigit)
+        val rightNumeric = right.all(Char::isDigit)
+        return when {
+            leftNumeric && rightNumeric -> {
+                val normalizedLeft = left.trimStart('0').ifEmpty { "0" }
+                val normalizedRight = right.trimStart('0').ifEmpty { "0" }
+                normalizedLeft.length.compareTo(normalizedRight.length).takeIf { it != 0 }
+                    ?: normalizedLeft.compareTo(normalizedRight)
+            }
+            leftNumeric -> -1
+            rightNumeric -> 1
+            else -> left.compareTo(right)
+        }
+    }
+
+    private fun prereleaseIdentifiers(value: String): List<String> {
+        val withoutBuild = value.substringBefore('+')
+        val suffix = withoutBuild.substringAfter('-', missingDelimiterValue = "")
+        return suffix.split('.').filter(String::isNotEmpty)
     }
 
     private fun numericVersion(value: String): List<Int> {
-        val match = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)").find(value)
+        val core = value.substringBefore('-').substringBefore('+')
+        val match = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$").find(core)
             ?: throw IOException("تعذر مقارنة رقم الإصدار.")
         return (1..3).map { match.groupValues[it].toIntOrNull() ?: 0 }
     }
