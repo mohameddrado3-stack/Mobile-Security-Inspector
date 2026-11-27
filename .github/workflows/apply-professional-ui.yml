@@ -7,7 +7,7 @@ on:
     types: [opened, synchronize, reopened]
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: msi-professional-ui-${{ github.event.pull_request.number }}
@@ -37,31 +37,11 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Apply reviewed UI patch
+      - name: Verify committed professional UI resources
         shell: bash
         run: |
           set -euo pipefail
-          PATCH="tools/msi-professional-ui-refined.patch"
-          test -s "$PATCH"
-          git apply --check "$PATCH"
-          git apply "$PATCH"
-          rm "$PATCH"
           git diff --check
-          python - <<'PY'
-          import subprocess
-          paths = subprocess.check_output(["git", "diff", "--name-only", "--diff-filter=ACMRT"], text=True).splitlines()
-          if not paths:
-              raise SystemExit("The UI patch produced no source changes")
-          forbidden = [p for p in paths if not (
-              p.startswith("app/src/main/java/com/msi/inspector/ui/") or
-              p.startswith("app/src/main/java/com/msi/inspector/design/") or
-              p.startswith("app/src/main/res/") or
-              p.startswith("docs/licenses/")
-          )]
-          if forbidden:
-              raise SystemExit("Patch touched files outside the reviewed UI/resource scope: " + ", ".join(forbidden))
-          print(f"Applied {len(paths)} UI/resource files.")
-          PY
           test -s app/src/main/res/font/ibm_plex_sans_arabic_regular.ttf
           test -s app/src/main/res/font/ibm_plex_sans_arabic_medium.ttf
           test -s app/src/main/res/font/ibm_plex_sans_arabic_semibold.ttf
@@ -69,6 +49,19 @@ jobs:
           test -s app/src/main/res/drawable-nodpi/msi_launcher_foreground.png
           test -s app/src/main/res/drawable-nodpi/msi_launcher_background.png
           test -s app/src/main/res/drawable-nodpi/msi_launcher_monochrome.png
+          python - <<'PY'
+          from pathlib import Path
+          theme = Path("app/src/main/java/com/msi/inspector/design/theme/MsiTheme.kt").read_text()
+          styles = Path("app/src/main/res/values/themes.xml").read_text()
+          colors = Path("app/src/main/res/values/colors.xml").read_text()
+          for value in ("0xFF080D18", "0xFF10243A", "0xFF70E7D1"):
+              if value not in theme:
+                  raise SystemExit("MSI brand color missing from Compose theme: " + value)
+          for value in ("#080D18", "#10243A", "#70E7D1"):
+              if value not in styles and value not in colors:
+                  raise SystemExit("MSI brand color missing from Android resources: " + value)
+          print("Committed fonts, launcher assets, license, and brand palette verified.")
+          PY
 
       - name: Check release runtime dependencies
         shell: bash
@@ -124,36 +117,6 @@ jobs:
           echo "Debug APK debuggable=$DEBUG_FLAG."
           sha256sum "$DEBUG_APK" "$APK" > app/build/outputs/apk/SHA256SUMS.txt
           sha256sum --check app/build/outputs/apk/SHA256SUMS.txt
-
-      - name: Commit verified UI patch to review branch
-        shell: bash
-        env:
-          HEAD_REF: ${{ github.event.pull_request.head.ref }}
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A -- app/src/main/java/com/msi/inspector/ui app/src/main/java/com/msi/inspector/design app/src/main/res docs/licenses
-          git add -u -- tools/msi-professional-ui-refined.patch
-          python - <<'PY'
-          import subprocess
-          paths = subprocess.check_output(["git", "diff", "--cached", "--name-only"], text=True).splitlines()
-          allowed = (
-              "app/src/main/java/com/msi/inspector/ui/",
-              "app/src/main/java/com/msi/inspector/design/",
-              "app/src/main/res/",
-              "docs/licenses/",
-              "tools/msi-professional-ui-refined.patch",
-          )
-          forbidden = [p for p in paths if not p.startswith(allowed)]
-          if forbidden:
-              raise SystemExit("Refusing to commit generated or out-of-scope files: " + ", ".join(forbidden))
-          if len(paths) < 35 or len(paths) > 60:
-              raise SystemExit(f"Unexpected source-change count: {len(paths)}")
-          print(f"Staging only {len(paths)} reviewed source/resource files.")
-          PY
-          git commit -m "Apply professional UI resources and typography to MSI v0.8.0"
-          git push origin "HEAD:$HEAD_REF"
 
       - name: Upload verified MSI artifacts
         uses: actions/upload-artifact@v4
