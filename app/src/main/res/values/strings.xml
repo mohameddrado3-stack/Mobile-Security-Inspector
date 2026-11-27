@@ -8,4 +8,10 @@
     <string name="shortcut_history_short">آخر تقرير</string>
     <string name="shortcut_history_long">افتح سجل الفحوصات وآخر تقرير</string>
     <string name="widget_description">Local MSI scan summary and quick scan button</string>
+    <string name="msi_notification_channel_name">MSI • تغيّرات الفحص</string>
+    <string name="msi_notification_channel_description">إشعار اختياري عند رصد تغيّرات بين الفحوصات المحلية.</string>
+    <string name="msi_notification_title">MSI • رصد تغيير جديد</string>
+    <string name="msi_notification_text">تم رصد %1$d تغيّرًا بين الفحوصات المحلية.</string>
+    <string name="msi_notification_big_text">سجّل MSI %1$d تغيّرًا بين آخر الفحوصات المحلية. افتح التطبيق لمراجعة التفاصيل والأدلة المتاحة. هذا تنبيه للمراجعة وليس حكمًا على سلامة أي تطبيق.</string>
+    <string name="msi_notification_subtext">فحص محلي • دون اتصال بخادم</string>
 </resources>
