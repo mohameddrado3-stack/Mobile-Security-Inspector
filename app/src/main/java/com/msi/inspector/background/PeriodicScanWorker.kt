@@ -17,8 +17,11 @@ class PeriodicScanWorker(
         if (!PeriodicScanScheduler.isEnabled(applicationContext)) return Result.success()
         val repository = AppAuditRepository(applicationContext)
         return try {
-            val (snapshot, events) = repository.scanAndSave()
+            val (snapshot, events) = repository.scanAndSave(
+                shouldPersist = { PeriodicScanScheduler.isEnabled(applicationContext) }
+            )
 
+            if (!PeriodicScanScheduler.isEnabled(applicationContext)) return Result.success()
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
             val changeCount = TimelineNotificationPolicy.changeCount(events)
