@@ -73,6 +73,22 @@ class MainActivity : FragmentActivity() {
         pendingMonitoringEnable = false
     }
 
+    override fun onStart() {
+        super.onStart()
+        loadActiveMonitoringPreference()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
+            PackageManager.PERMISSION_GRANTED
+        if (activeMonitoringEnabled && !permissionGranted) {
+            persistActiveMonitoringEnabled(false)
+            Toast.makeText(this, "توقفت المراقبة لأن إذن الإشعارات لم يعد متاحًا.", Toast.LENGTH_LONG).show()
+        }
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         installSplashScreen()
         super.onCreate(savedInstanceState)
@@ -81,7 +97,6 @@ class MainActivity : FragmentActivity() {
         appLocked = appLockSettings.isEnabled()
         loadThemePreferences()
         loadPeriodicScanPreference()
-        loadActiveMonitoringPreference()
         acceptShortcutIntent(intent)
         window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
         window.navigationBarColor = android.graphics.Color.rgb(7, 11, 22)
@@ -172,10 +187,12 @@ class MainActivity : FragmentActivity() {
             PackageManager.PERMISSION_GRANTED
         if (permissionGranted) {
             activeMonitoringEnabled = true
-            runCatching { MsiMonitoringController.enable(this) }.onFailure {
+            if (!com.msi.inspector.background.MsiMonitoringService.isRunning()) {
+                runCatching { MsiMonitoringController.enable(this) }.onFailure {
                 activeMonitoringEnabled = false
                 MsiMonitoringController.disable(this)
-                Toast.makeText(this, "تعذر استئناف المراقبة النشطة.", Toast.LENGTH_LONG).show()
+                    Toast.makeText(this, "تعذر استئناف المراقبة النشطة.", Toast.LENGTH_LONG).show()
+                }
             }
         } else {
             activeMonitoringEnabled = false
