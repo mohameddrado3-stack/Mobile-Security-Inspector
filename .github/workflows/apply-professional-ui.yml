@@ -133,7 +133,25 @@ jobs:
           set -euo pipefail
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
+          git add -A -- app/src/main/java/com/msi/inspector/ui app/src/main/java/com/msi/inspector/design app/src/main/res docs/licenses
+          git add -u -- tools/msi-professional-ui-refined.patch
+          python - <<'PY'
+          import subprocess
+          paths = subprocess.check_output(["git", "diff", "--cached", "--name-only"], text=True).splitlines()
+          allowed = (
+              "app/src/main/java/com/msi/inspector/ui/",
+              "app/src/main/java/com/msi/inspector/design/",
+              "app/src/main/res/",
+              "docs/licenses/",
+              "tools/msi-professional-ui-refined.patch",
+          )
+          forbidden = [p for p in paths if not p.startswith(allowed)]
+          if forbidden:
+              raise SystemExit("Refusing to commit generated or out-of-scope files: " + ", ".join(forbidden))
+          if len(paths) < 35 or len(paths) > 60:
+              raise SystemExit(f"Unexpected source-change count: {len(paths)}")
+          print(f"Staging only {len(paths)} reviewed source/resource files.")
+          PY
           git commit -m "Apply professional UI resources and typography to MSI v0.8.0"
           git push origin "HEAD:$HEAD_REF"
 
