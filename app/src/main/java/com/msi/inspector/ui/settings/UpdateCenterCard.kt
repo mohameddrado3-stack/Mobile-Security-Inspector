@@ -19,6 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.msi.inspector.BuildConfig
 import com.msi.inspector.data.updates.GitHubReleaseChecker
 import com.msi.inspector.data.updates.ReleaseCheckResult
 import com.msi.inspector.design.components.MsiCard
@@ -41,7 +42,7 @@ fun UpdateCenterCard(currentVersion: String) {
                 fontSize = 12.sp
             )
             Text(
-                "يتصل MSI بـ GitHub فقط عند ضغطك على زر التحقق. لا يتم إرسال بيانات الجهاز أو سجل الفحص، ولا يحدث تنزيل أو تثبيت تلقائي.",
+                if (BuildConfig.DEBUG) "ميزة التحقق الشبكي مفعّلة في نسخة Release فقط؛ نسخة Debug تظل دون اتصال." else "يتصل MSI بـ GitHub فقط عند ضغطك على زر التحقق. لا يتم إرسال بيانات الجهاز أو سجل الفحص، ولا يحدث تنزيل أو تثبيت تلقائي.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
@@ -67,10 +68,16 @@ fun UpdateCenterCard(currentVersion: String) {
                         }
                     }
                 },
-                enabled = !checking,
+                enabled = !checking && !BuildConfig.DEBUG,
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Text(if (checking) "جارٍ التحقق..." else "التحقق من التحديثات")
+                Text(
+                    when {
+                        checking -> "جارٍ التحقق..."
+                        BuildConfig.DEBUG -> "التحقق متاح في نسخة Release"
+                        else -> "التحقق من التحديثات"
+                    }
+                )
             }
             Text(message, style = MaterialTheme.typography.bodyMedium)
             result?.let { release ->
