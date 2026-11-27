@@ -82,6 +82,11 @@ fun ToolsScreen(
                 DeviceSecurityRow("حالة ADB", security.adbEnabled, onDeveloperSettings)
                 DeviceSecurityRow("خيارات المطوّر", security.developerOptionsEnabled, onDeveloperSettings)
                 Text(
+                    "Android يحجب حالة ADB وخيارات المطوّر عن التطبيقات العادية؛ لذلك يعرضهما MSI كغير متاحتين بدل اعتبارهما معطّلتين.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 12.sp
+                )
+                Text(
                     "آخر قراءة: " + java.text.DateFormat.getDateTimeInstance(
                         java.text.DateFormat.MEDIUM,
                         java.text.DateFormat.SHORT
@@ -304,6 +309,7 @@ private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
         EvidenceAvailability.UNAVAILABLE -> "غير متاح"
         EvidenceAvailability.UNSUPPORTED -> "غير مدعوم"
         EvidenceAvailability.ACCESS_DENIED -> "رفض Android الوصول"
+        EvidenceAvailability.RESTRICTED_BY_ANDROID -> "محجوب من Android للتطبيقات العادية"
         EvidenceAvailability.ERROR -> "تعذرت القراءة"
         EvidenceAvailability.AVAILABLE -> when (evidence.value) {
             "enabled" -> "مفعّل"
