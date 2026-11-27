@@ -53,17 +53,19 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 }
                 val entries = loaded.first
                 mutableState.update { current ->
+                    val shouldRestoreLatestScan = current.lastScanAt == null && !current.isScanning
+                    val latestEntry = entries.firstOrNull()
                     current.copy(
-                        applications = if (current.lastScanAt == null && !current.isScanning) {
-                            loaded.third
-                        } else {
-                            current.applications
-                        },
+                        applications = if (shouldRestoreLatestScan) loaded.third else current.applications,
                         history = entries,
                         timelineEvents = loaded.second,
-                        deviceSecurity = current.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
-                        vpnActive = current.vpnActive ?: entries.firstOrNull()?.vpnActive,
-                        lastScanAt = current.lastScanAt ?: entries.firstOrNull()?.scannedAt
+                        deviceSecurity = if (shouldRestoreLatestScan) {
+                            latestEntry?.deviceSecuritySnapshot
+                        } else {
+                            current.deviceSecurity
+                        },
+                        vpnActive = if (shouldRestoreLatestScan) latestEntry?.vpnActive else current.vpnActive,
+                        lastScanAt = if (shouldRestoreLatestScan) latestEntry?.scannedAt else current.lastScanAt
                     )
                 }
             } catch (cancelled: CancellationException) {
