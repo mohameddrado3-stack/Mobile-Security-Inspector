@@ -199,7 +199,6 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             }
 
             val snapshot = scanResult.first
-            val events = scanResult.second
             try {
                 val recorded = withContext(Dispatchers.IO) {
                     runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
