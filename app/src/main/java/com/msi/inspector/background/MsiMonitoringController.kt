@@ -35,6 +35,7 @@ object MsiMonitoringController {
                 .setConstraints(
                     Constraints.Builder()
                         .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                        .setRequiresBatteryNotLow(true)
                         .build()
                 )
                 .build()
@@ -72,13 +73,14 @@ object MsiMonitoringController {
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
+                    .setRequiresBatteryNotLow(true)
                     .build()
             )
             .build()
 
         WorkManager.getInstance(appContext).enqueueUniqueWork(
             EVENT_WORK_NAME,
-            ExistingWorkPolicy.KEEP,
+            ExistingWorkPolicy.REPLACE,
             request
         )
     }
