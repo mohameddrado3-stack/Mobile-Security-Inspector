@@ -48,6 +48,8 @@ fun ToolsScreen(
     onThemeChanged: (MsiThemeMode, Boolean) -> Unit,
     periodicScanEnabled: Boolean = false,
     onPeriodicScanChanged: (Boolean) -> Unit = {},
+    activeMonitoringEnabled: Boolean = false,
+    onActiveMonitoringChanged: (Boolean) -> Unit = {},
     scheduledHour: Int = 9,
     scheduledMinute: Int = 0,
     onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
@@ -68,6 +70,10 @@ fun ToolsScreen(
     ) {
         MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
         UpdateCenterCard(currentVersion = BuildConfig.VERSION_NAME)
+        ActiveMonitoringCard(
+            enabled = activeMonitoringEnabled,
+            onEnabledChanged = onActiveMonitoringChanged
+        )
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
             val security = deviceSecurity
