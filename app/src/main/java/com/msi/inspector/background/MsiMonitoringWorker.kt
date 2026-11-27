@@ -20,10 +20,12 @@ class MsiMonitoringWorker(
 
         val repository = AppAuditRepository(applicationContext)
         return try {
-            val (snapshot, events) = repository.scanAndSave(
+            val scan = repository.scanAndSave(
                 shouldPersist = { MsiMonitoringController.isEnabled(applicationContext) }
             )
             if (!MsiMonitoringController.isEnabled(applicationContext)) return Result.success()
+            val snapshot = scan.snapshot
+            val events = scan.events
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
             val changeCount = TimelineNotificationPolicy.changeCount(events)
