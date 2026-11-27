@@ -127,18 +127,17 @@ class MsiMonitoringService : Service() {
     }
 
     private fun registerSettingsObservers() {
-        runCatching {
-            contentResolver.registerContentObserver(
-                Settings.Global.getUriFor(Settings.Global.ADB_ENABLED),
-                false,
-                settingsObserver
-            )
-            contentResolver.registerContentObserver(
-                Settings.Global.getUriFor(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED),
-                false,
-                settingsObserver
-            )
-            settingsObserverRegistered = true
+        val observedSettings = listOf(
+            Settings.Global.getUriFor(Settings.Global.ADB_ENABLED),
+            Settings.Global.getUriFor(Settings.Global.DEVELOPMENT_SETTINGS_ENABLED),
+            Settings.Secure.getUriFor(Settings.Secure.ACCESSIBILITY_ENABLED),
+            Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        )
+        settingsObserverRegistered = observedSettings.any { uri ->
+            runCatching {
+                contentResolver.registerContentObserver(uri, false, settingsObserver)
+                true
+            }.getOrDefault(false)
         }
     }
 
