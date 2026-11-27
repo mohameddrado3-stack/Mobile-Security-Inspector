@@ -17,8 +17,7 @@ class PeriodicScanWorker(
         if (!PeriodicScanScheduler.isEnabled(applicationContext)) return Result.success()
         val repository = AppAuditRepository(applicationContext)
         return try {
-            val snapshot = repository.scan()
-            val events = repository.saveHistory(snapshot)
+            val (snapshot, events) = repository.scanAndSave()
 
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
