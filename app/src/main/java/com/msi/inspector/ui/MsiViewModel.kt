@@ -226,11 +226,11 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             val scanResult = try {
                 withContext(Dispatchers.IO) {
-                    repository.scanAndSave { completed, total ->
+                    repository.scanAndSave(onProgress = { completed, total ->
                         mutableState.update {
                             it.copy(scanProgress = completed, scanTotal = total)
                         }
-                    }
+                    })
                 }
             } catch (cancelled: CancellationException) {
                 mutableState.update { it.copy(isScanning = false) }
