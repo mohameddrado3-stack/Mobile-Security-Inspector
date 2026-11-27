@@ -1,0 +1,150 @@
+name: Apply professional UI and verify MSI
+
+on:
+  pull_request:
+    branches:
+      - feature/msi-v0.8.0-ui-visibility
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: write
+
+concurrency:
+  group: msi-professional-ui-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  apply-and-verify:
+    if: github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out patch branch
+        uses: actions/checkout@v4
+        with:
+          repository: ${{ github.event.pull_request.head.repo.full_name }}
+          ref: ${{ github.event.pull_request.head.ref }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+
+      - name: Apply reviewed UI patch
+        shell: bash
+        run: |
+          set -euo pipefail
+          PATCH="tools/msi-professional-ui-refined.patch"
+          test -s "$PATCH"
+          git apply --check "$PATCH"
+          git apply "$PATCH"
+          rm "$PATCH"
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          paths = subprocess.check_output(["git", "diff", "--name-only"], text=True).splitlines()
+          if not paths:
+              raise SystemExit("The UI patch produced no source changes")
+          forbidden = [p for p in paths if not (
+              p.startswith("app/src/main/java/com/msi/inspector/ui/") or
+              p.startswith("app/src/main/java/com/msi/inspector/design/") or
+              p.startswith("app/src/main/res/") or
+              p.startswith("docs/licenses/")
+          )]
+          if forbidden:
+              raise SystemExit("Patch touched files outside the reviewed UI/resource scope: " + ", ".join(forbidden))
+          print(f"Applied {len(paths)} UI/resource files.")
+          PY
+          test -s app/src/main/res/font/ibm_plex_sans_arabic_regular.ttf
+          test -s app/src/main/res/font/ibm_plex_sans_arabic_medium.ttf
+          test -s app/src/main/res/font/ibm_plex_sans_arabic_semibold.ttf
+          test -s docs/licenses/IBM-Plex-Sans-Arabic-OFL.txt
+          test -s app/src/main/res/drawable-nodpi/msi_launcher_foreground.png
+          test -s app/src/main/res/drawable-nodpi/msi_launcher_background.png
+          test -s app/src/main/res/drawable-nodpi/msi_launcher_monochrome.png
+
+      - name: Check release runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          gradle app:dependencies --configuration releaseRuntimeClasspath > /tmp/msi-release-deps.txt
+          BLOCKED='okhttp3|retrofit2|ktor-client|volley|fuel|apollo-runtime|grpc-okhttp|firebase-analytics|firebase-crashlytics|firebase-messaging|play-services-measurement|sentry|amplitude|mixpanel|appsflyer|adjust-android|onesignal|segment-analytics|posthog|bugsnag|datadog'
+          if grep -Eiq "$BLOCKED" /tmp/msi-release-deps.txt; then
+            grep -Ei "$BLOCKED" /tmp/msi-release-deps.txt >&2
+            exit 1
+          fi
+
+      - name: Run unit tests and build APKs
+        run: gradle clean testDebugUnitTest assembleDebug assembleRelease --stacktrace
+
+      - name: Verify release APK
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="app/build/outputs/apk/release/app-release-unsigned.apk"
+          DEBUG_APK="app/build/outputs/apk/debug/app-debug.apk"
+          test -s "$APK"
+          test -s "$DEBUG_APK"
+          test -s "app/build/outputs/mapping/release/mapping.txt"
+          ANALYZER="$(find "$ANDROID_HOME" -type f -name apkanalyzer | head -n 1)"
+          test -n "$ANALYZER"
+          TARGET_SDK="$("$ANALYZER" manifest target-sdk "$APK")"
+          VERSION_NAME="$("$ANALYZER" manifest version-name "$APK")"
+          VERSION_CODE="$("$ANALYZER" manifest version-code "$APK")"
+          DEBUGGABLE="$("$ANALYZER" manifest debuggable "$APK")"
+          DEBUG_FLAG="$("$ANALYZER" manifest debuggable "$DEBUG_APK")"
+          PERMISSIONS="$("$ANALYZER" manifest permissions "$APK")"
+          MANIFEST_FILE="/tmp/msi-release-manifest.xml"
+          "$ANALYZER" manifest print "$APK" > "$MANIFEST_FILE"
+          test "$TARGET_SDK" -ge 36
+          test "$VERSION_NAME" = "0.8.0"
+          test "$VERSION_CODE" -eq 11
+          test "$DEBUG_FLAG" = "true"
+          test "$DEBUGGABLE" = "false"
+          if printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+            echo "Unexpected INTERNET permission in Release APK" >&2
+            exit 1
+          fi
+          if grep -q 'PreviewActivity' "$MANIFEST_FILE"; then
+            echo "Unexpected PreviewActivity in Release APK" >&2
+            exit 1
+          fi
+          if unzip -p "$APK" 'classes*.dex' | strings | grep -q 'kotlinx.coroutines.debug.DebugProbes'; then
+            echo "DebugProbes found in Release APK" >&2
+            exit 1
+          fi
+          echo "Release manifest verified: versionName=$VERSION_NAME versionCode=$VERSION_CODE targetSdk=$TARGET_SDK debuggable=$DEBUGGABLE."
+          echo "Debug APK debuggable=$DEBUG_FLAG."
+          sha256sum "$DEBUG_APK" "$APK" > app/build/outputs/apk/SHA256SUMS.txt
+          sha256sum --check app/build/outputs/apk/SHA256SUMS.txt
+
+      - name: Commit verified UI patch to review branch
+        shell: bash
+        env:
+          HEAD_REF: ${{ github.event.pull_request.head.ref }}
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Apply professional UI resources and typography to MSI v0.8.0"
+          git push origin "HEAD:$HEAD_REF"
+
+      - name: Upload verified MSI artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: msi-v0.8.0-professional-ui-verified
+          path: |
+            app/build/outputs/apk/debug/app-debug.apk
+            app/build/outputs/apk/release/app-release-unsigned.apk
+            app/build/outputs/apk/SHA256SUMS.txt
+            app/build/outputs/mapping/release/mapping.txt
+          if-no-files-found: error
+          retention-days: 30
