@@ -89,7 +89,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
             try {
                 val snapshot = withContext(Dispatchers.IO) { deviceSecurityReader.read() }
                 mutableState.update {
-                    it.copy(deviceSecurity = snapshot, isLoadingDeviceSecurity = false)
+                    it.copy(liveDeviceSecurity = snapshot, isLoadingDeviceSecurity = false)
                 }
             } catch (cancelled: CancellationException) {
                 mutableState.update { it.copy(isLoadingDeviceSecurity = false) }
@@ -224,6 +224,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         timelineEvents = recorded.second,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
+                        liveDeviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
                         scanProgress = snapshot.applications.size,
@@ -237,6 +238,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                         applications = snapshot.applications,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
+                        liveDeviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false
                     )
