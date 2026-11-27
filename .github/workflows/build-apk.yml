@@ -123,8 +123,18 @@ jobs:
               raise SystemExit("Active monitoring foreground service is missing")
           if monitor_service.get(ns + "exported", "false").lower() != "false":
               raise SystemExit("Active monitoring service must not be exported")
-          if "specialUse" not in monitor_service.get(ns + "foregroundServiceType", ""):
-              raise SystemExit("Active monitoring service must declare specialUse")
+          foreground_service_type = monitor_service.get(ns + "foregroundServiceType", "").strip()
+          has_special_use = "specialUse" in foreground_service_type
+          if not has_special_use:
+              try:
+                  has_special_use = (int(foreground_service_type, 0) & 0x40000000) != 0
+              except ValueError:
+                  has_special_use = False
+          if not has_special_use:
+              raise SystemExit(
+                  "Active monitoring service must declare specialUse "
+                  f"(manifest value: {foreground_service_type!r})"
+              )
           subtype = monitor_service.find("property")
           if subtype is None or subtype.get(ns + "name") != "android.app.PROPERTY_SPECIAL_USE_FGS_SUBTYPE":
               raise SystemExit("Active monitoring service special-use purpose is missing")
