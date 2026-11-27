@@ -12,6 +12,12 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 
+data class ScanStateSnapshot(
+    val history: List<ScanHistoryEntry>,
+    val timeline: List<TimelineEvent>,
+    val latestSnapshot: ScanSnapshot?
+)
+
 data class ScanAndSaveResult(
     val snapshot: ScanSnapshot,
     val events: List<TimelineEvent>,
@@ -76,23 +82,35 @@ class AppAuditRepository(context: Context) {
         history.recent()
     }
 
+    fun loadScanState(): ScanStateSnapshot = synchronized(SCAN_HISTORY_LOCK) {
+        val entries = history.recent()
+        val timeline = history.recentTimelineEvents()
+        val latestSnapshot = entries.firstOrNull()?.toScanSnapshot()
+        ScanStateSnapshot(
+            history = entries,
+            timeline = timeline,
+            latestSnapshot = latestSnapshot
+        )
+    }
+
+    private fun ScanHistoryEntry.toScanSnapshot(): ScanSnapshot? {
+        if (applicationsJson.isBlank() || applicationsJson == "[]") return null
+        return runCatching {
+            ScanSnapshot(
+                applications = AppAuditJsonCodec.decode(applicationsJson),
+                vpnActive = vpnActive,
+                completedAt = scannedAt,
+                deviceSecurity = deviceSecuritySnapshot
+            )
+        }.getOrNull()
+    }
+
     fun loadTimeline(): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
         history.recentTimelineEvents()
     }
 
     fun loadLatestSnapshot(): ScanSnapshot? = synchronized(SCAN_HISTORY_LOCK) {
-        val entry = history.recent(1).firstOrNull() ?: return@synchronized null
-        if (entry.applicationsJson.isBlank() || entry.applicationsJson == "[]") {
-            return@synchronized null
-        }
-        runCatching {
-            ScanSnapshot(
-                applications = AppAuditJsonCodec.decode(entry.applicationsJson),
-                vpnActive = entry.vpnActive,
-                completedAt = entry.scannedAt,
-                deviceSecurity = entry.deviceSecuritySnapshot
-            )
-        }.getOrNull()
+        history.recent(1).firstOrNull()?.toScanSnapshot()
     }
 
     suspend fun clearHistory() {
