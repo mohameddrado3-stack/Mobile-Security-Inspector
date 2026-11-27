@@ -171,19 +171,19 @@ object ReportFormatter {
         report: StringBuilder,
         snapshot: DeviceSecuritySnapshot?
     ) {
-        report.append("مؤشرات أمان نظام Android\\n")
+        report.append("مؤشرات أمان نظام Android\n")
         if (snapshot == null) {
-            report.append("لقطة أمان النظام غير محفوظة ضمن هذا الفحص.\\n\\n")
+            report.append("لقطة أمان النظام غير محفوظة ضمن هذا الفحص.\n\n")
             return
         }
-        report.append("إصدار Android: ").append(deviceEvidenceLabel(snapshot.androidRelease)).append("\\n")
-        report.append("مستوى API: ").append(deviceEvidenceLabel(snapshot.apiLevel)).append("\\n")
-        report.append("مستوى تصحيح الأمان: ").append(deviceEvidenceLabel(snapshot.securityPatch)).append("\\n")
-        report.append("قفل الشاشة الآمن: ").append(deviceEvidenceLabel(snapshot.secureScreenLock)).append("\\n")
-        report.append("تشفير التخزين: ").append(deviceEvidenceLabel(snapshot.storageEncryption)).append("\\n")
-        report.append("حالة ADB: ").append(deviceEvidenceLabel(snapshot.adbEnabled)).append("\\n")
-        report.append("خيارات المطوّر: ").append(deviceEvidenceLabel(snapshot.developerOptionsEnabled)).append("\\n")
-        report.append("وقت قراءة مؤشرات النظام: ").append(formatDate(snapshot.collectedAt)).append("\\n\\n")
+        report.append("إصدار Android: ").append(deviceEvidenceLabel(snapshot.androidRelease)).append("\n")
+        report.append("مستوى API: ").append(deviceEvidenceLabel(snapshot.apiLevel)).append("\n")
+        report.append("مستوى تصحيح الأمان: ").append(deviceEvidenceLabel(snapshot.securityPatch)).append("\n")
+        report.append("قفل الشاشة الآمن: ").append(deviceEvidenceLabel(snapshot.secureScreenLock)).append("\n")
+        report.append("تشفير التخزين: ").append(deviceEvidenceLabel(snapshot.storageEncryption)).append("\n")
+        report.append("حالة ADB: ").append(deviceEvidenceLabel(snapshot.adbEnabled)).append("\n")
+        report.append("خيارات المطوّر: ").append(deviceEvidenceLabel(snapshot.developerOptionsEnabled)).append("\n")
+        report.append("وقت قراءة مؤشرات النظام: ").append(formatDate(snapshot.collectedAt)).append("\n\n")
     }
 
     private fun deviceEvidenceLabel(evidence: DeviceSecurityEvidence): String =
