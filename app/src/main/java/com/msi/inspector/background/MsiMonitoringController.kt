@@ -41,7 +41,7 @@ object MsiMonitoringController {
 
         WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
             PERIODIC_WORK_NAME,
-            ExistingPeriodicWorkPolicy.UPDATE,
+            ExistingPeriodicWorkPolicy.KEEP,
             periodicRequest
         )
 
