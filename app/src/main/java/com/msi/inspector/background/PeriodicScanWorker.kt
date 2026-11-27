@@ -22,8 +22,9 @@ class PeriodicScanWorker(
 
             runCatching { MsiWidgetStateUpdater.update(applicationContext, snapshot) }
 
-            if (events.any { it.type != TimelineEventType.BASELINE_CREATED }) {
-                MsiScanNotifications.showChange(applicationContext, events.size)
+            val changeCount = events.count { it.type != TimelineEventType.BASELINE_CREATED }
+            if (changeCount > 0) {
+                MsiScanNotifications.showChange(applicationContext, changeCount)
             }
             Result.success()
         } catch (cancelled: CancellationException) {
