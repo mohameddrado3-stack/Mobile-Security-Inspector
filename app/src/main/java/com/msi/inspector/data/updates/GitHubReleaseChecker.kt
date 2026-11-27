@@ -134,6 +134,16 @@ object GitHubReleaseChecker {
         return suffix.split('.').filter(String::isNotEmpty)
     }
 
+    private fun isTrustedReleaseUrl(value: String): Boolean {
+        val uri = Uri.parse(value)
+        return uri.scheme == "https" &&
+            uri.host == "github.com" &&
+            uri.userInfo == null &&
+            uri.path.orEmpty().startsWith(
+                "/mohameddrado3-stack/Mobile-Security-Inspector/releases/"
+            )
+    }
+
     private fun numericVersion(value: String): List<String> {
         val core = value.substringBefore('-').substringBefore('+')
         val match = Regex("^(\\d+)\\.(\\d+)\\.(\\d+)$").find(core)
