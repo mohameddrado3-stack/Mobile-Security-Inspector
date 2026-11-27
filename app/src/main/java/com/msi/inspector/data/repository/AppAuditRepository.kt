@@ -9,18 +9,20 @@ import com.msi.inspector.domain.model.ScanSnapshot
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventDetector
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class AppAuditRepository(context: Context) {
     private val scanner = AndroidAppScanner(context)
     private val history = ScanHistoryDatabase(context)
 
-    suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }): ScanSnapshot {
-        SCAN_MUTEX.lock()
-        return try {
-            scanner.scan(onProgress)
-        } finally {
-            SCAN_MUTEX.unlock()
-        }
+    suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }): ScanSnapshot =
+        SCAN_MUTEX.withLock { scanner.scan(onProgress) }
+
+    suspend fun scanAndSave(
+        onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }
+    ): Pair<ScanSnapshot, List<TimelineEvent>> = SCAN_MUTEX.withLock {
+        val snapshot = scanner.scan(onProgress)
+        snapshot to saveHistory(snapshot)
     }
 
     fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
