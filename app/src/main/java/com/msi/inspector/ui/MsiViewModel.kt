@@ -198,18 +198,17 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 return@launch
             }
 
-            val snapshot = scanResult.first
+            val snapshot = scanResult.snapshot
             try {
-                val recorded = withContext(Dispatchers.IO) {
+                withContext(Dispatchers.IO) {
                     runCatching { MsiWidgetStateUpdater.update(getApplication(), snapshot) }
-                    repository.loadHistory() to repository.loadTimeline()
                 }
-                val history = recorded.first
+                val history = scanResult.history
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
                         history = history,
-                        timelineEvents = recorded.second,
+                        timelineEvents = scanResult.timeline,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
