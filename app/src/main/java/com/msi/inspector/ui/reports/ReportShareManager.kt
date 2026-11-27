@@ -19,7 +19,7 @@ fun shareReport(
             ReportFileFormat.TXT -> ReportFormatter.format(applications, scannedAt, deviceSecurity)
             ReportFileFormat.CSV -> ReportFormatter.formatCsv(applications, scannedAt, deviceSecurity)
             ReportFileFormat.JSON -> ReportFormatter.formatJson(applications, scannedAt, deviceSecurity)
-            ReportFileFormat.PDF -> ReportFormatter.format(applications, scannedAt)
+            ReportFileFormat.PDF -> ReportFormatter.format(applications, scannedAt, deviceSecurity)
         }
         val uri = ReportExportManager.export(context, format, content)
         val sendIntent = Intent(Intent.ACTION_SEND).apply {
