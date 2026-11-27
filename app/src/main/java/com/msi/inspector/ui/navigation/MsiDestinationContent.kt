@@ -159,6 +159,8 @@ fun MsiDestinationContent(
             onPeriodicScanChanged = onPeriodicScanChanged,
             activeMonitoringEnabled = activeMonitoringEnabled,
             onActiveMonitoringChanged = onActiveMonitoringChanged,
+            batteryTrackingEnabled = state.batteryTrackingEnabled,
+            onBatteryTrackingChanged = viewModel::setBatteryTrackingEnabled,
             scheduledHour = scheduledHour,
             scheduledMinute = scheduledMinute,
             onScheduledTimeChanged = onScheduledTimeChanged,
