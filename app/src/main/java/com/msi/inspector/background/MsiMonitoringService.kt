@@ -210,7 +210,7 @@ class MsiMonitoringService : Service() {
 
         fun refreshNotification(context: Context, lastScanText: String) {
             val appContext = context.applicationContext
-            if (!MsiMonitoringController.isEnabled(appContext)) return
+            if (!MsiMonitoringController.isEnabled(appContext) || !isRunning()) return
             if (Build.VERSION.SDK_INT >= 33 &&
                 ContextCompat.checkSelfPermission(
                     appContext,
