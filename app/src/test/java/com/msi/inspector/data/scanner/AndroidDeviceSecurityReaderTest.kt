@@ -26,6 +26,16 @@ class AndroidDeviceSecurityReaderTest {
     }
 
     @Test
+    fun restrictedDeveloperSettingsAreNotReportedAsDisabled() {
+        val snapshot = AndroidDeviceSecurityReader(RuntimeEnvironment.getApplication()).read()
+
+        assertEquals(EvidenceAvailability.RESTRICTED_BY_ANDROID, snapshot.adbEnabled.availability)
+        assertEquals(EvidenceAvailability.RESTRICTED_BY_ANDROID, snapshot.developerOptionsEnabled.availability)
+        assertEquals(null, snapshot.adbEnabled.value)
+        assertEquals(null, snapshot.developerOptionsEnabled.value)
+    }
+
+    @Test
     fun activeFullDiskEncryptionRemainsExplicitlyAvailable() {
         assertEquals(
             DeviceSecurityEvidence("active", EvidenceAvailability.AVAILABLE),
