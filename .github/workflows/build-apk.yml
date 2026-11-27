@@ -71,7 +71,7 @@ jobs:
             echo "Release APK must not be debuggable (actual: $DEBUGGABLE)" >&2
             exit 1
           fi
-          if ! printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.INTERNET'; then
+          if ! printf '%s\n' "$PERMISSIONS" | grep -Fxq 'android.permission.INTERNET'; then
             echo "Update Center requires INTERNET permission in Release" >&2
             exit 1
           fi
@@ -79,11 +79,11 @@ jobs:
             echo "Unexpected INTERNET permission in Debug APK" >&2
             exit 1
           fi
-          if ! printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.FOREGROUND_SERVICE'; then
+          if ! printf '%s\n' "$PERMISSIONS" | grep -Fxq 'android.permission.FOREGROUND_SERVICE'; then
             echo "Missing base foreground service permission in Release" >&2
             exit 1
           fi
-          if ! printf '%s\n' "$PERMISSIONS" | grep -q 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'; then
+          if ! printf '%s\n' "$PERMISSIONS" | grep -Fxq 'android.permission.FOREGROUND_SERVICE_SPECIAL_USE'; then
             echo "Missing special-use foreground service permission in Release" >&2
             exit 1
           fi
