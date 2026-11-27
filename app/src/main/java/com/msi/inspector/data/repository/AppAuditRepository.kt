@@ -8,13 +8,20 @@ import com.msi.inspector.domain.model.ScanHistoryEntry
 import com.msi.inspector.domain.model.ScanSnapshot
 import com.msi.inspector.domain.timeline.TimelineEvent
 import com.msi.inspector.domain.timeline.TimelineEventDetector
+import kotlinx.coroutines.sync.Mutex
 
 class AppAuditRepository(context: Context) {
     private val scanner = AndroidAppScanner(context)
     private val history = ScanHistoryDatabase(context)
 
-    suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }): ScanSnapshot =
-        scanner.scan(onProgress)
+    suspend fun scan(onProgress: (completed: Int, total: Int) -> Unit = { _, _ -> }): ScanSnapshot {
+        SCAN_MUTEX.lock()
+        return try {
+            scanner.scan(onProgress)
+        } finally {
+            SCAN_MUTEX.unlock()
+        }
+    }
 
     fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
         val previousEntry = history.recent(1).firstOrNull()
@@ -43,6 +50,7 @@ class AppAuditRepository(context: Context) {
 
     private companion object {
         val SCAN_HISTORY_LOCK = Any()
+        val SCAN_MUTEX = Mutex()
     }
 
 }
