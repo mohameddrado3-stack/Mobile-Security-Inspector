@@ -16,10 +16,8 @@ import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
+import android.widget.RemoteViews
 import android.provider.Settings
-import android.text.SpannableString
-import android.text.Spanned
-import android.text.style.ForegroundColorSpan
 import android.content.pm.ServiceInfo
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
@@ -166,14 +164,16 @@ class MsiMonitoringService : Service() {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
+        val pulseView = createPulseView(packageName, notificationColor)
         return NotificationCompat.Builder(this, CHANNEL_ID)
             .setSmallIcon(R.drawable.ic_msi_notification)
             .setColor(notificationColor)
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-            .setContentTitle(getString(R.string.monitor_notification_title))
-            .setContentText(statusIndicator(notificationColor))
             .setContentIntent(openPendingIntent)
+            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+            .setCustomContentView(pulseView)
+            .setCustomBigContentView(pulseView)
             .setOngoing(true)
             .setOnlyAlertOnce(true)
             .setShowWhen(false)
@@ -181,14 +181,11 @@ class MsiMonitoringService : Service() {
             .build()
     }
 
-    private fun statusIndicator(color: Int): CharSequence =
-        SpannableString("●").apply {
-            setSpan(
-                ForegroundColorSpan(color),
-                0,
-                length,
-                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE
-            )
+    private fun createPulseView(viewPackage: String, color: Int): RemoteViews =
+        RemoteViews(viewPackage, R.layout.notification_monitoring_pulse).apply {
+            setTextColor(R.id.monitor_notification_pulse_bright, color)
+            setTextColor(R.id.monitor_notification_pulse_dim, color)
+            setFloat(R.id.monitor_notification_pulse_dim, "setAlpha", 0.24f)
         }
 
     private fun loadSavedStatus(): MsiNotificationStatus {
@@ -254,17 +251,23 @@ class MsiMonitoringService : Service() {
                     },
                     PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
                 )
-                val indicator = SpannableString("●").apply {
-                    setSpan(ForegroundColorSpan(color), 0, length, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+                val pulseView = RemoteViews(
+                    appContext.packageName,
+                    R.layout.notification_monitoring_pulse
+                ).apply {
+                    setTextColor(R.id.monitor_notification_pulse_bright, color)
+                    setTextColor(R.id.monitor_notification_pulse_dim, color)
+                    setFloat(R.id.monitor_notification_pulse_dim, "setAlpha", 0.24f)
                 }
                 val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_msi_notification)
                     .setColor(color)
                     .setCategory(NotificationCompat.CATEGORY_SERVICE)
                     .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
-                    .setContentTitle(appContext.getString(R.string.monitor_notification_title))
-                    .setContentText(indicator)
                     .setContentIntent(openPendingIntent)
+                    .setStyle(NotificationCompat.DecoratedCustomViewStyle())
+                    .setCustomContentView(pulseView)
+                    .setCustomBigContentView(pulseView)
                     .setOngoing(true)
                     .setOnlyAlertOnce(true)
                     .setShowWhen(false)
