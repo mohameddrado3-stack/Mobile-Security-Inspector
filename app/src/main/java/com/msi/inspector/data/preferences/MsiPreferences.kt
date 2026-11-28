@@ -48,6 +48,13 @@ class MsiPreferences(context: Context) {
         preferences.edit().putBoolean(KEY_PERMISSION_SETUP_COMPLETE, true).apply()
     }
 
+    fun hasRequestedNotificationPermission(): Boolean =
+        preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)
+
+    fun markNotificationPermissionRequested() {
+        preferences.edit().putBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, true).apply()
+    }
+
     fun isPeriodicScanEnabled(): Boolean =
         preferences.getBoolean(KEY_PERIODIC_SCAN, false)
 
@@ -71,5 +78,6 @@ class MsiPreferences(context: Context) {
         const val KEY_PERIODIC_SCAN = "periodic_scan_enabled"
         const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
         const val KEY_PERMISSION_SETUP_COMPLETE = "permission_setup_complete"
+        const val KEY_NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
     }
 }
