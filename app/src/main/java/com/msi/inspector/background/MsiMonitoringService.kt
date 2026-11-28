@@ -171,7 +171,6 @@ class MsiMonitoringService : Service() {
             .setCategory(NotificationCompat.CATEGORY_SERVICE)
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setContentIntent(openPendingIntent)
-            .setStyle(NotificationCompat.DecoratedCustomViewStyle())
             .setCustomContentView(pulseView)
             .setCustomBigContentView(pulseView)
             .setOngoing(true)
