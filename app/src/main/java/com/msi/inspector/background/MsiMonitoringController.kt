@@ -69,18 +69,17 @@ object MsiMonitoringController {
         if (!isEnabled(appContext)) return
 
         val request = OneTimeWorkRequestBuilder<MsiMonitoringWorker>()
-            .setInitialDelay(8, TimeUnit.SECONDS)
+            .setInitialDelay(2, TimeUnit.SECONDS)
             .setConstraints(
                 Constraints.Builder()
                     .setRequiredNetworkType(NetworkType.NOT_REQUIRED)
-                    .setRequiresBatteryNotLow(true)
                     .build()
             )
             .build()
 
         WorkManager.getInstance(appContext).enqueueUniqueWork(
             EVENT_WORK_NAME,
-            ExistingWorkPolicy.REPLACE,
+            ExistingWorkPolicy.KEEP,
             request
         )
     }
