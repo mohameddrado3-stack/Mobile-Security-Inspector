@@ -21,9 +21,11 @@ object MsiNotificationStatusClassifier {
             adbEnabled ||
                 screenLockDisabled ||
                 device.storageEncryption.value == "inactive" ||
+                device.storageEncryption.availability != EvidenceAvailability.AVAILABLE ||
                 device.adbEnabled.availability != EvidenceAvailability.AVAILABLE ||
                 device.secureScreenLock.availability != EvidenceAvailability.AVAILABLE ||
-                device.developerOptionsEnabled.availability != EvidenceAvailability.AVAILABLE
+                device.developerOptionsEnabled.availability != EvidenceAvailability.AVAILABLE ||
+                device.securityPatch.availability != EvidenceAvailability.AVAILABLE
 
         val appsNeedReview = snapshot.applications.any { app ->
             app.needsReview ||
