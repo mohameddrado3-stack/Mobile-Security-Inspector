@@ -16,6 +16,7 @@ import androidx.compose.ui.unit.dp
 fun MsiPermissionSetupDialog(
     step: Int,
     notificationsGranted: Boolean,
+    notificationPermissionPreviouslyRequested: Boolean = false,
     usageAccessGranted: Boolean,
     onRequestNotifications: () -> Unit,
     onOpenUsageAccess: () -> Unit,
@@ -23,7 +24,11 @@ fun MsiPermissionSetupDialog(
     onFinish: () -> Unit
 ) {
     val currentStep = step.coerceIn(0, 2)
-    val notificationStatus = if (notificationsGranted) "مفعّل" else "لم يُفعّل"
+    val notificationStatus = when {
+        notificationsGranted -> "مفعّل"
+        notificationPermissionPreviouslyRequested -> "مرفوض سابقًا / غير مفعّل"
+        else -> "لم يُطلب بعد"
+    }
     val usageStatus = if (usageAccessGranted) "مفعّل" else "اختياري وغير مفعّل"
 
     AlertDialog(
