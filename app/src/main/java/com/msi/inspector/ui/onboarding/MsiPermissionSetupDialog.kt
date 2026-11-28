@@ -44,6 +44,11 @@ fun MsiPermissionSetupDialog(
                 )
                 PermissionStatusRow("الإشعارات", notificationStatus)
                 PermissionStatusRow("بيانات الاستخدام", usageStatus)
+                PermissionStatusRow("رؤية التطبيقات المثبتة", "معلنة في MSI")
+                PermissionStatusRow("المراقبة الخلفية", "تعمل عند التفعيل فقط")
+                Text(
+                    "قراءة قائمة التطبيقات تُعلن للنظام في ملف MSI ولا تحتاج نافذة سماح عادية. المراقبة الخلفية اختيارية ولا تبدأ إلا بعد تشغيلها من مركز التحكم."
+                )
                 when (currentStep) {
                     0 -> Text(
                         "الإشعارات مطلوبة لتنبيهات المراقبة والفحص الدوري. على Android 13 وما بعده يمكنك تفعيلها من نافذة النظام."
