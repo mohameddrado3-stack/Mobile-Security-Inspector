@@ -124,6 +124,7 @@ fun MsiApp(
             "permissions" -> viewModel.navigate(MsiDestination.PERMISSIONS)
             "history" -> viewModel.navigate(MsiDestination.HISTORY)
             "monitoring" -> viewModel.navigate(MsiDestination.TOOLS)
+            "timeline" -> viewModel.navigate(MsiDestination.TIMELINE)
         }
     }
 
