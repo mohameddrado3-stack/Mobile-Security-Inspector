@@ -17,7 +17,7 @@ class AppAuditRepositoryStateTest {
         val context = RuntimeEnvironment.getApplication()
         context.deleteDatabase("msi_security_history.db")
         val repository = AppAuditRepository(context)
-        val scannedAt = 5_500L
+        val scannedAt = System.currentTimeMillis()
 
         repository.saveHistory(
             ScanSnapshot(
