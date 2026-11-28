@@ -3,12 +3,12 @@ name: Verify Android builds
 on:
   workflow_dispatch:
   push:
-    branches: [ "main", "release/**" ]
+    branches: [ "main", "feature/**", "release/**" ]
   pull_request:
     branches: [ "main", "feature/**", "release/**" ]
 
 concurrency:
-  group: msi-verify-${{ github.event.pull_request.number || github.ref }}
+  group: msi-verify-${{ github.event.pull_request.head.ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
