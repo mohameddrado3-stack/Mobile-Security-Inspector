@@ -149,7 +149,7 @@ class AndroidApkInspector(context: Context) {
         }
         if (certificates.isEmpty()) return null
         val digest = MessageDigest.getInstance("SHA-256")
-        return certificates.joinToString("\\n") { certificate ->
+        return certificates.joinToString(System.lineSeparator()) { certificate ->
             digest.digest(certificate.toByteArray())
                 .joinToString("") { byte -> "%02X".format(byte) }
         }
