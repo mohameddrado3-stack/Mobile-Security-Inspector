@@ -129,7 +129,7 @@ class MainActivity : FragmentActivity() {
         permissionSetupUsageAccessGranted = hasUsageAccess()
         if (permissionSetupWaitingForUsageAccess) {
             permissionSetupWaitingForUsageAccess = false
-            permissionSetupStep = 2
+            permissionSetupStep = if (permissionSetupUsageAccessGranted) 2 else 1
         }
     }
 
@@ -202,7 +202,12 @@ class MainActivity : FragmentActivity() {
                                     startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                                 }.onFailure {
                                     permissionSetupWaitingForUsageAccess = false
-                                    permissionSetupStep = 2
+                                    permissionSetupStep = 1
+                                    Toast.makeText(
+                                        this,
+                                        "تعذر فتح إعدادات Usage Access. يمكنك تخطيها أو المحاولة مجددًا.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
                                 }
                             }
                         },
