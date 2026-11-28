@@ -32,12 +32,7 @@ class AndroidApkInspector(context: Context) {
 
         try {
             copyBounded(uri, cachedFile)
-            val flags = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                PackageManager.GET_PERMISSIONS or PackageManager.GET_SIGNING_CERTIFICATES
-            } else {
-                @Suppress("DEPRECATION")
-                PackageManager.GET_PERMISSIONS or PackageManager.GET_SIGNATURES
-            }
+            val flags = packageInfoFlags()
             val packageInfo = packageManager.getPackageArchiveInfo(cachedFile.absolutePath, flags)
                 ?: throw IllegalArgumentException("Android لم يتمكن من قراءة بيانات حزمة APK.")
 
@@ -136,6 +131,14 @@ class AndroidApkInspector(context: Context) {
         }
         if (total == 0L) throw IllegalArgumentException("ملف APK فارغ.")
     }
+
+    @Suppress("DEPRECATION")
+    private fun packageInfoFlags(): Int =
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            PackageManager.GET_PERMISSIONS or PackageManager.GET_SIGNING_CERTIFICATES
+        } else {
+            PackageManager.GET_PERMISSIONS or PackageManager.GET_SIGNATURES
+        }
 
     @Suppress("DEPRECATION")
     private fun signingCertificate(packageInfo: PackageInfo): String? {
