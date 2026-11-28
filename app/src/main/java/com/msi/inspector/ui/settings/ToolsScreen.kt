@@ -61,6 +61,8 @@ fun ToolsScreen(
     scanIntervalMinutes: Int = 1440,
     onScanIntervalMinutesChanged: (Int) -> Unit = {},
     onOpenPermissionSetup: () -> Unit = {},
+    onOpenApkScanner: () -> Unit = {},
+    onOpenWebProtection: () -> Unit = {},
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
     onUsageAccessChanged: (Boolean) -> Unit = {},
@@ -271,6 +273,26 @@ fun ToolsScreen(
                 modifier = Modifier.fillMaxWidth()
             ) {
                 Text("إعداد / مراجعة صلاحيات MSI")
+            }
+        }
+        MsiCard {
+            Text("فحص التهديدات", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "افحص ملف APK قبل التثبيت، أو راجع مؤشرات الرابط الذي تشاركه من المتصفح.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+            OutlinedButton(
+                onClick = onOpenApkScanner,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("فحص ملف APK قبل التثبيت")
+            }
+            OutlinedButton(
+                onClick = onOpenWebProtection,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("فحص رابط / حماية الويب")
             }
         }
         MsiCard {
