@@ -4,6 +4,7 @@ import android.Manifest
 import android.app.AppOpsManager
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.os.Process
@@ -16,6 +17,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
+import androidx.core.app.NotificationManagerCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -28,6 +30,7 @@ import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.MsiApp
 import com.msi.inspector.ui.onboarding.MsiPermissionSetupDialog
+import com.msi.inspector.ui.onboarding.MsiNotificationPermissionDialog
 import com.msi.inspector.ui.security.AppLockScreen
 import com.msi.inspector.ui.security.allowedAuthenticators
 
@@ -49,6 +52,10 @@ class MainActivity : FragmentActivity() {
     private var permissionSetupStep by mutableStateOf(0)
     private var permissionSetupWaitingForUsageAccess = false
     private var permissionSetupUsageAccessGranted by mutableStateOf(false)
+    private var notificationPermissionSettingsVisible by mutableStateOf(false)
+    private var notificationPermissionFeature by mutableStateOf("")
+    private var pendingNotificationSettingsReturn = false
+    private var pendingPermissionSetupSettingsReturn = false
     private var pendingPeriodicEnable = false
     private var pendingMonitoringEnable = false
     private val setupNotificationPermissionLauncher = registerForActivityResult(
@@ -60,33 +67,27 @@ class MainActivity : FragmentActivity() {
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (pendingPeriodicEnable && granted) {
-            persistPeriodicScanEnabled(true)
-        } else if (pendingPeriodicEnable) {
-            periodicScanEnabled = false
-            Toast.makeText(
-                this,
-                "لم يتم تفعيل الفحص الدوري لأن إذن الإشعارات لم يُمنح.",
-                Toast.LENGTH_LONG
-            ).show()
+        if (pendingPeriodicEnable) {
+            if (granted) {
+                pendingPeriodicEnable = false
+                persistPeriodicScanEnabled(true)
+            } else {
+                showNotificationSettingsPrompt("الفحص الدوري")
+            }
         }
-        pendingPeriodicEnable = false
     }
 
     private val monitoringNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (pendingMonitoringEnable && granted) {
-            persistActiveMonitoringEnabled(true)
-        } else if (pendingMonitoringEnable) {
-            activeMonitoringEnabled = false
-            Toast.makeText(
-                this,
-                "لم يتم تشغيل المراقبة لأن إذن الإشعارات لم يُمنح.",
-                Toast.LENGTH_LONG
-            ).show()
+        if (pendingMonitoringEnable) {
+            if (granted) {
+                pendingMonitoringEnable = false
+                persistActiveMonitoringEnabled(true)
+            } else {
+                showNotificationSettingsPrompt("المراقبة النشطة")
+            }
         }
-        pendingMonitoringEnable = false
     }
 
     override fun onStart() {
@@ -96,15 +97,34 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        val permissionGranted = hasNotificationPermission()
         if (!MsiMonitoringController.isEnabled(this)) {
             activeMonitoringEnabled = false
         }
         if (activeMonitoringEnabled && !permissionGranted) {
             persistActiveMonitoringEnabled(false)
             Toast.makeText(this, "توقفت المراقبة لأن إذن الإشعارات لم يعد متاحًا.", Toast.LENGTH_LONG).show()
+        }
+        if (pendingNotificationSettingsReturn) {
+            pendingNotificationSettingsReturn = false
+            if (permissionGranted) {
+                if (pendingPeriodicEnable) {
+                    pendingPeriodicEnable = false
+                    persistPeriodicScanEnabled(true)
+                }
+                if (pendingMonitoringEnable) {
+                    pendingMonitoringEnable = false
+                    persistActiveMonitoringEnabled(true)
+                }
+            } else {
+                pendingPeriodicEnable = false
+                pendingMonitoringEnable = false
+                Toast.makeText(this, "لم يتم تفعيل الميزة لأن إشعارات MSI ما زالت غير مسموحة.", Toast.LENGTH_LONG).show()
+            }
+        }
+        if (pendingPermissionSetupSettingsReturn) {
+            pendingPermissionSetupSettingsReturn = false
+            if (permissionGranted) permissionSetupStep = 1
         }
         permissionSetupUsageAccessGranted = hasUsageAccess()
         if (permissionSetupWaitingForUsageAccess) {
@@ -154,20 +174,22 @@ class MainActivity : FragmentActivity() {
                 if (!appLocked && permissionSetupVisible) {
                     MsiPermissionSetupDialog(
                         step = permissionSetupStep,
-                        notificationsGranted = Build.VERSION.SDK_INT < 33 ||
-                            ContextCompat.checkSelfPermission(
-                                this,
-                                Manifest.permission.POST_NOTIFICATIONS
-                            ) == PackageManager.PERMISSION_GRANTED,
+                        notificationsGranted = hasNotificationPermission(),
+                        notificationPermissionPreviouslyRequested =
+                            preferences.hasRequestedNotificationPermission(),
                         usageAccessGranted = permissionSetupUsageAccessGranted,
                         onRequestNotifications = {
-                            val alreadyGranted = Build.VERSION.SDK_INT < 33 ||
-                                ContextCompat.checkSelfPermission(
-                                    this,
-                                    Manifest.permission.POST_NOTIFICATIONS
-                                ) == PackageManager.PERMISSION_GRANTED
-                            if (alreadyGranted) permissionSetupStep = 1
-                            else setupNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            if (hasNotificationPermission()) {
+                                permissionSetupStep = 1
+                            } else if (
+                                Build.VERSION.SDK_INT < 33 ||
+                                preferences.hasRequestedNotificationPermission()
+                            ) {
+                                showNotificationSettingsPrompt("إشعارات الحماية")
+                            } else {
+                                preferences.markNotificationPermissionRequested()
+                                setupNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
                         },
                         onOpenUsageAccess = {
                             if (hasUsageAccess()) {
@@ -189,6 +211,64 @@ class MainActivity : FragmentActivity() {
                         onFinish = ::finishPermissionSetup
                     )
                 }
+                if (!appLocked && notificationPermissionSettingsVisible) {
+                    MsiNotificationPermissionDialog(
+                        featureName = notificationPermissionFeature,
+                        onOpenSettings = ::openNotificationAppSettings,
+                        onDismiss = ::dismissNotificationSettingsPrompt
+                    )
+                }
+            }
+        }
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        val runtimeGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        return runtimeGranted && NotificationManagerCompat.from(this).areNotificationsEnabled()
+    }
+
+    private fun showNotificationSettingsPrompt(featureName: String) {
+        notificationPermissionFeature = featureName
+        notificationPermissionSettingsVisible = true
+    }
+
+    private fun dismissNotificationSettingsPrompt() {
+        notificationPermissionSettingsVisible = false
+        pendingPeriodicEnable = false
+        pendingMonitoringEnable = false
+    }
+
+    private fun openNotificationAppSettings() {
+        notificationPermissionSettingsVisible = false
+        pendingNotificationSettingsReturn = pendingPeriodicEnable || pendingMonitoringEnable
+        pendingPermissionSetupSettingsReturn = permissionSetupVisible && permissionSetupStep == 0
+        val notificationIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        runCatching {
+            startActivity(notificationIntent)
+        }.onFailure {
+            runCatching {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            }.onFailure {
+                pendingNotificationSettingsReturn = false
+                pendingPermissionSetupSettingsReturn = false
+                pendingPeriodicEnable = false
+                pendingMonitoringEnable = false
+                Toast.makeText(
+                    this,
+                    "تعذر فتح إعدادات إشعارات MSI على هذا الجهاز.",
+                    Toast.LENGTH_LONG
+                ).show()
             }
         }
     }
@@ -227,9 +307,7 @@ class MainActivity : FragmentActivity() {
     private fun loadPeriodicScanPreference() {
         scanIntervalMinutes = preferences.loadScanIntervalMinutes()
         if (!preferences.isPeriodicScanEnabled()) return
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        val permissionGranted = hasNotificationPermission()
         if (permissionGranted) {
             periodicScanEnabled = true
             PeriodicScanScheduler.enable(this, scanIntervalMinutes)
@@ -241,17 +319,20 @@ class MainActivity : FragmentActivity() {
 
     private fun configurePeriodicScan(enabled: Boolean) {
         if (!enabled) {
+            pendingPeriodicEnable = false
             persistPeriodicScanEnabled(false)
             return
         }
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) {
+        if (hasNotificationPermission()) {
             persistPeriodicScanEnabled(true)
         } else {
             pendingPeriodicEnable = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT < 33 || preferences.hasRequestedNotificationPermission()) {
+                showNotificationSettingsPrompt("الفحص الدوري")
+            } else {
+                preferences.markNotificationPermissionRequested()
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
@@ -300,17 +381,20 @@ class MainActivity : FragmentActivity() {
 
     private fun configureActiveMonitoring(enabled: Boolean) {
         if (!enabled) {
+            pendingMonitoringEnable = false
             persistActiveMonitoringEnabled(false)
             return
         }
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) {
+        if (hasNotificationPermission()) {
             persistActiveMonitoringEnabled(true)
         } else {
             pendingMonitoringEnable = true
-            monitoringNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT < 33 || preferences.hasRequestedNotificationPermission()) {
+                showNotificationSettingsPrompt("المراقبة النشطة")
+            } else {
+                preferences.markNotificationPermissionRequested()
+                monitoringNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
