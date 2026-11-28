@@ -114,7 +114,8 @@ object WebLinkAnalyzer {
     private fun isIpAddress(host: String): Boolean {
         val ipv4 = host.split('.')
         if (ipv4.size == 4 && ipv4.all { part ->
-                part.isNotEmpty() && part.all(Char::isDigit) && part.toIntOrNull() in 0..255
+                part.isNotEmpty() && part.all(Char::isDigit) &&
+                    part.toIntOrNull()?.let { it in 0..255 } == true
             }) return true
         return ':' in host
     }
