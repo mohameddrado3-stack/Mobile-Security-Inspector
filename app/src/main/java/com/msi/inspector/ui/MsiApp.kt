@@ -74,6 +74,8 @@ fun MsiApp(
     onScanIntervalMinutesChanged: (Int) -> Unit = {},
     onOnboardingCompleted: () -> Unit = {},
     onOpenPermissionSetup: () -> Unit = {},
+    sharedText: String? = null,
+    onSharedTextConsumed: () -> Unit = {},
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -110,6 +112,7 @@ fun MsiApp(
         wasScanning = state.isScanning
     }
     var showShareConfirmation by remember { mutableStateOf(false) }
+    var webAddress by remember { mutableStateOf("") }
     var onboardingPage by remember { mutableStateOf(0) }
     var showOnboarding by remember {
         mutableStateOf(!preferences.isOnboardingComplete())
@@ -121,6 +124,14 @@ fun MsiApp(
             "permissions" -> viewModel.navigate(MsiDestination.PERMISSIONS)
             "history" -> viewModel.navigate(MsiDestination.HISTORY)
             "monitoring" -> viewModel.navigate(MsiDestination.TOOLS)
+        }
+    }
+
+    LaunchedEffect(sharedText) {
+        sharedText?.takeIf(String::isNotBlank)?.let {
+            webAddress = it
+            viewModel.navigate(MsiDestination.WEB_PROTECTION)
+            onSharedTextConsumed()
         }
     }
 
@@ -171,6 +182,8 @@ fun MsiApp(
                     scanIntervalMinutes = scanIntervalMinutes,
                     onScanIntervalMinutesChanged = onScanIntervalMinutesChanged,
                     onOpenPermissionSetup = onOpenPermissionSetup,
+                    webAddress = webAddress,
+                    onWebAddressChanged = { webAddress = it },
                     onShareReportRequest = {
                         if (state.applications.isEmpty()) {
                             Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
