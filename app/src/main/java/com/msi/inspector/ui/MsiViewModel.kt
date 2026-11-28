@@ -309,6 +309,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
+                        hasLoadedScanSnapshot = true,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
@@ -320,6 +321,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
+                        hasLoadedScanSnapshot = true,
                         vpnActive = snapshot.vpnActive,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
