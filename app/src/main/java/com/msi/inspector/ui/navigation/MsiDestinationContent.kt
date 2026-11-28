@@ -188,7 +188,7 @@ fun MsiDestinationContent(
             onRefreshDeviceSecurity = viewModel::refreshDeviceSecurity,
             onUsageAccessChanged = { enabled ->
                 viewModel.setUsageAccessOptIn(enabled)
-                if (enabled) {
+                if (enabled && !state.usageAccessGranted) {
                     openSystemPage(context, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
                 }
             }
