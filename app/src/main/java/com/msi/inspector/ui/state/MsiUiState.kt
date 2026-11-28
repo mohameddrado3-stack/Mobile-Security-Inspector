@@ -24,6 +24,7 @@ data class MsiUiState(
     val scanTotal: Int = 0,
     val vpnActive: Boolean? = null,
     val lastScanAt: Long? = null,
+    val hasLoadedScanSnapshot: Boolean = false,
     val batteryUsage: BatteryUsageSummary? = null,
     val isLoadingBatteryUsage: Boolean = false,
     val batteryTrackingEnabled: Boolean = true,
