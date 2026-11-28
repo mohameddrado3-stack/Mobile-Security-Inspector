@@ -176,7 +176,8 @@ class MainActivity : FragmentActivity() {
                         step = permissionSetupStep,
                         notificationsGranted = hasNotificationPermission(),
                         notificationPermissionPreviouslyRequested =
-                            preferences.hasRequestedNotificationPermission(),
+                            preferences.hasRequestedNotificationPermission() ||
+                                !NotificationManagerCompat.from(this).areNotificationsEnabled(),
                         usageAccessGranted = permissionSetupUsageAccessGranted,
                         onRequestNotifications = {
                             if (hasNotificationPermission()) {
@@ -357,9 +358,7 @@ class MainActivity : FragmentActivity() {
             activeMonitoringEnabled = false
             return
         }
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        val permissionGranted = hasNotificationPermission()
         if (permissionGranted) {
             activeMonitoringEnabled = true
             if (!MsiMonitoringService.isRunning()) {
