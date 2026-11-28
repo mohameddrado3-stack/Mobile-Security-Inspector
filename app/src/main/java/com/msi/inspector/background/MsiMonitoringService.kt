@@ -185,7 +185,6 @@ class MsiMonitoringService : Service() {
         RemoteViews(viewPackage, R.layout.notification_monitoring_pulse).apply {
             setTextColor(R.id.monitor_notification_pulse_bright, color)
             setTextColor(R.id.monitor_notification_pulse_dim, color)
-            setFloat(R.id.monitor_notification_pulse_dim, "setAlpha", 0.24f)
         }
 
     private fun loadSavedStatus(): MsiNotificationStatus {
@@ -194,13 +193,6 @@ class MsiMonitoringService : Service() {
         return runCatching {
             MsiNotificationStatus.valueOf(saved ?: MsiNotificationStatus.REVIEW.name)
         }.getOrDefault(MsiNotificationStatus.REVIEW)
-    }
-
-    private fun saveStatus(status: MsiNotificationStatus) {
-        getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putString(KEY_NOTIFICATION_STATUS, status.name)
-            .apply()
     }
 
     private fun colorFor(status: MsiNotificationStatus): Int = when (status) {
@@ -257,7 +249,6 @@ class MsiMonitoringService : Service() {
                 ).apply {
                     setTextColor(R.id.monitor_notification_pulse_bright, color)
                     setTextColor(R.id.monitor_notification_pulse_dim, color)
-                    setFloat(R.id.monitor_notification_pulse_dim, "setAlpha", 0.24f)
                 }
                 val notification = NotificationCompat.Builder(appContext, CHANNEL_ID)
                     .setSmallIcon(R.drawable.ic_msi_notification)
