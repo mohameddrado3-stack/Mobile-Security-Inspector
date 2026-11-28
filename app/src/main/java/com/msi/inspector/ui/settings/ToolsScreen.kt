@@ -1,9 +1,8 @@
 package com.msi.inspector.ui.settings
 
-import android.app.TimePickerDialog
-import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,14 +13,19 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.semantics.contentDescription
@@ -54,9 +58,8 @@ fun ToolsScreen(
     onActiveMonitoringChanged: (Boolean) -> Unit = {},
     batteryTrackingEnabled: Boolean = true,
     onBatteryTrackingChanged: (Boolean) -> Unit = {},
-    scheduledHour: Int = 9,
-    scheduledMinute: Int = 0,
-    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
+    scanIntervalMinutes: Int = 1440,
+    onScanIntervalMinutesChanged: (Int) -> Unit = {},
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
     onUsageAccessChanged: (Boolean) -> Unit = {},
@@ -64,7 +67,8 @@ fun ToolsScreen(
     isLoadingDeviceSecurity: Boolean = false,
     onRefreshDeviceSecurity: () -> Unit = {}
 ) {
-    val context = LocalContext.current
+    var intervalMenuExpanded by remember { mutableStateOf(false) }
+    val intervalOptions = listOf(15, 30, 60, 120, 180, 360, 720, 1440)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -212,9 +216,9 @@ fun ToolsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("فحص محلي يوميًا في الوقت الذي تحدده", fontSize = 13.sp)
+                    Text("فحص تلقائي كل عدد دقائق تختاره", fontSize = 13.sp)
                     Text(
-                        "لا يحتاج اتصال شبكة. يرسل إشعارًا فقط إذا تغيّرت مؤشرات محددة.",
+                        "يعمل في الخلفية دون الحاجة إلى فتح MSI، ويرسل تنبيهًا عند رصد تغيّر يستحق المراجعة.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
@@ -222,25 +226,34 @@ fun ToolsScreen(
                 Switch(checked = periodicScanEnabled, onCheckedChange = onPeriodicScanChanged)
             }
             Text(
-                "الموعد الحالي: %02d:%02d".format(scheduledHour, scheduledMinute),
+                "الفترة الحالية: كل $scanIntervalMinutes دقيقة",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 12.sp
             )
-            OutlinedButton(
-                onClick = {
-                    TimePickerDialog(
-                        context,
-                        { _, hour, minute -> onScheduledTimeChanged(hour, minute) },
-                        scheduledHour,
-                        scheduledMinute,
-                        true
-                    ).show()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = true
-            ) { Text("تحديد موعد الفحص") }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { intervalMenuExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("تغيير فترة الفحص")
+                }
+                DropdownMenu(
+                    expanded = intervalMenuExpanded,
+                    onDismissRequest = { intervalMenuExpanded = false }
+                ) {
+                    intervalOptions.forEach { minutes ->
+                        DropdownMenuItem(
+                            text = { Text("كل $minutes دقيقة") },
+                            onClick = {
+                                intervalMenuExpanded = false
+                                onScanIntervalMinutesChanged(minutes)
+                            }
+                        )
+                    }
+                }
+            }
             Text(
-                "يطلب Android إذن الإشعارات عند التفعيل فقط. قد يؤخر Android التنفيذ بسبب البطارية أو قيود النظام؛ الموعد ليس ضمانًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
+                "الحد الأدنى 15 دقيقة وفق WorkManager في Android. يعمل الجدول بعد إغلاق الشاشة وفي الخلفية، لكن قد يؤخر Android التنفيذ بسبب Doze وتحسين البطارية؛ لذلك الفترة ليست موعدًا مضمونًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
