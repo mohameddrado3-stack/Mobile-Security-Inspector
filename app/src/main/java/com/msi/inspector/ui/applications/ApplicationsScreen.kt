@@ -83,7 +83,9 @@ fun ApplicationsScreen(
     onCopyPackage: (String) -> Unit = {},
     onOpenSettings: (String) -> Unit = {},
     trustedPackages: Set<String> = emptySet(),
-    ignoredPackages: Set<String> = emptySet()
+    ignoredPackages: Set<String> = emptySet(),
+    hasLoadedScanSnapshot: Boolean = false,
+    totalApplicationCount: Int = applications.size
 ) {
     val filters = AppFilter.values().toList()
     var sort by remember { mutableStateOf(ApplicationSortOrder.INDICATORS) }
@@ -169,7 +171,23 @@ fun ApplicationsScreen(
             )
         }
         if (applications.isEmpty()) {
-            EmptyApplications()
+            val emptyTitle: String
+            val emptyDescription: String
+            when {
+                totalApplicationCount > 0 -> {
+                    emptyTitle = "لا توجد نتائج مطابقة"
+                    emptyDescription = "جرّب تعديل البحث أو اختيار فلتر مختلف لعرض التطبيقات."
+                }
+                hasLoadedScanSnapshot -> {
+                    emptyTitle = "لم تظهر تطبيقات في آخر فحص"
+                    emptyDescription = "اكتمل الفحص، لكن Android لم يُرجع تطبيقات قابلة للعرض في هذه القراءة."
+                }
+                else -> {
+                    emptyTitle = "لا توجد بيانات تطبيقات بعد"
+                    emptyDescription = "ابدأ فحصًا من الشاشة الرئيسية لقراءة التطبيقات التي يتيحها Android."
+                }
+            }
+            EmptyApplications(emptyTitle, emptyDescription)
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -275,15 +293,15 @@ private fun ComparisonCard(first: AppAudit, second: AppAudit) {
 }
 
 @Composable
-private fun EmptyApplications() {
+private fun EmptyApplications(title: String, description: String) {
     Column(
         modifier = Modifier.fillMaxSize().padding(28.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("لا توجد نتائج للعرض", style = MaterialTheme.typography.titleMedium)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         Text(
-            "ابدأ فحصًا من الشاشة الرئيسية أو غيّر البحث والفلتر الحالي.",
+            description,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp
         )
