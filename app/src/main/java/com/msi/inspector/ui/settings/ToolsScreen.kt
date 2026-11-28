@@ -24,6 +24,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
@@ -100,7 +102,10 @@ fun ToolsScreen(
                 }
                 Switch(
                     checked = batteryTrackingEnabled,
-                    onCheckedChange = onBatteryTrackingChanged
+                    onCheckedChange = onBatteryTrackingChanged,
+                    modifier = Modifier.semantics {
+                        contentDescription = "تسجيل قراءات البطارية كل ساعة تقريبًا"
+                    }
                 )
             }
             Row(
