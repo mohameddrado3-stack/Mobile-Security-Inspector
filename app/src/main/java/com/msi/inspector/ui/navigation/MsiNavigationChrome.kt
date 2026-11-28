@@ -26,8 +26,7 @@ fun MsiBottomNavigation(
         MsiDivider()
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp,
-            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
+            tonalElevation = 0.dp
         ) {
             MsiDestination.values().forEach { destination ->
                 NavigationBarItem(
