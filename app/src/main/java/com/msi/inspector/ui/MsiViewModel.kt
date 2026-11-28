@@ -59,6 +59,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update { current ->
                     current.copy(
                         applications = current.applications.ifEmpty { latestSnapshot?.applications.orEmpty() },
+                        hasLoadedScanSnapshot = latestSnapshot != null,
                         history = entries,
                         timelineEvents = loaded.timeline,
                         deviceSecurity = current.deviceSecurity ?: latestSnapshot?.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
@@ -115,6 +116,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         current.copy(
                             applications = latest?.applications ?: current.applications,
+                            hasLoadedScanSnapshot = current.hasLoadedScanSnapshot || latest != null,
                             history = loaded.history,
                             timelineEvents = loaded.timeline,
                             deviceSecurity = latest?.deviceSecurity ?: current.deviceSecurity,
@@ -291,6 +293,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
+                        hasLoadedScanSnapshot = true,
                         history = history,
                         timelineEvents = scanResult.timeline,
                         vpnActive = snapshot.vpnActive,
