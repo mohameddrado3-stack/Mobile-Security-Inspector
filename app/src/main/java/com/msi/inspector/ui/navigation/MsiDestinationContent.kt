@@ -105,12 +105,15 @@ fun MsiDestinationContent(
                     )
                 },
                 trustedPackages = state.trustedPackages,
-                ignoredPackages = state.ignoredPackages
+                ignoredPackages = state.ignoredPackages,
+                hasLoadedScanSnapshot = state.hasLoadedScanSnapshot,
+                totalApplicationCount = state.applications.size
             )
         }
         MsiDestination.PERMISSIONS -> PermissionsScreen(
             applications = state.applications,
-            onCategorySelected = viewModel::showPackageScope
+            onCategorySelected = viewModel::showPackageScope,
+            hasLoadedScanSnapshot = state.hasLoadedScanSnapshot
         )
         MsiDestination.HISTORY -> HistoryScreen(
             history = state.history,
