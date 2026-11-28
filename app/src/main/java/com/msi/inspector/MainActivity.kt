@@ -1,9 +1,13 @@
 package com.msi.inspector
 
 import android.Manifest
+import android.app.AppOpsManager
+import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -23,6 +27,7 @@ import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.MsiApp
+import com.msi.inspector.ui.onboarding.MsiPermissionSetupDialog
 import com.msi.inspector.ui.security.AppLockScreen
 import com.msi.inspector.ui.security.allowedAuthenticators
 
@@ -39,8 +44,18 @@ class MainActivity : FragmentActivity() {
     private var periodicScanEnabled by mutableStateOf(false)
     private var activeMonitoringEnabled by mutableStateOf(false)
     private var scanIntervalMinutes by mutableStateOf(PeriodicScanScheduler.DEFAULT_INTERVAL_MINUTES)
+    private var permissionSetupVisible by mutableStateOf(false)
+    private var permissionSetupStep by mutableStateOf(0)
+    private var permissionSetupWaitingForUsageAccess = false
+    private var permissionSetupUsageAccessGranted by mutableStateOf(false)
     private var pendingPeriodicEnable = false
     private var pendingMonitoringEnable = false
+    private val setupNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        permissionSetupStep = 1
+    }
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
@@ -90,6 +105,11 @@ class MainActivity : FragmentActivity() {
             persistActiveMonitoringEnabled(false)
             Toast.makeText(this, "توقفت المراقبة لأن إذن الإشعارات لم يعد متاحًا.", Toast.LENGTH_LONG).show()
         }
+        permissionSetupUsageAccessGranted = hasUsageAccess()
+        if (permissionSetupWaitingForUsageAccess) {
+            permissionSetupWaitingForUsageAccess = false
+            permissionSetupStep = 2
+        }
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -97,6 +117,9 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         appLockSettings = AppLockSettings(this)
         preferences = MsiPreferences(this)
+        permissionSetupVisible =
+            preferences.isOnboardingComplete() && !preferences.isPermissionSetupComplete()
+        permissionSetupUsageAccessGranted = hasUsageAccess()
         appLocked = appLockSettings.isEnabled()
         loadThemePreferences()
         loadPeriodicScanPreference()
@@ -119,11 +142,76 @@ class MainActivity : FragmentActivity() {
                         activeMonitoringEnabled = activeMonitoringEnabled,
                         onActiveMonitoringChanged = ::configureActiveMonitoring,
                         scanIntervalMinutes = scanIntervalMinutes,
-                        onScanIntervalMinutesChanged = ::saveScanIntervalMinutes
+                        onScanIntervalMinutesChanged = ::saveScanIntervalMinutes,
+                        onOnboardingCompleted = ::onOnboardingCompleted,
+                        onOpenPermissionSetup = ::openPermissionSetup
+                    )
+                }
+                if (!appLocked && permissionSetupVisible) {
+                    MsiPermissionSetupDialog(
+                        step = permissionSetupStep,
+                        notificationsGranted = Build.VERSION.SDK_INT < 33 ||
+                            ContextCompat.checkSelfPermission(
+                                this,
+                                Manifest.permission.POST_NOTIFICATIONS
+                            ) == PackageManager.PERMISSION_GRANTED,
+                        usageAccessGranted = permissionSetupUsageAccessGranted,
+                        onRequestNotifications = {
+                            val alreadyGranted = Build.VERSION.SDK_INT < 33 ||
+                                ContextCompat.checkSelfPermission(
+                                    this,
+                                    Manifest.permission.POST_NOTIFICATIONS
+                                ) == PackageManager.PERMISSION_GRANTED
+                            if (alreadyGranted) permissionSetupStep = 1
+                            else setupNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        },
+                        onOpenUsageAccess = {
+                            if (hasUsageAccess()) {
+                                permissionSetupUsageAccessGranted = true
+                                permissionSetupStep = 2
+                            } else {
+                                permissionSetupWaitingForUsageAccess = true
+                                runCatching {
+                                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                }.onFailure {
+                                    permissionSetupWaitingForUsageAccess = false
+                                    permissionSetupStep = 2
+                                }
+                            }
+                        },
+                        onSkip = {
+                            permissionSetupStep = (permissionSetupStep + 1).coerceAtMost(2)
+                        },
+                        onFinish = ::finishPermissionSetup
                     )
                 }
             }
         }
+    }
+
+    private fun hasUsageAccess(): Boolean = runCatching {
+        val appOps = getSystemService(AppOpsManager::class.java)
+        appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            packageName
+        ) == AppOpsManager.MODE_ALLOWED
+    }.getOrDefault(false)
+
+    private fun onOnboardingCompleted() {
+        permissionSetupVisible = !preferences.isPermissionSetupComplete()
+    }
+
+    private fun openPermissionSetup() {
+        permissionSetupStep = 0
+        permissionSetupUsageAccessGranted = hasUsageAccess()
+        permissionSetupVisible = true
+    }
+
+    private fun finishPermissionSetup() {
+        preferences.setPermissionSetupComplete()
+        permissionSetupVisible = false
+        permissionSetupStep = 0
     }
 
     private fun loadThemePreferences() {
