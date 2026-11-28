@@ -56,7 +56,21 @@ fun HistoryScreen(
         modifier = Modifier.fillMaxSize().padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        MsiSectionHeading("سجل الفحوصات", "يحفظ آخر 50 فحصًا محليًا على الجهاز.")
+        MsiSectionHeading("سجل الفحوصات", "يحفظ آخر 10 فحوصات محليًا على الجهاز.")
+        Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
+            OutlinedCard(modifier = Modifier.weight(1f)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(history.size.toString(), style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("فحوصات محفوظة", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+            OutlinedCard(modifier = Modifier.weight(1f)) {
+                Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(selected.size.toString() + "/2", style = MaterialTheme.typography.headlineSmall, color = MaterialTheme.colorScheme.primary)
+                    Text("محدد للمقارنة", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+            }
+        }
         if (history.size >= 2) {
             MsiSectionHeading("اتجاه المؤشرات")
             HistoryTrend(history = history)
@@ -167,7 +181,7 @@ fun HistoryScreen(
 
 @Composable
 private fun HistoryTrend(history: List<ScanHistoryEntry>) {
-    val points = history.take(50).reversed()
+    val points = history.take(10).reversed()
     val maximum = (points.maxOfOrNull { it.activeSpecialAccess } ?: 0).coerceAtLeast(1)
     val chartColor = MaterialTheme.colorScheme.primary
     val unknownColor = MaterialTheme.colorScheme.outline
