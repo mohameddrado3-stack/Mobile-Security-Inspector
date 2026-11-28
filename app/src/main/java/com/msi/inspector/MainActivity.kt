@@ -39,6 +39,7 @@ class MainActivity : FragmentActivity() {
     private var promptActive = false
     private var shortcutSequence = 0
     private var shortcutRequest by mutableStateOf<Pair<Int, String>?>(null)
+    private var incomingSharedText by mutableStateOf<String?>(null)
     private var themeMode by mutableStateOf(MsiThemeMode.DARK)
     private var useDynamicColor by mutableStateOf(false)
     private var periodicScanEnabled by mutableStateOf(false)
@@ -124,6 +125,7 @@ class MainActivity : FragmentActivity() {
         loadThemePreferences()
         loadPeriodicScanPreference()
         acceptShortcutIntent(intent)
+        acceptSharedText(intent)
         window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
         window.navigationBarColor = android.graphics.Color.rgb(7, 11, 22)
         setContent {
@@ -144,7 +146,9 @@ class MainActivity : FragmentActivity() {
                         scanIntervalMinutes = scanIntervalMinutes,
                         onScanIntervalMinutesChanged = ::saveScanIntervalMinutes,
                         onOnboardingCompleted = ::onOnboardingCompleted,
-                        onOpenPermissionSetup = ::openPermissionSetup
+                        onOpenPermissionSetup = ::openPermissionSetup,
+                        sharedText = incomingSharedText,
+                        onSharedTextConsumed = { incomingSharedText = null }
                     )
                 }
                 if (!appLocked && permissionSetupVisible) {
@@ -339,6 +343,13 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         acceptShortcutIntent(intent)
+        acceptSharedText(intent)
+    }
+
+    private fun acceptSharedText(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()
+        if (!shared.isNullOrBlank()) incomingSharedText = shared
     }
 
     private fun acceptShortcutIntent(intent: android.content.Intent?) {
