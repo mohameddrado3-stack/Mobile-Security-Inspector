@@ -2,10 +2,32 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="48dp"
-    android:gravity="center_vertical|end"
+    android:gravity="center_vertical"
     android:orientation="horizontal"
     android:paddingStart="16dp"
     android:paddingEnd="20dp">
+
+    <ImageView
+        android:id="@+id/monitor_notification_shield"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_msi_shield"
+        android:tint="#70E7D1" />
+
+    <TextView
+        android:id="@+id/monitor_notification_brand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="MSI"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
 
     <ViewFlipper
         android:id="@+id/monitor_notification_pulse"
