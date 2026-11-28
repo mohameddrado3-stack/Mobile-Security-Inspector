@@ -26,7 +26,8 @@ fun MsiBottomNavigation(
         MsiDivider()
         NavigationBar(
             containerColor = MaterialTheme.colorScheme.surface,
-            tonalElevation = 0.dp
+            tonalElevation = 0.dp,
+            windowInsets = androidx.compose.foundation.layout.WindowInsets(0, 0, 0, 0)
         ) {
             MsiDestination.values().forEach { destination ->
                 NavigationBarItem(
@@ -35,14 +36,18 @@ fun MsiBottomNavigation(
                     icon = {
                         Icon(
                             painter = painterResource(destination.iconRes),
-                            contentDescription = null,
-                            modifier = Modifier.size(24.dp)
+                            contentDescription = destination.title,
+                            modifier = Modifier.size(if (selected == destination) 25.dp else 23.dp)
                         )
                     },
                     label = {
                         Text(
                             destination.title,
-                            style = MaterialTheme.typography.labelSmall,
+                            style = if (selected == destination) {
+                                MaterialTheme.typography.labelMedium
+                            } else {
+                                MaterialTheme.typography.labelSmall
+                            },
                             maxLines = 1
                         )
                     },
@@ -50,7 +55,7 @@ fun MsiBottomNavigation(
                     colors = NavigationBarItemDefaults.colors(
                         selectedIconColor = MaterialTheme.colorScheme.primary,
                         selectedTextColor = MaterialTheme.colorScheme.primary,
-                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                        indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f),
                         unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                         unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -73,7 +78,7 @@ fun MsiNavigationRail(
                 icon = {
                     Icon(
                         painter = painterResource(destination.iconRes),
-                        contentDescription = null,
+                        contentDescription = destination.title,
                         modifier = Modifier.size(24.dp)
                     )
                 },
@@ -84,7 +89,7 @@ fun MsiNavigationRail(
                 colors = NavigationRailItemDefaults.colors(
                     selectedIconColor = MaterialTheme.colorScheme.primary,
                     selectedTextColor = MaterialTheme.colorScheme.primary,
-                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.16f),
+                    indicatorColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.13f),
                     unselectedIconColor = MaterialTheme.colorScheme.onSurfaceVariant,
                     unselectedTextColor = MaterialTheme.colorScheme.onSurfaceVariant
                 )
