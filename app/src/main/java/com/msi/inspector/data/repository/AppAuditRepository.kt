@@ -63,7 +63,7 @@ class AppAuditRepository(context: Context) {
 
     fun saveHistory(snapshot: ScanSnapshot): List<TimelineEvent> = synchronized(SCAN_HISTORY_LOCK) {
         val previousEntry = history.recent(1).firstOrNull()
-        val previous = previousEntry?.takeIf { it.applicationsJson != "[]" }?.let { entry ->
+        val previous = previousEntry?.takeIf { it.applicationsJson.isNotBlank() }?.let { entry ->
             runCatching {
                 ScanSnapshot(
                     applications = AppAuditJsonCodec.decode(entry.applicationsJson),
@@ -94,7 +94,7 @@ class AppAuditRepository(context: Context) {
     }
 
     private fun ScanHistoryEntry.toScanSnapshot(): ScanSnapshot? {
-        if (applicationsJson.isBlank() || applicationsJson == "[]") return null
+        if (applicationsJson.isBlank()) return null
         return runCatching {
             ScanSnapshot(
                 applications = AppAuditJsonCodec.decode(applicationsJson),
