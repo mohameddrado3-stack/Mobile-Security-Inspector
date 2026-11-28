@@ -28,7 +28,7 @@ fun MsiBottomNavigation(
             containerColor = MaterialTheme.colorScheme.surface,
             tonalElevation = 0.dp
         ) {
-            MsiDestination.values().forEach { destination ->
+            MsiDestination.values().filter { it.showInNavigation }.forEach { destination ->
                 NavigationBarItem(
                     selected = selected == destination,
                     onClick = { onNavigate(destination) },
@@ -70,7 +70,7 @@ fun MsiNavigationRail(
     onNavigate: (MsiDestination) -> Unit
 ) {
     NavigationRail(containerColor = MaterialTheme.colorScheme.surface) {
-        MsiDestination.values().forEach { destination ->
+        MsiDestination.values().filter { it.showInNavigation }.forEach { destination ->
             NavigationRailItem(
                 selected = selected == destination,
                 onClick = { onNavigate(destination) },
