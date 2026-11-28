@@ -180,6 +180,9 @@ fun MsiDestinationContent(
             onOpenWebProtection = { viewModel.navigate(MsiDestination.WEB_PROTECTION) },
             usageAccessOptIn = state.usageAccessOptIn,
             usageAccessGranted = state.usageAccessGranted,
+            onOpenUsageAccessSettings = {
+                openSystemPage(context, Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+            },
             deviceSecurity = state.deviceSecurity,
             isLoadingDeviceSecurity = state.isLoadingDeviceSecurity,
             onRefreshDeviceSecurity = viewModel::refreshDeviceSecurity,
