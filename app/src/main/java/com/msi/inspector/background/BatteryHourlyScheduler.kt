@@ -4,17 +4,21 @@ import android.content.Context
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
+import com.msi.inspector.data.battery.BatteryUsageRepository
 import java.util.concurrent.TimeUnit
 
 object BatteryHourlyScheduler {
-    private const val PREFERENCES_NAME = "msi_preferences"
-    private const val KEY_ENABLED = "battery_tracking_enabled"
     private const val UNIQUE_WORK_NAME = "msi_hourly_battery_sample"
 
-    fun isEnabled(context: Context): Boolean =
-        context.applicationContext
-            .getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .getBoolean(KEY_ENABLED, true)
+    fun isEnabled(context: Context): Boolean {
+        val preferences = context.applicationContext.getSharedPreferences(
+            BatteryUsageRepository.PREFERENCES_NAME,
+            Context.MODE_PRIVATE
+        )
+        return synchronized(preferences) {
+            preferences.getBoolean(BatteryUsageRepository.KEY_TRACKING_ENABLED, true)
+        }
+    }
 
     fun ensureScheduled(context: Context) {
         if (isEnabled(context)) schedule(context)
@@ -24,10 +28,15 @@ object BatteryHourlyScheduler {
 
     fun setEnabled(context: Context, enabled: Boolean) {
         val appContext = context.applicationContext
-        appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_ENABLED, enabled)
-            .apply()
+        val preferences = appContext.getSharedPreferences(
+            BatteryUsageRepository.PREFERENCES_NAME,
+            Context.MODE_PRIVATE
+        )
+        synchronized(preferences) {
+            preferences.edit()
+                .putBoolean(BatteryUsageRepository.KEY_TRACKING_ENABLED, enabled)
+                .apply()
+        }
 
         if (enabled) schedule(appContext)
         else WorkManager.getInstance(appContext).cancelUniqueWork(UNIQUE_WORK_NAME)
