@@ -9,7 +9,7 @@ class BatteryUsageCalculatorTest {
     fun calculatesChargeCounterDischargeInMilliampHours() {
         val summary = BatteryUsageCalculator.calculate(
             sample(charge = 2_500_000L),
-            sample(time = 3_600_000L, elapsed = 3_600_000L, charge = 2_250_000L)
+            sample(time = 3_601_000L, elapsed = 3_601_000L, charge = 2_250_000L)
         )
 
         assertEquals(BatteryMeasurementMethod.CHARGE_COUNTER, summary?.method)
