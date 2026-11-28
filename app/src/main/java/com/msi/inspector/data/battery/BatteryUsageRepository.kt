@@ -1,17 +1,34 @@
 package com.msi.inspector.data.battery
 
 import android.content.Context
+import android.content.SharedPreferences
 import com.msi.inspector.domain.battery.BatterySample
 import com.msi.inspector.domain.battery.BatteryUsageCalculator
 import com.msi.inspector.domain.battery.BatteryUsageSummary
 
 class BatteryUsageRepository(context: Context) {
-    private val reader = AndroidBatteryReader(context)
-    private val database = BatteryUsageDatabase(context)
+    private val appContext = context.applicationContext
+    private val reader = AndroidBatteryReader(appContext)
+    private val database = BatteryUsageDatabase(appContext)
 
     fun captureIfDue(
         minIntervalMillis: Long = DEFAULT_MIN_INTERVAL_MILLIS
     ): BatteryUsageSummary? = synchronized(CAPTURE_LOCK) {
+        val preferences = appContext.getSharedPreferences(
+            PREFERENCES_NAME,
+            Context.MODE_PRIVATE
+        )
+        captureWhileTrackingPreferenceLocked(preferences, minIntervalMillis)
+    }
+
+    private fun captureWhileTrackingPreferenceLocked(
+        preferences: SharedPreferences,
+        minIntervalMillis: Long
+    ): BatteryUsageSummary? = synchronized(preferences) {
+        if (!preferences.getBoolean(KEY_TRACKING_ENABLED, true)) {
+            return@synchronized latestSummaryLocked()
+        }
+
         val current = reader.read()
         val previous = database.recent(2).lastOrNull()
 
@@ -49,6 +66,8 @@ class BatteryUsageRepository(context: Context) {
 
     companion object {
         const val DEFAULT_MIN_INTERVAL_MILLIS = 50L * 60L * 1000L
+        internal const val PREFERENCES_NAME = "msi_preferences"
+        internal const val KEY_TRACKING_ENABLED = "battery_tracking_enabled"
         private val CAPTURE_LOCK = Any()
     }
 }
