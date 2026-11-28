@@ -65,7 +65,7 @@ class AndroidApkInspector(context: Context) {
                 if (debuggable) add("علامة debuggable مفعّلة في ملف التطبيق.")
                 if (dangerous.isNotEmpty()) add("يطلب الملف ${dangerous.size} صلاحية مصنفة حساسة من Android.")
                 if (unclassified.isNotEmpty()) add("تعذر تصنيف ${unclassified.size} صلاحية على هذا الجهاز.")
-                if (cleartextTraffic) add("إعداد التطبيق يسمح باتصالات HTTP غير المشفرة وفق بيانات Manifest المتاحة.")
+                if (cleartextTraffic) add("إعداد Manifest أو مستوى Android المستهدف يشير إلى أن HTTP غير المشفر قد يكون مسموحًا.")
                 if (signingFingerprint == null) add("تعذر استخراج بصمة شهادة التوقيع.")
                 if (targetSdk < 28) add("يستهدف التطبيق مستوى Android قديمًا نسبيًا؛ راجع توافقه وتحديثاته.")
                 if (isEmpty()) add("لم تظهر مؤشرات المراجعة المحددة في هذا الفحص.")
@@ -81,7 +81,7 @@ class AndroidApkInspector(context: Context) {
                 versionName = packageInfo.versionName ?: "غير متاح",
                 targetSdk = targetSdk,
                 isDebuggable = debuggable,
-                allowsCleartextTraffic = cleartextTraffic,
+                mayAllowCleartextTraffic = cleartextTraffic,
                 requestedPermissions = requested,
                 dangerousPermissions = dangerous,
                 unclassifiedPermissions = unclassified,
@@ -147,9 +147,12 @@ class AndroidApkInspector(context: Context) {
         } else {
             packageInfo.signatures?.toList().orEmpty()
         }
-        val certificate = certificates.firstOrNull() ?: return null
-        val digest = MessageDigest.getInstance("SHA-256").digest(certificate.toByteArray())
-        return digest.joinToString("") { byte -> "%02X".format(byte) }
+        if (certificates.isEmpty()) return null
+        val digest = MessageDigest.getInstance("SHA-256")
+        return certificates.joinToString("\\n") { certificate ->
+            digest.digest(certificate.toByteArray())
+                .joinToString("") { byte -> "%02X".format(byte) }
+        }
     }
 
     companion object {
