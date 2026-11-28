@@ -104,9 +104,9 @@ object WebLinkAnalyzer {
 
     private fun extractUrl(text: String): String {
         val trimmed = text.trim()
-        val explicit = Regex("""https?://[^\\s<>"']+""", RegexOption.IGNORE_CASE).find(trimmed)
+        val explicit = Regex("""https?://[^\s<>"']+""", RegexOption.IGNORE_CASE).find(trimmed)
         val bareDomain = Regex(
-            """(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,}(?::\\d{1,5})?(?:/[^\\s<>"']*)?""",
+            """(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.)+[A-Za-z]{2,}(?::\d{1,5})?(?:/[^\s<>"']*)?""",
             RegexOption.IGNORE_CASE
         ).find(trimmed)
         return (explicit?.value ?: bareDomain?.value ?: trimmed)
