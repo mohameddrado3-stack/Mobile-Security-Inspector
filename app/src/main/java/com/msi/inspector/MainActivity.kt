@@ -38,8 +38,7 @@ class MainActivity : FragmentActivity() {
     private var useDynamicColor by mutableStateOf(false)
     private var periodicScanEnabled by mutableStateOf(false)
     private var activeMonitoringEnabled by mutableStateOf(false)
-    private var scheduledHour by mutableStateOf(9)
-    private var scheduledMinute by mutableStateOf(0)
+    private var scanIntervalMinutes by mutableStateOf(PeriodicScanScheduler.DEFAULT_INTERVAL_MINUTES)
     private var pendingPeriodicEnable = false
     private var pendingMonitoringEnable = false
     private val notificationPermissionLauncher = registerForActivityResult(
@@ -119,9 +118,8 @@ class MainActivity : FragmentActivity() {
                         onPeriodicScanChanged = ::configurePeriodicScan,
                         activeMonitoringEnabled = activeMonitoringEnabled,
                         onActiveMonitoringChanged = ::configureActiveMonitoring,
-                        scheduledHour = scheduledHour,
-                        scheduledMinute = scheduledMinute,
-                        onScheduledTimeChanged = ::saveScanSchedule
+                        scanIntervalMinutes = scanIntervalMinutes,
+                        onScanIntervalMinutesChanged = ::saveScanIntervalMinutes
                     )
                 }
             }
@@ -135,16 +133,14 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun loadPeriodicScanPreference() {
-        val savedTime = preferences.loadScanSchedule()
-        scheduledHour = savedTime.first
-        scheduledMinute = savedTime.second
+        scanIntervalMinutes = preferences.loadScanIntervalMinutes()
         if (!preferences.isPeriodicScanEnabled()) return
         val permissionGranted = Build.VERSION.SDK_INT < 33 ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
             PackageManager.PERMISSION_GRANTED
         if (permissionGranted) {
             periodicScanEnabled = true
-            PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+            PeriodicScanScheduler.enable(this, scanIntervalMinutes)
         } else {
             preferences.setPeriodicScanEnabled(false)
             PeriodicScanScheduler.disable(this)
@@ -170,16 +166,15 @@ class MainActivity : FragmentActivity() {
     private fun persistPeriodicScanEnabled(enabled: Boolean) {
         periodicScanEnabled = enabled
         preferences.setPeriodicScanEnabled(enabled)
-        if (enabled) PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+        if (enabled) PeriodicScanScheduler.enable(this, scanIntervalMinutes)
         else PeriodicScanScheduler.disable(this)
     }
 
-    private fun saveScanSchedule(hour: Int, minute: Int) {
-        scheduledHour = hour.coerceIn(0, 23)
-        scheduledMinute = minute.coerceIn(0, 59)
-        preferences.saveScanSchedule(scheduledHour, scheduledMinute)
+    private fun saveScanIntervalMinutes(intervalMinutes: Int) {
+        scanIntervalMinutes = PeriodicScanScheduler.normalizeIntervalMinutes(intervalMinutes)
+        preferences.saveScanIntervalMinutes(scanIntervalMinutes)
         if (periodicScanEnabled) {
-            PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+            PeriodicScanScheduler.enable(this, scanIntervalMinutes)
         }
     }
 
