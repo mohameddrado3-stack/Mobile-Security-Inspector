@@ -72,6 +72,8 @@ fun MsiApp(
     onActiveMonitoringChanged: (Boolean) -> Unit = {},
     scanIntervalMinutes: Int = 1440,
     onScanIntervalMinutesChanged: (Int) -> Unit = {},
+    onOnboardingCompleted: () -> Unit = {},
+    onOpenPermissionSetup: () -> Unit = {},
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -168,6 +170,7 @@ fun MsiApp(
                     onActiveMonitoringChanged = onActiveMonitoringChanged,
                     scanIntervalMinutes = scanIntervalMinutes,
                     onScanIntervalMinutesChanged = onScanIntervalMinutesChanged,
+                    onOpenPermissionSetup = onOpenPermissionSetup,
                     onShareReportRequest = {
                         if (state.applications.isEmpty()) {
                             Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
@@ -261,6 +264,7 @@ fun MsiApp(
                 onComplete = {
                     showOnboarding = false
                     preferences.setOnboardingComplete()
+                    onOnboardingCompleted()
                 }
             )
         }
