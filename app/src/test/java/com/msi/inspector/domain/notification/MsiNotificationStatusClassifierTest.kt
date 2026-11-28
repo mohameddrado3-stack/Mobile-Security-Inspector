@@ -48,6 +48,26 @@ class MsiNotificationStatusClassifierTest {
     }
 
     @Test
+    fun reportsReviewWhenDeveloperOptionsAreEnabled() {
+        assertEquals(
+            MsiNotificationStatus.REVIEW,
+            MsiNotificationStatusClassifier.classify(
+                snapshot(developerOptions = "enabled")
+            )
+        )
+    }
+
+    @Test
+    fun reportsReviewWhenEncryptionIsStillActivating() {
+        assertEquals(
+            MsiNotificationStatus.REVIEW,
+            MsiNotificationStatusClassifier.classify(
+                snapshot(encryptionValue = "activating")
+            )
+        )
+    }
+
+    @Test
     fun reportsReviewWhenCoreEvidenceIsUnavailable() {
         assertEquals(
             MsiNotificationStatus.REVIEW,
@@ -61,7 +81,9 @@ class MsiNotificationStatusClassifierTest {
         adb: String = "disabled",
         screenLock: String = "enabled",
         applications: List<AppAudit> = emptyList(),
-        encryptionAvailability: EvidenceAvailability = EvidenceAvailability.AVAILABLE
+        encryptionAvailability: EvidenceAvailability = EvidenceAvailability.AVAILABLE,
+        encryptionValue: String = "active",
+        developerOptions: String = "disabled"
     ): ScanSnapshot {
         val available = EvidenceAvailability.AVAILABLE
         fun evidence(value: String) = DeviceSecurityEvidence(value, available)
@@ -74,9 +96,9 @@ class MsiNotificationStatusClassifierTest {
                 apiLevel = evidence("35"),
                 securityPatch = evidence("2026-01-01"),
                 secureScreenLock = evidence(screenLock),
-                storageEncryption = DeviceSecurityEvidence("active", encryptionAvailability),
+                storageEncryption = DeviceSecurityEvidence(encryptionValue, encryptionAvailability),
                 adbEnabled = evidence(adb),
-                developerOptionsEnabled = evidence("disabled"),
+                developerOptionsEnabled = evidence(developerOptions),
                 collectedAt = 1L
             )
         )
