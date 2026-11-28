@@ -49,6 +49,7 @@ fun MsiDestinationContent(
     onActiveMonitoringChanged: (Boolean) -> Unit,
     scanIntervalMinutes: Int,
     onScanIntervalMinutesChanged: (Int) -> Unit,
+    onOpenPermissionSetup: () -> Unit = {},
     onShareReportRequest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -165,6 +166,7 @@ fun MsiDestinationContent(
             onBatteryTrackingChanged = viewModel::setBatteryTrackingEnabled,
             scanIntervalMinutes = scanIntervalMinutes,
             onScanIntervalMinutesChanged = onScanIntervalMinutesChanged,
+            onOpenPermissionSetup = onOpenPermissionSetup,
             usageAccessOptIn = state.usageAccessOptIn,
             usageAccessGranted = state.usageAccessGranted,
             deviceSecurity = state.deviceSecurity,
