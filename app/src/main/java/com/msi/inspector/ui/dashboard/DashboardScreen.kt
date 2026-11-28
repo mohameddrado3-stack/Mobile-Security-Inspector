@@ -83,7 +83,8 @@ fun DashboardScreen(
     val summary = AuditSummary.from(state.applications)
     val indicatorTitle = when {
         state.applications.isEmpty() && state.lastScanAt == null -> "لم يُفحص بعد"
-        state.applications.isEmpty() && state.lastScanAt != null -> "بيانات الفحص غير محمّلة"
+        state.applications.isEmpty() && state.lastScanAt != null && !state.hasLoadedScanSnapshot -> "بيانات الفحص غير محمّلة"
+        state.applications.isEmpty() && state.hasLoadedScanSnapshot -> "لم تظهر تطبيقات"
         summary.activeSpecialAccess > 0 -> "يحتاج انتباه"
         summary.applicationsWithIncompleteEvidence > 0 -> "بيانات غير مكتملة"
         summary.requestedSpecialAccess > 0 -> "يحتاج مراجعة"
@@ -92,20 +93,23 @@ fun DashboardScreen(
     val indicatorAccent = when (indicatorTitle) {
         "يحتاج انتباه" -> semantic.attention
         "يحتاج مراجعة", "بيانات غير مكتملة", "بيانات الفحص غير محمّلة" -> semantic.review
+        "لم تظهر تطبيقات" -> semantic.calm
         else -> semantic.calm
     }
     val indicatorIcon = when (indicatorTitle) {
         "يحتاج انتباه" -> R.drawable.ic_msi_shield_alert
         "يحتاج مراجعة" -> R.drawable.ic_msi_shield_eye
         "هادئ" -> R.drawable.ic_msi_shield_check
-        "بيانات غير مكتملة", "بيانات الفحص غير محمّلة" -> R.drawable.ic_msi_info
+        "بيانات غير مكتملة", "بيانات الفحص غير محمّلة", "لم تظهر تطبيقات" -> R.drawable.ic_msi_info
         else -> R.drawable.ic_msi_shield
     }
     val indicatorDescription = when (indicatorTitle) {
         "بيانات غير مكتملة" ->
             "توجد تطبيقات لم يتمكن Android من إتاحة كل بياناتها أو تعذّر تصنيف بعض صلاحياتها. افتح الفلتر لمراجعتها؛ نقص البيانات ليس دليلًا على الضرر ولا على السلامة."
         "بيانات الفحص غير محمّلة" ->
-            "يوجد سجل سابق، لكن قائمة التطبيقات الحالية لم تُحمّل بعد. أعد الفحص لعرض بياناتها."
+            "يوجد سجل سابق، لكن تفاصيل قائمة التطبيقات لم تُحمّل بعد. أعد الفحص لقراءة الحالة الحالية."
+        "لم تظهر تطبيقات" ->
+            "اكتمل الفحص وحُفظت نتيجته، لكن Android لم يُرجع تطبيقات قابلة للعرض في هذه القراءة."
         "هادئ" ->
             "لم تظهر مؤشرات الوصول الخاص المحددة ضمن البيانات التي أمكن قراءتها. هذا ليس تقييمًا شاملًا لأمان الجهاز أو التطبيقات."
         else ->
@@ -209,7 +213,7 @@ fun DashboardScreen(
                         when {
                             state.isScanning -> R.drawable.ic_msi_refresh
                             state.error != null -> R.drawable.ic_msi_warning
-                            state.applications.isNotEmpty() -> R.drawable.ic_msi_check
+                            state.applications.isNotEmpty() || state.hasLoadedScanSnapshot -> R.drawable.ic_msi_check
                             else -> R.drawable.ic_msi_info
                         }
                     ),
@@ -222,7 +226,8 @@ fun DashboardScreen(
                         state.isScanning -> "الفحص جارٍ"
                         state.error != null -> "تعذر إكمال آخر فحص"
                         state.applications.isNotEmpty() -> "اكتمل آخر فحص"
-                        state.lastScanAt != null -> "يوجد سجل سابق؛ أعد الفحص لتحميل قائمة التطبيقات الحالية."
+                        state.hasLoadedScanSnapshot -> "اكتمل الفحص؛ لم تظهر تطبيقات قابلة للعرض."
+                        state.lastScanAt != null -> "يوجد سجل سابق؛ أعد الفحص لتحميل تفاصيل التطبيقات."
                         else -> "لم يتم إجراء فحص بعد"
                     },
                     color = statusColor,
@@ -256,7 +261,7 @@ fun DashboardScreen(
                 Text(
                     when {
                         state.isScanning -> "جارٍ الفحص"
-                        state.applications.isEmpty() && state.lastScanAt != null -> "تحميل قائمة التطبيقات الحالية"
+                        state.applications.isEmpty() && state.lastScanAt != null && !state.hasLoadedScanSnapshot -> "تحميل قائمة التطبيقات الحالية"
                         state.lastScanAt == null -> "ابدأ الفحص"
                         else -> "إعادة الفحص"
                     },
