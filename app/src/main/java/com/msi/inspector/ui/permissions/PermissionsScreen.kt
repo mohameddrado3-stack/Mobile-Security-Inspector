@@ -37,7 +37,8 @@ import com.msi.inspector.domain.model.AppAudit
 @Composable
 fun PermissionsScreen(
     applications: List<AppAudit>,
-    onCategorySelected: (Set<String>) -> Unit = {}
+    onCategorySelected: (Set<String>) -> Unit = {},
+    hasLoadedScanSnapshot: Boolean = false
 ) {
     val categories = PermissionAnalyzer.dashboardCategories(applications)
     var sortBySensitivity by remember { mutableStateOf(false) }
@@ -103,9 +104,17 @@ fun PermissionsScreen(
 
         if (applications.isEmpty()) {
             MsiCard {
-                Text("لا توجد بيانات صلاحيات بعد", style = MaterialTheme.typography.titleMedium)
                 Text(
-                    "ابدأ فحص التطبيقات من الشاشة الرئيسية، وستظهر هنا الفئات التي أمكن قراءتها.",
+                    if (hasLoadedScanSnapshot) "لم تظهر تطبيقات في آخر فحص"
+                    else "لا توجد بيانات صلاحيات بعد",
+                    style = MaterialTheme.typography.titleMedium
+                )
+                Text(
+                    if (hasLoadedScanSnapshot) {
+                        "اكتمل الفحص دون ظهور تطبيقات قابلة للعرض؛ لذلك لا توجد صلاحيات يمكن تلخيصها لهذه القراءة."
+                    } else {
+                        "ابدأ فحص التطبيقات من الشاشة الرئيسية، وستظهر هنا الفئات التي أمكن قراءتها."
+                    },
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
