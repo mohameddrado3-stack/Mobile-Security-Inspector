@@ -349,7 +349,7 @@ class MainActivity : FragmentActivity() {
     private fun acceptSharedText(intent: Intent?) {
         if (intent?.action != Intent.ACTION_SEND) return
         val shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()
-        if (!shared.isNullOrBlank()) incomingSharedText = shared
+        if (!shared.isNullOrBlank()) incomingSharedText = shared.take(MAX_SHARED_TEXT_LENGTH)
     }
 
     private fun acceptShortcutIntent(intent: android.content.Intent?) {
@@ -434,6 +434,7 @@ class MainActivity : FragmentActivity() {
     }
 
     companion object {
+        private const val MAX_SHARED_TEXT_LENGTH = 4096
         const val EXTRA_SHORTCUT = "com.msi.inspector.shortcut"
         const val ACTION_SHORTCUT_SCAN = "com.msi.inspector.action.SCAN"
         const val ACTION_SHORTCUT_PERMISSIONS = "com.msi.inspector.action.PERMISSIONS"
