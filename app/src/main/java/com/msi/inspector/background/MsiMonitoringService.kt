@@ -133,12 +133,15 @@ class MsiMonitoringService : Service() {
             Settings.Secure.getUriFor(Settings.Secure.ACCESSIBILITY_ENABLED),
             Settings.Secure.getUriFor(Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
         )
-        settingsObserverRegistered = observedSettings.any { uri ->
-            runCatching {
+        var registeredAny = false
+        observedSettings.forEach { uri ->
+            val registered = runCatching {
                 contentResolver.registerContentObserver(uri, false, settingsObserver)
                 true
             }.getOrDefault(false)
+            if (registered) registeredAny = true
         }
+        settingsObserverRegistered = registeredAny
     }
 
     private fun createNotificationChannel() {
