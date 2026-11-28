@@ -70,9 +70,12 @@ fun MsiApp(
     onPeriodicScanChanged: (Boolean) -> Unit = {},
     activeMonitoringEnabled: Boolean = false,
     onActiveMonitoringChanged: (Boolean) -> Unit = {},
-    scheduledHour: Int = 9,
-    scheduledMinute: Int = 0,
-    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
+    scanIntervalMinutes: Int = 1440,
+    onScanIntervalMinutesChanged: (Int) -> Unit = {},
+    onOnboardingCompleted: () -> Unit = {},
+    onOpenPermissionSetup: () -> Unit = {},
+    sharedText: String? = null,
+    onSharedTextConsumed: () -> Unit = {},
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -84,6 +87,7 @@ fun MsiApp(
             if (event == Lifecycle.Event.ON_RESUME) {
                 viewModel.refreshUsageAccessState()
                 viewModel.refreshScanHistory()
+                viewModel.refreshBatteryUsage()
                 if (state.destination == MsiDestination.TOOLS) viewModel.refreshDeviceSecurity()
             }
         }
@@ -108,6 +112,7 @@ fun MsiApp(
         wasScanning = state.isScanning
     }
     var showShareConfirmation by remember { mutableStateOf(false) }
+    var webAddress by remember { mutableStateOf("") }
     var onboardingPage by remember { mutableStateOf(0) }
     var showOnboarding by remember {
         mutableStateOf(!preferences.isOnboardingComplete())
@@ -118,6 +123,16 @@ fun MsiApp(
             "scan" -> viewModel.startScan()
             "permissions" -> viewModel.navigate(MsiDestination.PERMISSIONS)
             "history" -> viewModel.navigate(MsiDestination.HISTORY)
+            "monitoring" -> viewModel.navigate(MsiDestination.TOOLS)
+            "timeline" -> viewModel.navigate(MsiDestination.TIMELINE)
+        }
+    }
+
+    LaunchedEffect(sharedText) {
+        sharedText?.takeIf(String::isNotBlank)?.let {
+            webAddress = it
+            viewModel.navigate(MsiDestination.WEB_PROTECTION)
+            onSharedTextConsumed()
         }
     }
 
@@ -165,9 +180,11 @@ fun MsiApp(
                     onPeriodicScanChanged = onPeriodicScanChanged,
                     activeMonitoringEnabled = activeMonitoringEnabled,
                     onActiveMonitoringChanged = onActiveMonitoringChanged,
-                    scheduledHour = scheduledHour,
-                    scheduledMinute = scheduledMinute,
-                    onScheduledTimeChanged = onScheduledTimeChanged,
+                    scanIntervalMinutes = scanIntervalMinutes,
+                    onScanIntervalMinutesChanged = onScanIntervalMinutesChanged,
+                    onOpenPermissionSetup = onOpenPermissionSetup,
+                    webAddress = webAddress,
+                    onWebAddressChanged = { webAddress = it },
                     onShareReportRequest = {
                         if (state.applications.isEmpty()) {
                             Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
@@ -261,6 +278,7 @@ fun MsiApp(
                 onComplete = {
                     showOnboarding = false
                     preferences.setOnboardingComplete()
+                    onOnboardingCompleted()
                 }
             )
         }

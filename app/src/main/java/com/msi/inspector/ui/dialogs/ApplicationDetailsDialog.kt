@@ -2,10 +2,12 @@ package com.msi.inspector.ui.dialogs
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -169,24 +171,47 @@ fun ApplicationDetailsDialog(
                     color = MaterialTheme.colorScheme.tertiary,
                     fontSize = 12.sp
                 )
+                Text(
+                    "إجراءات سريعة",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.titleSmall
+                )
+                OutlinedButton(onClick = onCopyPackage, modifier = Modifier.fillMaxWidth()) {
+                    Text("نسخ اسم الحزمة")
+                }
+                if (!isTrusted) {
+                    OutlinedButton(onClick = onMarkTrusted, modifier = Modifier.fillMaxWidth()) {
+                        Text("أضف إلى موثوق لدي")
+                    }
+                }
+                if (!isIgnored) {
+                    OutlinedButton(onClick = onMarkIgnored, modifier = Modifier.fillMaxWidth()) {
+                        Text("تجاهل هذا التطبيق")
+                    }
+                }
+                if (isTrusted || isIgnored) {
+                    OutlinedButton(onClick = onClearLabel, modifier = Modifier.fillMaxWidth()) {
+                        Text("إلغاء التسمية المحلية")
+                    }
+                }
+                OutlinedButton(onClick = onOpenNotifications, modifier = Modifier.fillMaxWidth()) {
+                    Text("إعدادات الإشعارات")
+                }
+                OutlinedButton(onClick = onLaunch, modifier = Modifier.fillMaxWidth()) {
+                    Text("فتح التطبيق")
+                }
+                if (application.installer == "Google Play") {
+                    OutlinedButton(onClick = onOpenStore, modifier = Modifier.fillMaxWidth()) {
+                        Text("فتح Google Play")
+                    }
+                }
             }
         },
         confirmButton = {
             TextButton(onClick = onOpenSettings) { Text("إعدادات التطبيق") }
         },
         dismissButton = {
-            Column {
-                TextButton(onClick = onCopyPackage) { Text("نسخ اسم الحزمة") }
-                if (!isTrusted) TextButton(onClick = onMarkTrusted) { Text("أضف إلى موثوق لدي") }
-                if (!isIgnored) TextButton(onClick = onMarkIgnored) { Text("تجاهل هذا التطبيق") }
-                if (isTrusted || isIgnored) TextButton(onClick = onClearLabel) { Text("إلغاء التسمية المحلية") }
-                TextButton(onClick = onOpenNotifications) { Text("الإشعارات") }
-                TextButton(onClick = onLaunch) { Text("فتح التطبيق") }
-                if (application.installer == "Google Play") {
-                    TextButton(onClick = onOpenStore) { Text("Google Play") }
-                }
-                TextButton(onClick = onDismiss) { Text("إغلاق") }
-            }
+            TextButton(onClick = onDismiss) { Text("إغلاق") }
         }
     )
 }

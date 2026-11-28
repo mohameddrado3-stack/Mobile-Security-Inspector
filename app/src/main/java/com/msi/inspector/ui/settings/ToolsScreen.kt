@@ -1,9 +1,8 @@
 package com.msi.inspector.ui.settings
 
-import android.app.TimePickerDialog
-import android.content.Context
 import android.os.Build
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -14,16 +13,23 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
 import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.components.MsiCard
@@ -50,17 +56,23 @@ fun ToolsScreen(
     onPeriodicScanChanged: (Boolean) -> Unit = {},
     activeMonitoringEnabled: Boolean = false,
     onActiveMonitoringChanged: (Boolean) -> Unit = {},
-    scheduledHour: Int = 9,
-    scheduledMinute: Int = 0,
-    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
+    batteryTrackingEnabled: Boolean = true,
+    onBatteryTrackingChanged: (Boolean) -> Unit = {},
+    scanIntervalMinutes: Int = 1440,
+    onScanIntervalMinutesChanged: (Int) -> Unit = {},
+    onOpenPermissionSetup: () -> Unit = {},
+    onOpenApkScanner: () -> Unit = {},
+    onOpenWebProtection: () -> Unit = {},
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
     onUsageAccessChanged: (Boolean) -> Unit = {},
+    onOpenUsageAccessSettings: () -> Unit = {},
     deviceSecurity: DeviceSecuritySnapshot? = null,
     isLoadingDeviceSecurity: Boolean = false,
     onRefreshDeviceSecurity: () -> Unit = {}
 ) {
-    val context = LocalContext.current
+    var intervalMenuExpanded by remember { mutableStateOf(false) }
+    val intervalOptions = listOf(15, 30, 60, 120, 180, 360, 720, 1440)
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -68,12 +80,64 @@ fun ToolsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
+        MsiSectionHeading("مركز التحكم", "إعدادات واضحة ومؤشرات قراءة فقط — أنت تتحكم في كل ميزة.")
         UpdateCenterCard(currentVersion = BuildConfig.VERSION_NAME)
         ActiveMonitoringCard(
             enabled = activeMonitoringEnabled,
             onEnabledChanged = onActiveMonitoringChanged
         )
+        MsiCard {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                com.msi.inspector.design.components.MsiIconBadge(
+                    iconRes = com.msi.inspector.R.drawable.ic_msi_refresh,
+                    tint = MaterialTheme.colorScheme.primary,
+                    size = 42.dp
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text("قياس البطارية", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        "محاولة تسجيل عينة كل ساعة تقريبًا",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.bodySmall
+                    )
+                }
+                Switch(
+                    checked = batteryTrackingEnabled,
+                    onCheckedChange = onBatteryTrackingChanged,
+                    modifier = Modifier.semantics {
+                        contentDescription = "تسجيل قراءات البطارية كل ساعة تقريبًا"
+                    }
+                )
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                com.msi.inspector.design.components.MsiStatusChip(
+                    text = if (batteryTrackingEnabled) "التسجيل مفعّل" else "التسجيل متوقف",
+                    color = if (batteryTrackingEnabled) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "محلي • دون إنترنت",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Text(
+                "يقارن مستوى بطارية الهاتف بين عينتين. لا يحدد استهلاك تطبيق بعينه، وقد يؤخر Android موعد العينة وفق إدارة الطاقة.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
         MsiCard {
             Text("صحة الجهاز", style = MaterialTheme.typography.titleMedium)
             val security = deviceSecurity
@@ -156,9 +220,9 @@ fun ToolsScreen(
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("فحص محلي يوميًا في الوقت الذي تحدده", fontSize = 13.sp)
+                    Text("فحص تلقائي كل عدد دقائق تختاره", fontSize = 13.sp)
                     Text(
-                        "لا يحتاج اتصال شبكة. يرسل إشعارًا فقط إذا تغيّرت مؤشرات محددة.",
+                        "يعمل في الخلفية دون الحاجة إلى فتح MSI، ويرسل تنبيهًا عند رصد تغيّر يستحق المراجعة.",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
@@ -166,28 +230,71 @@ fun ToolsScreen(
                 Switch(checked = periodicScanEnabled, onCheckedChange = onPeriodicScanChanged)
             }
             Text(
-                "الموعد الحالي: %02d:%02d".format(scheduledHour, scheduledMinute),
+                "الفترة الحالية: كل $scanIntervalMinutes دقيقة",
                 color = MaterialTheme.colorScheme.primary,
                 fontSize = 12.sp
             )
-            OutlinedButton(
-                onClick = {
-                    TimePickerDialog(
-                        context,
-                        { _, hour, minute -> onScheduledTimeChanged(hour, minute) },
-                        scheduledHour,
-                        scheduledMinute,
-                        true
-                    ).show()
-                },
-                modifier = Modifier.fillMaxWidth(),
-                enabled = true
-            ) { Text("تحديد موعد الفحص") }
+            Box(modifier = Modifier.fillMaxWidth()) {
+                OutlinedButton(
+                    onClick = { intervalMenuExpanded = true },
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("تغيير فترة الفحص")
+                }
+                DropdownMenu(
+                    expanded = intervalMenuExpanded,
+                    onDismissRequest = { intervalMenuExpanded = false }
+                ) {
+                    intervalOptions.forEach { minutes ->
+                        DropdownMenuItem(
+                            text = { Text("كل $minutes دقيقة") },
+                            onClick = {
+                                intervalMenuExpanded = false
+                                onScanIntervalMinutesChanged(minutes)
+                            }
+                        )
+                    }
+                }
+            }
             Text(
-                "يطلب Android إذن الإشعارات عند التفعيل فقط. قد يؤخر Android التنفيذ بسبب البطارية أو قيود النظام؛ الموعد ليس ضمانًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
+                "الحد الأدنى 15 دقيقة وفق WorkManager في Android. يعمل الجدول بعد إغلاق الشاشة وفي الخلفية، لكن قد يؤخر Android التنفيذ بسبب Doze وتحسين البطارية؛ لذلك الفترة ليست موعدًا مضمونًا بالدقيقة. إيقاف الخيار يلغي الجدولة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
+        }
+        MsiCard {
+            Text("مركز صلاحيات MSI", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "راجع صلاحيات MSI نفسه، وتحقق من الإشعارات وبيانات الاستخدام. يمكنك تخطي أي صلاحية والعودة إليها لاحقًا.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+            OutlinedButton(
+                onClick = onOpenPermissionSetup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("إعداد / مراجعة صلاحيات MSI")
+            }
+        }
+        MsiCard {
+            Text("فحص التهديدات", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "افحص ملف APK قبل التثبيت، أو راجع مؤشرات الرابط الذي تشاركه من المتصفح.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+            OutlinedButton(
+                onClick = onOpenApkScanner,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("فحص ملف APK قبل التثبيت")
+            }
+            OutlinedButton(
+                onClick = onOpenWebProtection,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("فحص رابط / حماية الويب")
+            }
         }
         MsiCard {
             Text("استخدام بيانات الاستخدام (اختياري)", style = MaterialTheme.typography.titleMedium)
@@ -199,13 +306,30 @@ fun ToolsScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("مراجعة التطبيقات غير المستخدمة", fontSize = 13.sp)
                     Text(
-                        if (usageAccessGranted && usageAccessOptIn) "الوصول الخاص مفعّل بإذن المستخدم."
-                        else "مغلق افتراضيًا. يفتح إعدادات Usage Access فقط بعد تفعيل الخيار.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        when {
+                            usageAccessGranted && usageAccessOptIn ->
+                                "الوصول الخاص مفعّل بإذن المستخدم."
+                            usageAccessOptIn ->
+                                "الميزة مطلوبة لكن الوصول لم يُمنح بعد. افتح إعدادات Usage Access وأعد المحاولة."
+                            usageAccessGranted ->
+                                "الإذن متاح من النظام، لكن ميزة MSI متوقفة حتى تختار تشغيلها."
+                            else ->
+                                "مغلق افتراضيًا. لا يقرأ MSI بيانات الاستخدام قبل اختيارك تفعيل الميزة ومنح الوصول."
+                        },
+                        color = if (usageAccessOptIn && !usageAccessGranted) MaterialTheme.colorScheme.tertiary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
                 Switch(checked = usageAccessOptIn, onCheckedChange = onUsageAccessChanged)
+            }
+            if (usageAccessOptIn && !usageAccessGranted) {
+                OutlinedButton(
+                    onClick = onOpenUsageAccessSettings,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("إعادة فتح إعدادات Usage Access")
+                }
             }
             Text(
                 "عند تفعيله، يقرأ MSI آخر وقت استخدام معروف محليًا ليشير إلى تطبيقات لديها صلاحيات حساسة ولم تُستخدم منذ 30 يومًا. قد تكون البيانات غير مكتملة، ولا يُسحب أي إذن تلقائيًا.",

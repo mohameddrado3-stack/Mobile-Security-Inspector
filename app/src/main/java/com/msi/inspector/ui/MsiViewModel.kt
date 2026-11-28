@@ -3,6 +3,8 @@ package com.msi.inspector.ui
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.msi.inspector.background.BatteryHourlyScheduler
+import com.msi.inspector.data.battery.BatteryUsageRepository
 import com.msi.inspector.data.preferences.AppLocalLists
 import com.msi.inspector.data.repository.AppAuditRepository
 import com.msi.inspector.data.scanner.AndroidDeviceSecurityReader
@@ -23,16 +25,22 @@ import kotlinx.coroutines.withContext
 
 class MsiViewModel(application: Application) : AndroidViewModel(application) {
     private val repository = AppAuditRepository(application)
+    private val batteryRepository = BatteryUsageRepository(application)
     private val localLists = AppLocalLists(application)
     private val usageAccessReader = UsageAccessReader(application)
     private val deviceSecurityReader = AndroidDeviceSecurityReader(application)
     private val appLockSettings = AppLockSettings(application)
     private val mutableState = MutableStateFlow(
-        MsiUiState(appLockEnabled = appLockSettings.isEnabled())
+        MsiUiState(
+            appLockEnabled = appLockSettings.isEnabled(),
+            batteryTrackingEnabled = BatteryHourlyScheduler.isEnabled(application)
+        )
     )
     val state = mutableState.asStateFlow()
 
     init {
+        runCatching { BatteryHourlyScheduler.ensureScheduled(application) }
+        refreshBatteryUsage()
         mutableState.update {
             it.copy(
                 trustedPackages = localLists.trustedPackages(),
@@ -44,19 +52,16 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val loaded = withContext(Dispatchers.IO) {
-                    Triple(
-                        repository.loadHistory(),
-                        repository.loadTimeline(),
-                        repository.loadLatestSnapshot()
-                    )
+                    repository.loadScanState()
                 }
-                val entries = loaded.first
-                val latestSnapshot = loaded.third
+                val entries = loaded.history
+                val latestSnapshot = loaded.latestSnapshot
                 mutableState.update { current ->
                     current.copy(
                         applications = current.applications.ifEmpty { latestSnapshot?.applications.orEmpty() },
+                        hasLoadedScanSnapshot = latestSnapshot != null,
                         history = entries,
-                        timelineEvents = loaded.second,
+                        timelineEvents = loaded.timeline,
                         deviceSecurity = current.deviceSecurity ?: latestSnapshot?.deviceSecurity ?: entries.firstOrNull()?.deviceSecuritySnapshot,
                         vpnActive = if (latestSnapshot != null) latestSnapshot.vpnActive else current.vpnActive ?: entries.firstOrNull()?.vpnActive,
                         lastScanAt = current.lastScanAt ?: latestSnapshot?.completedAt ?: entries.firstOrNull()?.scannedAt
@@ -100,14 +105,10 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch {
             try {
                 val loaded = withContext(Dispatchers.IO) {
-                    Triple(
-                        repository.loadHistory(),
-                        repository.loadTimeline(),
-                        repository.loadLatestSnapshot()
-                    )
+                    repository.loadScanState()
                 }
                 mutableState.update { current ->
-                    val latest = loaded.third
+                    val latest = loaded.latestSnapshot
                     if (latest != null && current.lastScanAt != null &&
                         latest.completedAt < current.lastScanAt
                     ) {
@@ -115,8 +116,9 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                     } else {
                         current.copy(
                             applications = latest?.applications ?: current.applications,
-                            history = loaded.first,
-                            timelineEvents = loaded.second,
+                            hasLoadedScanSnapshot = current.hasLoadedScanSnapshot || latest != null,
+                            history = loaded.history,
+                            timelineEvents = loaded.timeline,
                             deviceSecurity = latest?.deviceSecurity ?: current.deviceSecurity,
                             vpnActive = if (latest != null) latest.vpnActive else current.vpnActive,
                             lastScanAt = latest?.completedAt ?: current.lastScanAt
@@ -134,6 +136,42 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 }
             }
         }
+    }
+
+    fun refreshBatteryUsage() {
+        if (mutableState.value.isLoadingBatteryUsage) return
+        val enabled = BatteryHourlyScheduler.isEnabled(getApplication())
+        mutableState.update {
+            it.copy(
+                isLoadingBatteryUsage = true,
+                batteryTrackingEnabled = enabled
+            )
+        }
+        viewModelScope.launch {
+            try {
+                val summary = withContext(Dispatchers.IO) {
+                    if (enabled) batteryRepository.captureIfDue()
+                    else batteryRepository.latestSummary()
+                }
+                mutableState.update {
+                    it.copy(
+                        batteryUsage = summary,
+                        isLoadingBatteryUsage = false
+                    )
+                }
+            } catch (cancelled: CancellationException) {
+                mutableState.update { it.copy(isLoadingBatteryUsage = false) }
+                throw cancelled
+            } catch (_: Exception) {
+                mutableState.update { it.copy(isLoadingBatteryUsage = false) }
+            }
+        }
+    }
+
+    fun setBatteryTrackingEnabled(enabled: Boolean) {
+        BatteryHourlyScheduler.setEnabled(getApplication(), enabled)
+        mutableState.update { it.copy(batteryTrackingEnabled = enabled) }
+        if (enabled) refreshBatteryUsage()
     }
 
     fun updateQuery(query: String) {
@@ -255,6 +293,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
+                        hasLoadedScanSnapshot = true,
                         history = history,
                         timelineEvents = scanResult.timeline,
                         vpnActive = snapshot.vpnActive,
@@ -270,6 +309,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
+                        hasLoadedScanSnapshot = true,
                         vpnActive = snapshot.vpnActive,
                         deviceSecurity = snapshot.deviceSecurity,
                         lastScanAt = snapshot.completedAt,
@@ -281,6 +321,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
                 mutableState.update {
                     it.copy(
                         applications = snapshot.applications,
+                        hasLoadedScanSnapshot = true,
                         vpnActive = snapshot.vpnActive,
                         lastScanAt = snapshot.completedAt,
                         isScanning = false,
@@ -312,6 +353,7 @@ class MsiViewModel(application: Application) : AndroidViewModel(application) {
 
     override fun onCleared() {
         repository.close()
+        batteryRepository.close()
         super.onCleared()
     }
 }

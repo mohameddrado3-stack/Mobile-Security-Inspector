@@ -35,6 +35,9 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.material3.SwipeToDismissBox
 import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.rememberSwipeToDismissBoxState
@@ -80,7 +83,9 @@ fun ApplicationsScreen(
     onCopyPackage: (String) -> Unit = {},
     onOpenSettings: (String) -> Unit = {},
     trustedPackages: Set<String> = emptySet(),
-    ignoredPackages: Set<String> = emptySet()
+    ignoredPackages: Set<String> = emptySet(),
+    hasLoadedScanSnapshot: Boolean = false,
+    totalApplicationCount: Int = applications.size
 ) {
     val filters = AppFilter.values().toList()
     var sort by remember { mutableStateOf(ApplicationSortOrder.INDICATORS) }
@@ -107,7 +112,14 @@ fun ApplicationsScreen(
                 )
             },
             label = { Text("بحث عن تطبيق") },
-            placeholder = { Text("اسم التطبيق أو package name") }
+            placeholder = { Text("اسم التطبيق أو package name") },
+            trailingIcon = {
+                if (query.isNotEmpty()) {
+                    TextButton(onClick = { onQueryChange("") }) {
+                        Text("مسح")
+                    }
+                }
+            }
         )
         LazyRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             items(filters) { item ->
@@ -132,8 +144,22 @@ fun ApplicationsScreen(
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
         ) {
-            Text("تجميع حسب مصدر التثبيت", fontSize = 12.sp)
-            Switch(checked = groupBySource, onCheckedChange = { groupBySource = it })
+            Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                Text("تجميع حسب مصدر التثبيت", style = MaterialTheme.typography.labelLarge)
+                Text(
+                    if (groupBySource) "التطبيقات مرتبة داخل مجموعات مصدر التثبيت."
+                    else "عرض قائمة موحّدة حسب ترتيب المؤشرات.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
+            Switch(
+                checked = groupBySource,
+                onCheckedChange = { groupBySource = it },
+                modifier = Modifier.semantics {
+                    contentDescription = "تجميع التطبيقات حسب مصدر التثبيت"
+                }
+            )
         }
         if (selectedApps.size == 2) {
             ComparisonCard(selectedApps[0], selectedApps[1])
@@ -145,7 +171,23 @@ fun ApplicationsScreen(
             )
         }
         if (applications.isEmpty()) {
-            EmptyApplications()
+            val emptyTitle: String
+            val emptyDescription: String
+            when {
+                totalApplicationCount > 0 -> {
+                    emptyTitle = "لا توجد نتائج مطابقة"
+                    emptyDescription = "جرّب تعديل البحث أو اختيار فلتر مختلف لعرض التطبيقات."
+                }
+                hasLoadedScanSnapshot -> {
+                    emptyTitle = "لم تظهر تطبيقات في آخر فحص"
+                    emptyDescription = "اكتمل الفحص، لكن Android لم يُرجع تطبيقات قابلة للعرض في هذه القراءة."
+                }
+                else -> {
+                    emptyTitle = "لا توجد بيانات تطبيقات بعد"
+                    emptyDescription = "ابدأ فحصًا من الشاشة الرئيسية لقراءة التطبيقات التي يتيحها Android."
+                }
+            }
+            EmptyApplications(emptyTitle, emptyDescription)
         } else {
             LazyColumn(
                 modifier = Modifier.weight(1f),
@@ -251,15 +293,15 @@ private fun ComparisonCard(first: AppAudit, second: AppAudit) {
 }
 
 @Composable
-private fun EmptyApplications() {
+private fun EmptyApplications(title: String, description: String) {
     Column(
         modifier = Modifier.fillMaxSize().padding(28.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        Text("لا توجد نتائج للعرض", style = MaterialTheme.typography.titleMedium)
+        Text(title, style = MaterialTheme.typography.titleMedium)
         Text(
-            "ابدأ فحصًا من الشاشة الرئيسية أو غيّر البحث والفلتر الحالي.",
+            description,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = 12.sp
         )
@@ -355,7 +397,11 @@ private fun ApplicationCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+        border = BorderStroke(
+            1.dp,
+            if (selectedForComparison) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant
+        )
     ) {
         Box {
         Row(
@@ -399,8 +445,17 @@ private fun ApplicationCard(
                 modifier = Modifier.weight(1f),
                 verticalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                Text(app.label, style = MaterialTheme.typography.titleSmall, maxLines = 1)
-                Text(app.packageName, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1)
+                Text(
+                    app.label,
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 1
+                )
+                Text(
+                    app.packageName,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
+                    maxLines = 1
+                )
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp)
@@ -420,7 +475,8 @@ private fun ApplicationCard(
                             AuditStatus.INCOMPLETE -> "بيانات الفحص غير مكتملة — راجع التفاصيل"
                         },
                         color = accent,
-                        style = MaterialTheme.typography.labelMedium
+                        style = MaterialTheme.typography.labelMedium,
+                        maxLines = 2
                     )
                 }
                 Text(

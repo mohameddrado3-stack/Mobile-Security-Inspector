@@ -22,9 +22,10 @@ class MsiPreferencesTest {
         val preferences = MsiPreferences(context)
 
         assertEquals(MsiThemeMode.DARK to false, preferences.loadTheme())
-        assertEquals(9 to 0, preferences.loadScanSchedule())
+        assertEquals(1440, preferences.loadScanIntervalMinutes())
         assertFalse(preferences.isPeriodicScanEnabled())
         assertFalse(preferences.isOnboardingComplete())
+        assertFalse(preferences.hasRequestedNotificationPermission())
     }
 
     @Test
@@ -34,15 +35,17 @@ class MsiPreferencesTest {
             .edit().clear().commit()
         val preferences = MsiPreferences(context)
         preferences.saveTheme(MsiThemeMode.LIGHT, true)
-        preferences.saveScanSchedule(14, 45)
+        preferences.saveScanIntervalMinutes(45)
         preferences.setPeriodicScanEnabled(true)
         preferences.setOnboardingComplete()
+        preferences.markNotificationPermissionRequested()
 
         val restored = MsiPreferences(context)
 
         assertEquals(MsiThemeMode.LIGHT to true, restored.loadTheme())
-        assertEquals(14 to 45, restored.loadScanSchedule())
+        assertEquals(45, restored.loadScanIntervalMinutes())
         assertTrue(restored.isPeriodicScanEnabled())
         assertTrue(restored.isOnboardingComplete())
+        assertTrue(restored.hasRequestedNotificationPermission())
     }
 }

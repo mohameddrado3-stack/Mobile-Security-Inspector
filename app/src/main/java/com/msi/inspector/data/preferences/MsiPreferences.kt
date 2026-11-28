@@ -26,15 +26,33 @@ class MsiPreferences(context: Context) {
             .apply()
     }
 
-    fun loadScanSchedule(): Pair<Int, Int> =
-        preferences.getInt(PeriodicScanScheduler.KEY_SCAN_HOUR, 9) to
-            preferences.getInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, 0)
+    fun loadScanIntervalMinutes(): Int =
+        PeriodicScanScheduler.normalizeIntervalMinutes(
+            preferences.getInt(
+                PeriodicScanScheduler.KEY_SCAN_INTERVAL_MINUTES,
+                PeriodicScanScheduler.DEFAULT_INTERVAL_MINUTES
+            )
+        )
 
     fun isOnboardingComplete(): Boolean =
         preferences.getBoolean(KEY_ONBOARDING_COMPLETE, false)
 
     fun setOnboardingComplete() {
         preferences.edit().putBoolean(KEY_ONBOARDING_COMPLETE, true).apply()
+    }
+
+    fun isPermissionSetupComplete(): Boolean =
+        preferences.getBoolean(KEY_PERMISSION_SETUP_COMPLETE, false)
+
+    fun setPermissionSetupComplete() {
+        preferences.edit().putBoolean(KEY_PERMISSION_SETUP_COMPLETE, true).apply()
+    }
+
+    fun hasRequestedNotificationPermission(): Boolean =
+        preferences.getBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, false)
+
+    fun markNotificationPermissionRequested() {
+        preferences.edit().putBoolean(KEY_NOTIFICATION_PERMISSION_REQUESTED, true).apply()
     }
 
     fun isPeriodicScanEnabled(): Boolean =
@@ -44,10 +62,12 @@ class MsiPreferences(context: Context) {
         preferences.edit().putBoolean(KEY_PERIODIC_SCAN, enabled).apply()
     }
 
-    fun saveScanSchedule(hour: Int, minute: Int) {
+    fun saveScanIntervalMinutes(intervalMinutes: Int) {
         preferences.edit()
-            .putInt(PeriodicScanScheduler.KEY_SCAN_HOUR, hour)
-            .putInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, minute)
+            .putInt(
+                PeriodicScanScheduler.KEY_SCAN_INTERVAL_MINUTES,
+                PeriodicScanScheduler.normalizeIntervalMinutes(intervalMinutes)
+            )
             .apply()
     }
 
@@ -57,5 +77,7 @@ class MsiPreferences(context: Context) {
         const val KEY_DYNAMIC_COLOR = "dynamic_color"
         const val KEY_PERIODIC_SCAN = "periodic_scan_enabled"
         const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
+        const val KEY_PERMISSION_SETUP_COMPLETE = "permission_setup_complete"
+        const val KEY_NOTIFICATION_PERMISSION_REQUESTED = "notification_permission_requested"
     }
 }

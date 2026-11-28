@@ -15,8 +15,8 @@
     <string name="msi_notification_big_text">سجّل MSI %1$d تغيّرًا بين آخر الفحوصات المحلية. افتح التطبيق لمراجعة التفاصيل والأدلة المتاحة. هذا تنبيه للمراجعة وليس حكمًا على سلامة أي تطبيق.</string>
     <string name="msi_notification_subtext">فحص محلي • دون اتصال بخادم</string>
     <string name="monitor_notification_channel_name">مراقبة أمان MSI</string>
-    <string name="monitor_notification_channel_description">إشعار دائم عند تشغيل المراقبة المحلية التي فعّلها المستخدم.</string>
-    <string name="monitor_notification_title">MSI • المراقبة النشطة</string>
+    <string name="monitor_notification_channel_description">إشعار حالة MSI الدائم. اضغط عليه لفتح مركز التحكم.</string>
+    <string name="monitor_notification_title">MSI</string>
     <string name="monitor_notification_text">مراقبة محلية مفعّلة للتطبيقات وإعدادات أمان Android.</string>
     <string name="monitor_notification_big_text">المراقبة مفعّلة بطلبك. يرصد MSI تغيّرات تثبيت التطبيقات وإعدادات ADB وخيارات المطوّر، ويعيد فحص مؤشرات الجهاز دوريًا. قد يؤخر Android بعض عمليات الفحص. لا يرسل MSI بيانات الفحص إلى خادم.</string>
     <string name="monitor_notification_stop">إيقاف المراقبة</string>

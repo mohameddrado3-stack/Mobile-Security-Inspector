@@ -1,9 +1,14 @@
 package com.msi.inspector
 
 import android.Manifest
+import android.app.AppOpsManager
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,6 +17,7 @@ import androidx.biometric.BiometricPrompt
 import androidx.core.content.ContextCompat
 import androidx.core.splashscreen.SplashScreen.Companion.installSplashScreen
 import androidx.fragment.app.FragmentActivity
+import androidx.core.app.NotificationManagerCompat
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -23,6 +29,8 @@ import com.msi.inspector.design.theme.MsiTheme
 import com.msi.inspector.design.theme.MsiThemeMode
 import com.msi.inspector.security.applock.AppLockSettings
 import com.msi.inspector.ui.MsiApp
+import com.msi.inspector.ui.onboarding.MsiPermissionSetupDialog
+import com.msi.inspector.ui.onboarding.MsiNotificationPermissionDialog
 import com.msi.inspector.ui.security.AppLockScreen
 import com.msi.inspector.ui.security.allowedAuthenticators
 
@@ -34,44 +42,52 @@ class MainActivity : FragmentActivity() {
     private var promptActive = false
     private var shortcutSequence = 0
     private var shortcutRequest by mutableStateOf<Pair<Int, String>?>(null)
+    private var incomingSharedText by mutableStateOf<String?>(null)
     private var themeMode by mutableStateOf(MsiThemeMode.DARK)
     private var useDynamicColor by mutableStateOf(false)
     private var periodicScanEnabled by mutableStateOf(false)
     private var activeMonitoringEnabled by mutableStateOf(false)
-    private var scheduledHour by mutableStateOf(9)
-    private var scheduledMinute by mutableStateOf(0)
+    private var scanIntervalMinutes by mutableStateOf(PeriodicScanScheduler.DEFAULT_INTERVAL_MINUTES)
+    private var permissionSetupVisible by mutableStateOf(false)
+    private var permissionSetupStep by mutableStateOf(0)
+    private var permissionSetupWaitingForUsageAccess = false
+    private var permissionSetupUsageAccessGranted by mutableStateOf(false)
+    private var notificationPermissionSettingsVisible by mutableStateOf(false)
+    private var notificationPermissionFeature by mutableStateOf("")
+    private var pendingNotificationSettingsReturn = false
+    private var pendingPermissionSetupSettingsReturn = false
     private var pendingPeriodicEnable = false
     private var pendingMonitoringEnable = false
+    private val setupNotificationPermissionLauncher = registerForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) {
+        permissionSetupStep = 1
+    }
+
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (pendingPeriodicEnable && granted) {
-            persistPeriodicScanEnabled(true)
-        } else if (pendingPeriodicEnable) {
-            periodicScanEnabled = false
-            Toast.makeText(
-                this,
-                "لم يتم تفعيل الفحص الدوري لأن إذن الإشعارات لم يُمنح.",
-                Toast.LENGTH_LONG
-            ).show()
+        if (pendingPeriodicEnable) {
+            if (granted) {
+                pendingPeriodicEnable = false
+                persistPeriodicScanEnabled(true)
+            } else {
+                showNotificationSettingsPrompt("الفحص الدوري")
+            }
         }
-        pendingPeriodicEnable = false
     }
 
     private val monitoringNotificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission()
     ) { granted ->
-        if (pendingMonitoringEnable && granted) {
-            persistActiveMonitoringEnabled(true)
-        } else if (pendingMonitoringEnable) {
-            activeMonitoringEnabled = false
-            Toast.makeText(
-                this,
-                "لم يتم تشغيل المراقبة لأن إذن الإشعارات لم يُمنح.",
-                Toast.LENGTH_LONG
-            ).show()
+        if (pendingMonitoringEnable) {
+            if (granted) {
+                pendingMonitoringEnable = false
+                persistActiveMonitoringEnabled(true)
+            } else {
+                showNotificationSettingsPrompt("المراقبة النشطة")
+            }
         }
-        pendingMonitoringEnable = false
     }
 
     override fun onStart() {
@@ -81,15 +97,39 @@ class MainActivity : FragmentActivity() {
 
     override fun onResume() {
         super.onResume()
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        val permissionGranted = hasNotificationPermission()
         if (!MsiMonitoringController.isEnabled(this)) {
             activeMonitoringEnabled = false
         }
         if (activeMonitoringEnabled && !permissionGranted) {
             persistActiveMonitoringEnabled(false)
             Toast.makeText(this, "توقفت المراقبة لأن إذن الإشعارات لم يعد متاحًا.", Toast.LENGTH_LONG).show()
+        }
+        if (pendingNotificationSettingsReturn) {
+            pendingNotificationSettingsReturn = false
+            if (permissionGranted) {
+                if (pendingPeriodicEnable) {
+                    pendingPeriodicEnable = false
+                    persistPeriodicScanEnabled(true)
+                }
+                if (pendingMonitoringEnable) {
+                    pendingMonitoringEnable = false
+                    persistActiveMonitoringEnabled(true)
+                }
+            } else {
+                pendingPeriodicEnable = false
+                pendingMonitoringEnable = false
+                Toast.makeText(this, "لم يتم تفعيل الميزة لأن إشعارات MSI ما زالت غير مسموحة.", Toast.LENGTH_LONG).show()
+            }
+        }
+        if (pendingPermissionSetupSettingsReturn) {
+            pendingPermissionSetupSettingsReturn = false
+            if (permissionGranted) permissionSetupStep = 1
+        }
+        permissionSetupUsageAccessGranted = hasUsageAccess()
+        if (permissionSetupWaitingForUsageAccess) {
+            permissionSetupWaitingForUsageAccess = false
+            permissionSetupStep = if (permissionSetupUsageAccessGranted) 2 else 1
         }
     }
 
@@ -98,10 +138,14 @@ class MainActivity : FragmentActivity() {
         super.onCreate(savedInstanceState)
         appLockSettings = AppLockSettings(this)
         preferences = MsiPreferences(this)
+        permissionSetupVisible =
+            preferences.isOnboardingComplete() && !preferences.isPermissionSetupComplete()
+        permissionSetupUsageAccessGranted = hasUsageAccess()
         appLocked = appLockSettings.isEnabled()
         loadThemePreferences()
         loadPeriodicScanPreference()
         acceptShortcutIntent(intent)
+        acceptSharedText(intent)
         window.statusBarColor = android.graphics.Color.rgb(8, 13, 24)
         window.navigationBarColor = android.graphics.Color.rgb(7, 11, 22)
         setContent {
@@ -119,13 +163,145 @@ class MainActivity : FragmentActivity() {
                         onPeriodicScanChanged = ::configurePeriodicScan,
                         activeMonitoringEnabled = activeMonitoringEnabled,
                         onActiveMonitoringChanged = ::configureActiveMonitoring,
-                        scheduledHour = scheduledHour,
-                        scheduledMinute = scheduledMinute,
-                        onScheduledTimeChanged = ::saveScanSchedule
+                        scanIntervalMinutes = scanIntervalMinutes,
+                        onScanIntervalMinutesChanged = ::saveScanIntervalMinutes,
+                        onOnboardingCompleted = ::onOnboardingCompleted,
+                        onOpenPermissionSetup = ::openPermissionSetup,
+                        sharedText = incomingSharedText,
+                        onSharedTextConsumed = { incomingSharedText = null }
+                    )
+                }
+                if (!appLocked && permissionSetupVisible) {
+                    MsiPermissionSetupDialog(
+                        step = permissionSetupStep,
+                        notificationsGranted = hasNotificationPermission(),
+                        notificationPermissionPreviouslyRequested =
+                            preferences.hasRequestedNotificationPermission() ||
+                                !NotificationManagerCompat.from(this).areNotificationsEnabled(),
+                        usageAccessGranted = permissionSetupUsageAccessGranted,
+                        onRequestNotifications = {
+                            if (hasNotificationPermission()) {
+                                permissionSetupStep = 1
+                            } else if (
+                                Build.VERSION.SDK_INT < 33 ||
+                                preferences.hasRequestedNotificationPermission()
+                            ) {
+                                showNotificationSettingsPrompt("إشعارات الحماية")
+                            } else {
+                                preferences.markNotificationPermissionRequested()
+                                setupNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                        },
+                        onOpenUsageAccess = {
+                            if (hasUsageAccess()) {
+                                permissionSetupUsageAccessGranted = true
+                                permissionSetupStep = 2
+                            } else {
+                                permissionSetupWaitingForUsageAccess = true
+                                runCatching {
+                                    startActivity(Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS))
+                                }.onFailure {
+                                    permissionSetupWaitingForUsageAccess = false
+                                    permissionSetupStep = 1
+                                    Toast.makeText(
+                                        this,
+                                        "تعذر فتح إعدادات Usage Access. يمكنك تخطيها أو المحاولة مجددًا.",
+                                        Toast.LENGTH_LONG
+                                    ).show()
+                                }
+                            }
+                        },
+                        onSkip = {
+                            permissionSetupStep = (permissionSetupStep + 1).coerceAtMost(2)
+                        },
+                        onFinish = ::finishPermissionSetup
+                    )
+                }
+                if (!appLocked && notificationPermissionSettingsVisible) {
+                    MsiNotificationPermissionDialog(
+                        featureName = notificationPermissionFeature,
+                        onOpenSettings = ::openNotificationAppSettings,
+                        onDismiss = ::dismissNotificationSettingsPrompt
                     )
                 }
             }
         }
+    }
+
+    private fun hasNotificationPermission(): Boolean {
+        val runtimeGranted = Build.VERSION.SDK_INT < 33 ||
+            ContextCompat.checkSelfPermission(
+                this,
+                Manifest.permission.POST_NOTIFICATIONS
+            ) == PackageManager.PERMISSION_GRANTED
+        return runtimeGranted && NotificationManagerCompat.from(this).areNotificationsEnabled()
+    }
+
+    private fun showNotificationSettingsPrompt(featureName: String) {
+        notificationPermissionFeature = featureName
+        notificationPermissionSettingsVisible = true
+    }
+
+    private fun dismissNotificationSettingsPrompt() {
+        notificationPermissionSettingsVisible = false
+        pendingPeriodicEnable = false
+        pendingMonitoringEnable = false
+    }
+
+    private fun openNotificationAppSettings() {
+        notificationPermissionSettingsVisible = false
+        pendingNotificationSettingsReturn = pendingPeriodicEnable || pendingMonitoringEnable
+        pendingPermissionSetupSettingsReturn = permissionSetupVisible && permissionSetupStep == 0
+        val notificationIntent = Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).apply {
+            putExtra(Settings.EXTRA_APP_PACKAGE, packageName)
+        }
+        runCatching {
+            startActivity(notificationIntent)
+        }.onFailure {
+            runCatching {
+                startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.parse("package:$packageName")
+                    )
+                )
+            }.onFailure {
+                pendingNotificationSettingsReturn = false
+                pendingPermissionSetupSettingsReturn = false
+                pendingPeriodicEnable = false
+                pendingMonitoringEnable = false
+                Toast.makeText(
+                    this,
+                    "تعذر فتح إعدادات إشعارات MSI على هذا الجهاز.",
+                    Toast.LENGTH_LONG
+                ).show()
+            }
+        }
+    }
+
+    private fun hasUsageAccess(): Boolean = runCatching {
+        val appOps = getSystemService(AppOpsManager::class.java)
+        appOps.checkOpNoThrow(
+            AppOpsManager.OPSTR_GET_USAGE_STATS,
+            Process.myUid(),
+            packageName
+        ) == AppOpsManager.MODE_ALLOWED
+    }.getOrDefault(false)
+
+    private fun onOnboardingCompleted() {
+        permissionSetupVisible = !preferences.isPermissionSetupComplete()
+    }
+
+    private fun openPermissionSetup() {
+        permissionSetupStep = 0
+        permissionSetupUsageAccessGranted = hasUsageAccess()
+        permissionSetupVisible = true
+    }
+
+    private fun finishPermissionSetup() {
+        preferences.setPermissionSetupComplete()
+        permissionSetupVisible = false
+        permissionSetupStep = 0
     }
 
     private fun loadThemePreferences() {
@@ -135,51 +311,68 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun loadPeriodicScanPreference() {
-        val savedTime = preferences.loadScanSchedule()
-        scheduledHour = savedTime.first
-        scheduledMinute = savedTime.second
+        scanIntervalMinutes = preferences.loadScanIntervalMinutes()
         if (!preferences.isPeriodicScanEnabled()) return
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) {
-            periodicScanEnabled = true
-            PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+
+        if (hasNotificationPermission()) {
+            persistPeriodicScanEnabled(true)
         } else {
+            periodicScanEnabled = false
             preferences.setPeriodicScanEnabled(false)
-            PeriodicScanScheduler.disable(this)
+            runCatching { PeriodicScanScheduler.disable(this) }
         }
     }
 
     private fun configurePeriodicScan(enabled: Boolean) {
         if (!enabled) {
+            pendingPeriodicEnable = false
             persistPeriodicScanEnabled(false)
             return
         }
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) {
+        if (hasNotificationPermission()) {
             persistPeriodicScanEnabled(true)
         } else {
             pendingPeriodicEnable = true
-            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT < 33 || preferences.hasRequestedNotificationPermission()) {
+                showNotificationSettingsPrompt("الفحص الدوري")
+            } else {
+                preferences.markNotificationPermissionRequested()
+                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
     private fun persistPeriodicScanEnabled(enabled: Boolean) {
-        periodicScanEnabled = enabled
-        preferences.setPeriodicScanEnabled(enabled)
-        if (enabled) PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
-        else PeriodicScanScheduler.disable(this)
+        if (!enabled) {
+            periodicScanEnabled = false
+            preferences.setPeriodicScanEnabled(false)
+            runCatching { PeriodicScanScheduler.disable(this) }
+            return
+        }
+
+        val schedulingResult = runCatching {
+            PeriodicScanScheduler.enable(this, scanIntervalMinutes)
+        }
+        if (schedulingResult.isSuccess) {
+            periodicScanEnabled = true
+            preferences.setPeriodicScanEnabled(true)
+        } else {
+            periodicScanEnabled = false
+            preferences.setPeriodicScanEnabled(false)
+            runCatching { PeriodicScanScheduler.disable(this) }
+            Toast.makeText(
+                this,
+                "تعذر استعادة الفحص الدوري؛ تم إيقافه مؤقتًا حتى يظل فتح MSI مستقرًا.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
-    private fun saveScanSchedule(hour: Int, minute: Int) {
-        scheduledHour = hour.coerceIn(0, 23)
-        scheduledMinute = minute.coerceIn(0, 59)
-        preferences.saveScanSchedule(scheduledHour, scheduledMinute)
+    private fun saveScanIntervalMinutes(intervalMinutes: Int) {
+        scanIntervalMinutes = PeriodicScanScheduler.normalizeIntervalMinutes(intervalMinutes)
+        preferences.saveScanIntervalMinutes(scanIntervalMinutes)
         if (periodicScanEnabled) {
-            PeriodicScanScheduler.enable(this, scheduledHour, scheduledMinute)
+            persistPeriodicScanEnabled(true)
         }
     }
 
@@ -189,9 +382,7 @@ class MainActivity : FragmentActivity() {
             activeMonitoringEnabled = false
             return
         }
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
+        val permissionGranted = hasNotificationPermission()
         if (permissionGranted) {
             activeMonitoringEnabled = true
             if (!MsiMonitoringService.isRunning()) {
@@ -213,17 +404,20 @@ class MainActivity : FragmentActivity() {
 
     private fun configureActiveMonitoring(enabled: Boolean) {
         if (!enabled) {
+            pendingMonitoringEnable = false
             persistActiveMonitoringEnabled(false)
             return
         }
-        val permissionGranted = Build.VERSION.SDK_INT < 33 ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) ==
-            PackageManager.PERMISSION_GRANTED
-        if (permissionGranted) {
+        if (hasNotificationPermission()) {
             persistActiveMonitoringEnabled(true)
         } else {
             pendingMonitoringEnable = true
-            monitoringNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            if (Build.VERSION.SDK_INT < 33 || preferences.hasRequestedNotificationPermission()) {
+                showNotificationSettingsPrompt("المراقبة النشطة")
+            } else {
+                preferences.markNotificationPermissionRequested()
+                monitoringNotificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+            }
         }
     }
 
@@ -256,6 +450,13 @@ class MainActivity : FragmentActivity() {
         super.onNewIntent(intent)
         setIntent(intent)
         acceptShortcutIntent(intent)
+        acceptSharedText(intent)
+    }
+
+    private fun acceptSharedText(intent: Intent?) {
+        if (intent?.action != Intent.ACTION_SEND) return
+        val shared = intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()?.trim()
+        if (!shared.isNullOrBlank()) incomingSharedText = shared.take(MAX_SHARED_TEXT_LENGTH)
     }
 
     private fun acceptShortcutIntent(intent: android.content.Intent?) {
@@ -340,10 +541,11 @@ class MainActivity : FragmentActivity() {
     }
 
     companion object {
+        private const val MAX_SHARED_TEXT_LENGTH = 4096
         const val EXTRA_SHORTCUT = "com.msi.inspector.shortcut"
         const val ACTION_SHORTCUT_SCAN = "com.msi.inspector.action.SCAN"
         const val ACTION_SHORTCUT_PERMISSIONS = "com.msi.inspector.action.PERMISSIONS"
         const val ACTION_SHORTCUT_HISTORY = "com.msi.inspector.action.HISTORY"
-        val VALID_SHORTCUTS = setOf("scan", "permissions", "history")
+        val VALID_SHORTCUTS = setOf("scan", "permissions", "history", "monitoring", "timeline")
     }
 }

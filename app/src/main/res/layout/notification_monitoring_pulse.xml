@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="48dp"
+    android:gravity="center_vertical"
+    android:orientation="horizontal"
+    android:paddingStart="16dp"
+    android:paddingEnd="20dp">
+
+    <ImageView
+        android:id="@+id/monitor_notification_shield"
+        android:layout_width="24dp"
+        android:layout_height="24dp"
+        android:src="@drawable/ic_msi_shield"
+        android:tint="#70E7D1" />
+
+    <TextView
+        android:id="@+id/monitor_notification_brand"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginStart="8dp"
+        android:text="MSI"
+        android:textColor="#FFFFFFFF"
+        android:textSize="15sp"
+        android:textStyle="bold" />
+
+    <View
+        android:layout_width="0dp"
+        android:layout_height="1dp"
+        android:layout_weight="1" />
+
+    <ViewFlipper
+        android:id="@+id/monitor_notification_pulse"
+        android:layout_width="20dp"
+        android:layout_height="20dp"
+        android:autoStart="true"
+        android:flipInterval="780"
+        android:measureAllChildren="false">
+
+        <TextView
+            android:id="@+id/monitor_notification_pulse_bright"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:gravity="center"
+            android:text="●"
+            android:textSize="16sp" />
+
+        <TextView
+            android:id="@+id/monitor_notification_pulse_dim"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:alpha="0.24"
+            android:gravity="center"
+            android:text="●"
+            android:textSize="16sp" />
+    </ViewFlipper>
+</LinearLayout>

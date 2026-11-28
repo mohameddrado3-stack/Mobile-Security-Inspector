@@ -15,8 +15,8 @@
     <string name="msi_notification_big_text">سجّل MSI %1$d تغيّرًا بين آخر الفحوصات المحلية. افتح التطبيق لمراجعة التفاصيل والأدلة المتاحة. هذا تنبيه للمراجعة وليس حكمًا على سلامة أي تطبيق.</string>
     <string name="msi_notification_subtext">فحص محلي • دون اتصال بخادم</string>
     <string name="monitor_notification_channel_name">MSI device monitoring</string>
-    <string name="monitor_notification_channel_description">Persistent notification while user-enabled local monitoring is running.</string>
-    <string name="monitor_notification_title">MSI • Active monitoring</string>
+    <string name="monitor_notification_channel_description">MSI status indicator. Tap to open monitoring controls.</string>
+    <string name="monitor_notification_title">MSI</string>
     <string name="monitor_notification_text">Local monitoring is active for apps and Android security settings.</string>
     <string name="monitor_notification_big_text">Monitoring is active because you enabled it. MSI observes app install changes and ADB/developer settings, and periodically rechecks device indicators. Android may delay some scans. MSI does not send scan data to a server.</string>
     <string name="monitor_notification_stop">Stop monitoring</string>
