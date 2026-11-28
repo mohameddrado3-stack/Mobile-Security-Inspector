@@ -60,6 +60,7 @@ fun ToolsScreen(
     onBatteryTrackingChanged: (Boolean) -> Unit = {},
     scanIntervalMinutes: Int = 1440,
     onScanIntervalMinutesChanged: (Int) -> Unit = {},
+    onOpenPermissionSetup: () -> Unit = {},
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
     onUsageAccessChanged: (Boolean) -> Unit = {},
@@ -257,6 +258,20 @@ fun ToolsScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 fontSize = 12.sp
             )
+        }
+        MsiCard {
+            Text("مركز صلاحيات MSI", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "راجع صلاحيات MSI نفسه، وتحقق من الإشعارات وبيانات الاستخدام. يمكنك تخطي أي صلاحية والعودة إليها لاحقًا.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                fontSize = 12.sp
+            )
+            OutlinedButton(
+                onClick = onOpenPermissionSetup,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text("إعداد / مراجعة صلاحيات MSI")
+            }
         }
         MsiCard {
             Text("استخدام بيانات الاستخدام (اختياري)", style = MaterialTheme.typography.titleMedium)
