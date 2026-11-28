@@ -25,11 +25,7 @@ object MsiMonitoringController {
 
     fun enable(context: Context) {
         val appContext = context.applicationContext
-        appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
-            .edit()
-            .putBoolean(KEY_ENABLED, true)
-            .apply()
-
+        val workManager = WorkManager.getInstance(appContext)
         val periodicRequest =
             PeriodicWorkRequestBuilder<MsiMonitoringWorker>(6, TimeUnit.HOURS)
                 .setConstraints(
@@ -40,16 +36,31 @@ object MsiMonitoringController {
                 )
                 .build()
 
-        WorkManager.getInstance(appContext).enqueueUniquePeriodicWork(
+        workManager.enqueueUniquePeriodicWork(
             PERIODIC_WORK_NAME,
             ExistingPeriodicWorkPolicy.KEEP,
             periodicRequest
         )
 
-        ContextCompat.startForegroundService(
-            appContext,
-            Intent(appContext, MsiMonitoringService::class.java)
-        )
+        appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_ENABLED, true)
+            .apply()
+
+        try {
+            ContextCompat.startForegroundService(
+                appContext,
+                Intent(appContext, MsiMonitoringService::class.java)
+            )
+        } catch (exception: Exception) {
+            appContext.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
+                .edit()
+                .putBoolean(KEY_ENABLED, false)
+                .apply()
+            runCatching { workManager.cancelUniqueWork(PERIODIC_WORK_NAME) }
+            runCatching { workManager.cancelUniqueWork(EVENT_WORK_NAME) }
+            throw exception
+        }
     }
 
     fun disable(context: Context) {
@@ -59,9 +70,14 @@ object MsiMonitoringController {
             .putBoolean(KEY_ENABLED, false)
             .apply()
 
-        WorkManager.getInstance(appContext).cancelUniqueWork(PERIODIC_WORK_NAME)
-        WorkManager.getInstance(appContext).cancelUniqueWork(EVENT_WORK_NAME)
-        appContext.stopService(Intent(appContext, MsiMonitoringService::class.java))
+        runCatching {
+            val workManager = WorkManager.getInstance(appContext)
+            workManager.cancelUniqueWork(PERIODIC_WORK_NAME)
+            workManager.cancelUniqueWork(EVENT_WORK_NAME)
+        }
+        runCatching {
+            appContext.stopService(Intent(appContext, MsiMonitoringService::class.java))
+        }
     }
 
     fun queueEventScan(context: Context) {
