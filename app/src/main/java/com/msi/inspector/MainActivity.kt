@@ -313,13 +313,13 @@ class MainActivity : FragmentActivity() {
     private fun loadPeriodicScanPreference() {
         scanIntervalMinutes = preferences.loadScanIntervalMinutes()
         if (!preferences.isPeriodicScanEnabled()) return
-        val permissionGranted = hasNotificationPermission()
-        if (permissionGranted) {
-            periodicScanEnabled = true
-            PeriodicScanScheduler.enable(this, scanIntervalMinutes)
+
+        if (hasNotificationPermission()) {
+            persistPeriodicScanEnabled(true)
         } else {
+            periodicScanEnabled = false
             preferences.setPeriodicScanEnabled(false)
-            PeriodicScanScheduler.disable(this)
+            runCatching { PeriodicScanScheduler.disable(this) }
         }
     }
 
@@ -343,17 +343,36 @@ class MainActivity : FragmentActivity() {
     }
 
     private fun persistPeriodicScanEnabled(enabled: Boolean) {
-        periodicScanEnabled = enabled
-        preferences.setPeriodicScanEnabled(enabled)
-        if (enabled) PeriodicScanScheduler.enable(this, scanIntervalMinutes)
-        else PeriodicScanScheduler.disable(this)
+        if (!enabled) {
+            periodicScanEnabled = false
+            preferences.setPeriodicScanEnabled(false)
+            runCatching { PeriodicScanScheduler.disable(this) }
+            return
+        }
+
+        val schedulingResult = runCatching {
+            PeriodicScanScheduler.enable(this, scanIntervalMinutes)
+        }
+        if (schedulingResult.isSuccess) {
+            periodicScanEnabled = true
+            preferences.setPeriodicScanEnabled(true)
+        } else {
+            periodicScanEnabled = false
+            preferences.setPeriodicScanEnabled(false)
+            runCatching { PeriodicScanScheduler.disable(this) }
+            Toast.makeText(
+                this,
+                "تعذر استعادة الفحص الدوري؛ تم إيقافه مؤقتًا حتى يظل فتح MSI مستقرًا.",
+                Toast.LENGTH_LONG
+            ).show()
+        }
     }
 
     private fun saveScanIntervalMinutes(intervalMinutes: Int) {
         scanIntervalMinutes = PeriodicScanScheduler.normalizeIntervalMinutes(intervalMinutes)
         preferences.saveScanIntervalMinutes(scanIntervalMinutes)
         if (periodicScanEnabled) {
-            PeriodicScanScheduler.enable(this, scanIntervalMinutes)
+            persistPeriodicScanEnabled(true)
         }
     }
 
