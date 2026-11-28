@@ -26,9 +26,13 @@ class MsiPreferences(context: Context) {
             .apply()
     }
 
-    fun loadScanSchedule(): Pair<Int, Int> =
-        preferences.getInt(PeriodicScanScheduler.KEY_SCAN_HOUR, 9) to
-            preferences.getInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, 0)
+    fun loadScanIntervalMinutes(): Int =
+        PeriodicScanScheduler.normalizeIntervalMinutes(
+            preferences.getInt(
+                PeriodicScanScheduler.KEY_SCAN_INTERVAL_MINUTES,
+                PeriodicScanScheduler.DEFAULT_INTERVAL_MINUTES
+            )
+        )
 
     fun isOnboardingComplete(): Boolean =
         preferences.getBoolean(KEY_ONBOARDING_COMPLETE, false)
@@ -44,10 +48,12 @@ class MsiPreferences(context: Context) {
         preferences.edit().putBoolean(KEY_PERIODIC_SCAN, enabled).apply()
     }
 
-    fun saveScanSchedule(hour: Int, minute: Int) {
+    fun saveScanIntervalMinutes(intervalMinutes: Int) {
         preferences.edit()
-            .putInt(PeriodicScanScheduler.KEY_SCAN_HOUR, hour)
-            .putInt(PeriodicScanScheduler.KEY_SCAN_MINUTE, minute)
+            .putInt(
+                PeriodicScanScheduler.KEY_SCAN_INTERVAL_MINUTES,
+                PeriodicScanScheduler.normalizeIntervalMinutes(intervalMinutes)
+            )
             .apply()
     }
 
