@@ -106,7 +106,7 @@ fun ApkScannerScreen() {
                 DetailRow("Debuggable", if (report.isDebuggable) "مفعّل" else "غير مفعّل")
                 DetailRow(
                     "اتصالات HTTP",
-                    if (report.allowsCleartextTraffic) "مسموح بها وفق بيانات الملف" else "غير معلنة كمسموحة"
+                    if (report.mayAllowCleartextTraffic) "قد تكون مسموحة وفق مستوى الاستهداف وManifest" else "لا تظهر كمسموحة في البيانات المتاحة"
                 )
                 DetailRow("SHA-256 للتوقيع", report.signerSha256 ?: "غير متاح")
             }
@@ -125,6 +125,21 @@ fun ApkScannerScreen() {
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall
                 )
+            }
+
+            if (report.requestedPermissions.isNotEmpty()) {
+                MsiCard {
+                    Text("كل الصلاحيات المعلنة في Manifest", style = MaterialTheme.typography.titleMedium)
+                    report.requestedPermissions.forEach { permission ->
+                        val isDangerous = permission in report.dangerousPermissions
+                        Text(
+                            if (isDangerous) "$permission • حساسة" else permission,
+                            color = if (isDangerous) MaterialTheme.colorScheme.tertiary
+                            else MaterialTheme.colorScheme.onSurface,
+                            style = MaterialTheme.typography.bodySmall
+                        )
+                    }
+                }
             }
 
             if (report.dangerousPermissions.isNotEmpty()) {
