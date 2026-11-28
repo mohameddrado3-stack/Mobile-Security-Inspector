@@ -13,14 +13,18 @@ object MsiNotificationStatusClassifier {
     fun classify(snapshot: ScanSnapshot): MsiNotificationStatus {
         val device = snapshot.deviceSecurity ?: return MsiNotificationStatus.REVIEW
         val adbEnabled = device.adbEnabled.value == "enabled"
-        val screenLockDisabled = device.secureScreenLock.value == "disabled"
+        val screenLockDisabled = device.secureScreenLock.value != "enabled"
+        val developerOptionsEnabled = device.developerOptionsEnabled.value == "enabled"
+        val encryptionNotConfirmedActive =
+            device.storageEncryption.value?.startsWith("active") != true
 
         if (adbEnabled && screenLockDisabled) return MsiNotificationStatus.ALERT
 
         val deviceNeedsReview =
             adbEnabled ||
+                developerOptionsEnabled ||
                 screenLockDisabled ||
-                device.storageEncryption.value == "inactive" ||
+                encryptionNotConfirmedActive ||
                 device.storageEncryption.availability != EvidenceAvailability.AVAILABLE ||
                 device.adbEnabled.availability != EvidenceAvailability.AVAILABLE ||
                 device.secureScreenLock.availability != EvidenceAvailability.AVAILABLE ||
