@@ -66,6 +66,7 @@ fun ToolsScreen(
     usageAccessOptIn: Boolean = false,
     usageAccessGranted: Boolean = false,
     onUsageAccessChanged: (Boolean) -> Unit = {},
+    onOpenUsageAccessSettings: () -> Unit = {},
     deviceSecurity: DeviceSecuritySnapshot? = null,
     isLoadingDeviceSecurity: Boolean = false,
     onRefreshDeviceSecurity: () -> Unit = {}
@@ -305,13 +306,30 @@ fun ToolsScreen(
                 Column(modifier = Modifier.weight(1f)) {
                     Text("مراجعة التطبيقات غير المستخدمة", fontSize = 13.sp)
                     Text(
-                        if (usageAccessGranted && usageAccessOptIn) "الوصول الخاص مفعّل بإذن المستخدم."
-                        else "مغلق افتراضيًا. يفتح إعدادات Usage Access فقط بعد تفعيل الخيار.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        when {
+                            usageAccessGranted && usageAccessOptIn ->
+                                "الوصول الخاص مفعّل بإذن المستخدم."
+                            usageAccessOptIn ->
+                                "الميزة مطلوبة لكن الوصول لم يُمنح بعد. افتح إعدادات Usage Access وأعد المحاولة."
+                            usageAccessGranted ->
+                                "الإذن متاح من النظام، لكن ميزة MSI متوقفة حتى تختار تشغيلها."
+                            else ->
+                                "مغلق افتراضيًا. لا يقرأ MSI بيانات الاستخدام قبل اختيارك تفعيل الميزة ومنح الوصول."
+                        },
+                        color = if (usageAccessOptIn && !usageAccessGranted) MaterialTheme.colorScheme.tertiary
+                        else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontSize = 12.sp
                     )
                 }
                 Switch(checked = usageAccessOptIn, onCheckedChange = onUsageAccessChanged)
+            }
+            if (usageAccessOptIn && !usageAccessGranted) {
+                OutlinedButton(
+                    onClick = onOpenUsageAccessSettings,
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("إعادة فتح إعدادات Usage Access")
+                }
             }
             Text(
                 "عند تفعيله، يقرأ MSI آخر وقت استخدام معروف محليًا ليشير إلى تطبيقات لديها صلاحيات حساسة ولم تُستخدم منذ 30 يومًا. قد تكون البيانات غير مكتملة، ولا يُسحب أي إذن تلقائيًا.",
