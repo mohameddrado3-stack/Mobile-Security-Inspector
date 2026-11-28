@@ -70,26 +70,32 @@ fun ToolsScreen(
             .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(13.dp)
     ) {
-        MsiSectionHeading("مركز التحكم", "اختصارات تفتح صفحات إعدادات Android الرسمية.")
+        MsiSectionHeading("مركز التحكم", "إعدادات واضحة ومؤشرات قراءة فقط — أنت تتحكم في كل ميزة.")
         UpdateCenterCard(currentVersion = BuildConfig.VERSION_NAME)
         ActiveMonitoringCard(
             enabled = activeMonitoringEnabled,
             onEnabledChanged = onActiveMonitoringChanged
         )
         MsiCard {
-            Text("قياس البطارية كل ساعة تقريبًا", style = MaterialTheme.typography.titleMedium)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text("تسجيل قراءات محلية تلقائيًا", fontSize = 13.sp)
+                com.msi.inspector.design.components.MsiIconBadge(
+                    iconRes = com.msi.inspector.R.drawable.ic_msi_refresh,
+                    tint = MaterialTheme.colorScheme.primary,
+                    size = 42.dp
+                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp)
+                ) {
+                    Text("قياس البطارية", style = MaterialTheme.typography.titleMedium)
                     Text(
-                        if (batteryTrackingEnabled) "مفعّل — لا يحتاج صلاحية إضافية أو اتصال إنترنت."
-                        else "متوقف — لن تُحفظ عينات جديدة.",
+                        "محاولة تسجيل عينة كل ساعة تقريبًا",
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 12.sp
+                        style = MaterialTheme.typography.bodySmall
                     )
                 }
                 Switch(
@@ -97,10 +103,26 @@ fun ToolsScreen(
                     onCheckedChange = onBatteryTrackingChanged
                 )
             }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                com.msi.inspector.design.components.MsiStatusChip(
+                    text = if (batteryTrackingEnabled) "التسجيل مفعّل" else "التسجيل متوقف",
+                    color = if (batteryTrackingEnabled) MaterialTheme.colorScheme.primary
+                    else MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Text(
+                    "محلي • دون إنترنت",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall
+                )
+            }
             Text(
-                "يعرض التغير الصافي في بطارية الهاتف بين قراءتين، وليس استهلاك تطبيق محدد. قد يتأخر التنفيذ حسب سياسة توفير الطاقة في Android.",
+                "يقارن مستوى بطارية الهاتف بين عينتين. لا يحدد استهلاك تطبيق بعينه، وقد يؤخر Android موعد العينة وفق إدارة الطاقة.",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
-                fontSize = 12.sp
+                style = MaterialTheme.typography.bodySmall
             )
         }
         MsiCard {
