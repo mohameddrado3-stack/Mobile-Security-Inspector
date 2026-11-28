@@ -70,9 +70,8 @@ fun MsiApp(
     onPeriodicScanChanged: (Boolean) -> Unit = {},
     activeMonitoringEnabled: Boolean = false,
     onActiveMonitoringChanged: (Boolean) -> Unit = {},
-    scheduledHour: Int = 9,
-    scheduledMinute: Int = 0,
-    onScheduledTimeChanged: (Int, Int) -> Unit = { _, _ -> },
+    scanIntervalMinutes: Int = 1440,
+    onScanIntervalMinutesChanged: (Int) -> Unit = {},
     viewModel: MsiViewModel = viewModel()
 ) {
     val state by viewModel.state.collectAsState()
@@ -119,6 +118,7 @@ fun MsiApp(
             "scan" -> viewModel.startScan()
             "permissions" -> viewModel.navigate(MsiDestination.PERMISSIONS)
             "history" -> viewModel.navigate(MsiDestination.HISTORY)
+            "monitoring" -> viewModel.navigate(MsiDestination.TOOLS)
         }
     }
 
@@ -166,9 +166,8 @@ fun MsiApp(
                     onPeriodicScanChanged = onPeriodicScanChanged,
                     activeMonitoringEnabled = activeMonitoringEnabled,
                     onActiveMonitoringChanged = onActiveMonitoringChanged,
-                    scheduledHour = scheduledHour,
-                    scheduledMinute = scheduledMinute,
-                    onScheduledTimeChanged = onScheduledTimeChanged,
+                    scanIntervalMinutes = scanIntervalMinutes,
+                    onScanIntervalMinutesChanged = onScanIntervalMinutesChanged,
                     onShareReportRequest = {
                         if (state.applications.isEmpty()) {
                             Toast.makeText(context, "ابدأ الفحص قبل إنشاء التقرير.", Toast.LENGTH_SHORT).show()
