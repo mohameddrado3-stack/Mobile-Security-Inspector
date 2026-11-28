@@ -55,8 +55,15 @@ fun PermissionsScreen(
     } else {
         categories
     }
-    val ungrantedRequests = applications.sumOf { app ->
-        (app.requestedSensitive.toSet() - app.grantedSensitive.toSet()).size
+    val notShownAsGrantedRequests = applications.sumOf { app ->
+        (
+            app.requestedSensitive.toSet() -
+                app.grantedSensitive.toSet() -
+                app.permissionsWithUnknownGrantState.toSet()
+            ).size
+    }
+    val unknownGrantStates = applications.sumOf {
+        it.permissionsWithUnknownGrantState.distinct().size
     }
     val grantedPermissions = applications.sumOf { it.grantedSensitive.distinct().size }
 
@@ -83,14 +90,20 @@ fun PermissionsScreen(
                     modifier = Modifier.weight(1f)
                 )
                 SummaryMetric(
-                    label = "طلبات غير ممنوحة",
-                    value = ungrantedRequests.toString(),
+                    label = "طلبات لا تظهر كممنوحة",
+                    value = notShownAsGrantedRequests.toString(),
                     modifier = Modifier.weight(1f)
                 )
             }
             Text(
-                "عدد الصلاحيات الحساسة التي تظهر كممنوحة: $grantedPermissions",
+                "صلاحيات حساسة تظهر كممنوحة: $grantedPermissions",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall
+            )
+            Text(
+                "حالات منح تعذر التحقق منها: $unknownGrantStates",
+                color = if (unknownGrantStates > 0) MaterialTheme.colorScheme.tertiary
+                else MaterialTheme.colorScheme.onSurfaceVariant,
                 style = MaterialTheme.typography.bodySmall
             )
         }
