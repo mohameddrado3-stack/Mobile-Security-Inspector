@@ -439,6 +439,6 @@ class MainActivity : FragmentActivity() {
         const val ACTION_SHORTCUT_SCAN = "com.msi.inspector.action.SCAN"
         const val ACTION_SHORTCUT_PERMISSIONS = "com.msi.inspector.action.PERMISSIONS"
         const val ACTION_SHORTCUT_HISTORY = "com.msi.inspector.action.HISTORY"
-        val VALID_SHORTCUTS = setOf("scan", "permissions", "history", "monitoring")
+        val VALID_SHORTCUTS = setOf("scan", "permissions", "history", "monitoring", "timeline")
     }
 }
