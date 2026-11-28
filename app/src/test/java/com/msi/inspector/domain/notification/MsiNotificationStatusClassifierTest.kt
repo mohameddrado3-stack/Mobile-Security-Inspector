@@ -47,10 +47,21 @@ class MsiNotificationStatusClassifierTest {
         )
     }
 
+    @Test
+    fun reportsReviewWhenCoreEvidenceIsUnavailable() {
+        assertEquals(
+            MsiNotificationStatus.REVIEW,
+            MsiNotificationStatusClassifier.classify(
+                snapshot(encryptionAvailability = EvidenceAvailability.UNAVAILABLE)
+            )
+        )
+    }
+
     private fun snapshot(
         adb: String = "disabled",
         screenLock: String = "enabled",
-        applications: List<AppAudit> = emptyList()
+        applications: List<AppAudit> = emptyList(),
+        encryptionAvailability: EvidenceAvailability = EvidenceAvailability.AVAILABLE
     ): ScanSnapshot {
         val available = EvidenceAvailability.AVAILABLE
         fun evidence(value: String) = DeviceSecurityEvidence(value, available)
@@ -63,7 +74,7 @@ class MsiNotificationStatusClassifierTest {
                 apiLevel = evidence("35"),
                 securityPatch = evidence("2026-01-01"),
                 secureScreenLock = evidence(screenLock),
-                storageEncryption = evidence("active"),
+                storageEncryption = DeviceSecurityEvidence("active", encryptionAvailability),
                 adbEnabled = evidence(adb),
                 developerOptionsEnabled = evidence("disabled"),
                 collectedAt = 1L
