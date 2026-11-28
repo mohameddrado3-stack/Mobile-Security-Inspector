@@ -28,6 +28,8 @@ import com.msi.inspector.ui.applications.ApplicationsScreen
 import com.msi.inspector.ui.history.HistoryScreen
 import com.msi.inspector.ui.permissions.PermissionsScreen
 import com.msi.inspector.ui.settings.ToolsScreen
+import com.msi.inspector.ui.scanner.ApkScannerScreen
+import com.msi.inspector.ui.web.WebProtectionScreen
 import com.msi.inspector.ui.timeline.TimelineScreen
 import com.msi.inspector.ui.platform.openSystemPage
 import com.msi.inspector.ui.security.allowedAuthenticators
@@ -50,6 +52,8 @@ fun MsiDestinationContent(
     scanIntervalMinutes: Int,
     onScanIntervalMinutesChanged: (Int) -> Unit,
     onOpenPermissionSetup: () -> Unit = {},
+    webAddress: String = "",
+    onWebAddressChanged: (String) -> Unit = {},
     onShareReportRequest: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -120,6 +124,11 @@ fun MsiDestinationContent(
             onClearHistory = viewModel::clearHistory
         )
         MsiDestination.TIMELINE -> TimelineScreen(events = state.timelineEvents)
+        MsiDestination.APK_SCANNER -> ApkScannerScreen()
+        MsiDestination.WEB_PROTECTION -> WebProtectionScreen(
+            address = webAddress,
+            onAddressChanged = onWebAddressChanged
+        )
         MsiDestination.TOOLS -> ToolsScreen(
             appLockEnabled = state.appLockEnabled,
             onToggleAppLock = { enabled ->
@@ -167,6 +176,8 @@ fun MsiDestinationContent(
             scanIntervalMinutes = scanIntervalMinutes,
             onScanIntervalMinutesChanged = onScanIntervalMinutesChanged,
             onOpenPermissionSetup = onOpenPermissionSetup,
+            onOpenApkScanner = { viewModel.navigate(MsiDestination.APK_SCANNER) },
+            onOpenWebProtection = { viewModel.navigate(MsiDestination.WEB_PROTECTION) },
             usageAccessOptIn = state.usageAccessOptIn,
             usageAccessGranted = state.usageAccessGranted,
             deviceSecurity = state.deviceSecurity,
