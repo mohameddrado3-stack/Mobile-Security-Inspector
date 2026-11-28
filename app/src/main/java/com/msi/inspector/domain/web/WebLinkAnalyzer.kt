@@ -49,18 +49,23 @@ object WebLinkAnalyzer {
             ?: uri.rawAuthority?.substringAfterLast('@')?.substringBefore(':')?.trim('[', ']')
             ?: return invalid(input, normalized)
         val normalizedHost = host.lowercase(Locale.ROOT)
+        val ipAddress = isIpAddress(normalizedHost)
+        val asciiHost = if (ipAddress) normalizedHost else {
+            runCatching { IDN.toASCII(normalizedHost) }.getOrNull()
+                ?: return invalid(input, normalized)
+        }
         val findings = mutableListOf<String>()
 
         if (uri.userInfo != null) {
             findings += "يحتوي الرابط على بيانات اعتماد قبل اسم النطاق؛ لا تدخل بياناتك من خلاله."
         }
-        if (normalizedHost.startsWith("xn--") || normalizedHost.contains(".xn--")) {
+        if (asciiHost.startsWith("xn--") || asciiHost.contains(".xn--")) {
             findings += "اسم النطاق يستخدم ترميز IDN/Punycode؛ راجع تهجئة النطاق بعناية."
         }
-        if (isIpAddress(normalizedHost)) {
+        if (ipAddress) {
             findings += "الرابط يستخدم عنوان IP بدل اسم نطاق واضح."
         }
-        if (shortenerHosts.any { normalizedHost == it || normalizedHost.endsWith(".$it") }) {
+        if (shortenerHosts.any { asciiHost == it || asciiHost.endsWith(".$it") }) {
             findings += "الرابط يستخدم خدمة اختصار؛ الوجهة النهائية غير ظاهرة من الرابط وحده."
         }
         if (!uri.scheme.equals("https", ignoreCase = true)) {
@@ -69,16 +74,16 @@ object WebLinkAnalyzer {
         if (uri.port > 0 && uri.port !in setOf(80, 443)) {
             findings += "الرابط يستخدم منفذًا غير معتاد لمواقع الويب."
         }
-        if (normalizedHost.length > 64) {
+        if (asciiHost.length > 64) {
             findings += "اسم النطاق طويل بشكل ملحوظ؛ راجعه قبل فتح الصفحة."
         }
 
         val level = when {
             uri.userInfo != null ||
-                normalizedHost.startsWith("xn--") ||
-                normalizedHost.contains(".xn--") ||
-                isIpAddress(normalizedHost) ||
-                shortenerHosts.any { normalizedHost == it || normalizedHost.endsWith(".$it") } ->
+                asciiHost.startsWith("xn--") ||
+                asciiHost.contains(".xn--") ||
+                ipAddress ||
+                shortenerHosts.any { asciiHost == it || asciiHost.endsWith(".$it") } ->
                 WebLinkReviewLevel.REVIEW
             findings.isNotEmpty() -> WebLinkReviewLevel.CAUTION
             else -> WebLinkReviewLevel.NO_CLEAR_INDICATORS
@@ -91,7 +96,7 @@ object WebLinkAnalyzer {
         return WebLinkAnalysis(
             input = input,
             normalizedUrl = normalized,
-            host = runCatching { IDN.toUnicode(normalizedHost) }.getOrDefault(normalizedHost),
+            host = runCatching { IDN.toUnicode(asciiHost) }.getOrDefault(normalizedHost),
             level = level,
             findings = findings
         )
@@ -99,10 +104,14 @@ object WebLinkAnalyzer {
 
     private fun extractUrl(text: String): String {
         val trimmed = text.trim()
-        val match = Regex("""https?://[^\s<>""'']+""", RegexOption.IGNORE_CASE).find(trimmed)
-        return (match?.value ?: trimmed).trimEnd('.', ',', ';', ')', ']', '}', '،')
+        val explicit = Regex("""https?://[^\\s<>"']+""", RegexOption.IGNORE_CASE).find(trimmed)
+        val bareDomain = Regex(
+            """(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\\.)+[A-Za-z]{2,}(?::\\d{1,5})?(?:/[^\\s<>"']*)?""",
+            RegexOption.IGNORE_CASE
+        ).find(trimmed)
+        return (explicit?.value ?: bareDomain?.value ?: trimmed)
+            .trimEnd('.', ',', ';', ')', ']', '}', '،')
     }
-
     private fun invalid(input: String, normalized: String) = WebLinkAnalysis(
         input = input,
         normalizedUrl = null,
