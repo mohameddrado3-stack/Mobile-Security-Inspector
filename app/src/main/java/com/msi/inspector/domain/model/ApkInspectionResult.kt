@@ -11,7 +11,7 @@ data class ApkInspectionResult(
     val versionName: String,
     val targetSdk: Int,
     val isDebuggable: Boolean,
-    val allowsCleartextTraffic: Boolean,
+    val mayAllowCleartextTraffic: Boolean,
     val requestedPermissions: List<String>,
     val dangerousPermissions: List<String>,
     val unclassifiedPermissions: List<String>,
